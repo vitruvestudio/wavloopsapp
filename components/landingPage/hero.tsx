@@ -51,10 +51,7 @@ export function Hero() {
             <span className="relative inline-block rounded-r-1 bg-accent px-[0.18em] pb-[0.04em] text-accent-ink">
               Turn
             </span>{" "}
-            your free kits into{" "}
-            <span className="text-accent">followers</span>,{" "}
-            <span className="text-accent">emails</span> and{" "}
-            <span className="text-accent">future buyers</span>.
+            your free kits into followers, emails and future buyers.
           </h1>
 
           <p className="mx-auto mt-s-5 max-w-2xl text-[15px] leading-[1.55] text-text-2 sm:mt-s-6 sm:text-lead">
