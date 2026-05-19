@@ -56,13 +56,13 @@ export function Solution() {
 
       <div className="relative mx-auto max-w-7xl px-s-4 py-s-8 sm:px-s-5 sm:py-s-9">
         <div className="grid gap-s-7 lg:grid-cols-2 lg:gap-s-8">
-          {/* LEFT — Growth Gate Flow animated card */}
-          <div className="relative">
+          {/* LEFT desktop — Growth Gate Flow animated card (order swapped on mobile so text comes first) */}
+          <div className="relative order-2 lg:order-1">
             <GrowthGateFlowCard />
           </div>
 
-          {/* RIGHT — text + benefits */}
-          <div className="flex flex-col gap-s-5 sm:gap-s-6">
+          {/* RIGHT desktop — text + benefits (shown first on mobile) */}
+          <div className="order-1 flex flex-col gap-s-5 sm:gap-s-6 lg:order-2">
             <span className="inline-flex h-[22px] items-center gap-s-2 self-start rounded-r-1 border border-accent px-s-2 font-mono text-mono-eyebrow uppercase tracking-mono-data text-accent">
               <span aria-hidden>●</span>
               The Solution

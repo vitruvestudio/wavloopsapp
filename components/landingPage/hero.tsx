@@ -42,7 +42,7 @@ export function Hero() {
           <div className="inline-flex items-center gap-s-2 sm:gap-s-3">
             <span aria-hidden className="h-px w-s-4 bg-line-strong sm:w-s-6" />
             <span className="font-mono text-[10px] uppercase tracking-mono-eyebrow text-text-2 sm:text-mono-eyebrow">
-              For music producers · Beta
+              For music producers
             </span>
             <span aria-hidden className="h-px w-s-4 bg-line-strong sm:w-s-6" />
           </div>
@@ -51,7 +51,10 @@ export function Hero() {
             <span className="relative inline-block rounded-r-1 bg-accent px-[0.18em] pb-[0.04em] text-accent-ink">
               Turn
             </span>{" "}
-            your free kits into followers, emails and future buyers.
+            your free kits into{" "}
+            <span className="text-accent">followers</span>,{" "}
+            <span className="text-accent">emails</span> and{" "}
+            <span className="text-accent">future buyers</span>.
           </h1>
 
           <p className="mx-auto mt-s-5 max-w-2xl text-[15px] leading-[1.55] text-text-2 sm:mt-s-6 sm:text-lead">
@@ -174,7 +177,7 @@ export function Hero() {
             </div>
 
             <VideoLoop
-              src="/Videos/0518.mp4"
+              src="/Videos/0519.mp4"
               className="block aspect-video w-full bg-black"
             />
           </div>
