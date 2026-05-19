@@ -1,0 +1,136 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  darkMode: "class",
+  content: [
+    "./app/**/*.{ts,tsx,mdx}",
+    "./components/**/*.{ts,tsx,mdx}",
+    "./lib/**/*.{ts,tsx}",
+  ],
+  theme: {
+    container: {
+      center: true,
+      padding: "1.5rem",
+      screens: { "2xl": "1280px" },
+    },
+    extend: {
+      colors: {
+        bg: "var(--bg)",
+        "bg-deep": "var(--bg-deep)",
+        "surface-1": "var(--surface-1)",
+        "surface-2": "var(--surface-2)",
+        "surface-3": "var(--surface-3)",
+        line: "var(--line)",
+        "line-strong": "var(--line-strong)",
+        "text-1": "var(--text-1)",
+        "text-2": "var(--text-2)",
+        "text-3": "var(--text-3)",
+        accent: "var(--accent)",
+        "accent-ink": "var(--accent-ink)",
+        "accent-hover": "#3D38FF",
+        destructive: "var(--destructive)",
+
+        // shadcn semantic aliases (mapped to Wavloops tokens)
+        background: "var(--bg)",
+        foreground: "var(--text-1)",
+        border: "var(--line-strong)",
+        input: "var(--line-strong)",
+        ring: "var(--accent)",
+        muted: { DEFAULT: "var(--surface-1)", foreground: "var(--text-2)" },
+        card: { DEFAULT: "var(--surface-1)", foreground: "var(--text-1)" },
+        popover: { DEFAULT: "var(--surface-2)", foreground: "var(--text-1)" },
+        primary: { DEFAULT: "var(--accent)", foreground: "var(--accent-ink)" },
+        secondary: { DEFAULT: "var(--text-1)", foreground: "#000000" },
+        accent_ui: { DEFAULT: "var(--surface-2)", foreground: "var(--text-1)" },
+      },
+      fontFamily: {
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        sans: ["var(--font-body)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+      },
+      fontSize: {
+        "display-hero": ["138px", { lineHeight: "0.82", letterSpacing: "-0.05em" }],
+        "display-h2": ["96px", { lineHeight: "0.85", letterSpacing: "-0.045em" }],
+        "display-h3": ["64px", { lineHeight: "0.85", letterSpacing: "-0.045em" }],
+        "display-h4": ["48px", { lineHeight: "0.9", letterSpacing: "-0.03em" }],
+        "display-metric": ["36px", { lineHeight: "1.0", letterSpacing: "-0.02em" }],
+        title: ["28px", { lineHeight: "1.2" }],
+        lead: ["18px", { lineHeight: "1.55" }],
+        "lead-sm": ["16px", { lineHeight: "1.55" }],
+        "button-lg": ["15px", { lineHeight: "1.0", letterSpacing: "0.02em" }],
+        body: ["14px", { lineHeight: "1.55" }],
+        "button-sm": ["12px", { lineHeight: "1.0" }],
+        caption: ["12px", { lineHeight: "1.5" }],
+        "mono-eyebrow": ["11px", { lineHeight: "1.6", letterSpacing: "0.18em" }],
+        "mono-caption": ["10px", { lineHeight: "1.6", letterSpacing: "0.18em" }],
+        "mono-tiny": ["9px", { lineHeight: "1.6", letterSpacing: "0.18em" }],
+      },
+      spacing: {
+        "s-1": "4px",
+        "s-2": "8px",
+        "s-3": "12px",
+        "s-4": "16px",
+        "s-5": "24px",
+        "s-6": "32px",
+        "s-7": "48px",
+        "s-8": "64px",
+        "s-9": "96px",
+      },
+      borderRadius: {
+        "r-0": "0px",
+        "r-1": "2px",
+        "r-2": "4px",
+        "r-3": "6px",
+        lg: "6px",
+        md: "4px",
+        sm: "2px",
+      },
+      borderWidth: {
+        hairline: "1px",
+        strong: "2px",
+      },
+      letterSpacing: {
+        "display-very-tight": "-0.05em",
+        "display-tight": "-0.045em",
+        "display-normal": "-0.04em",
+        "display-loose": "-0.03em",
+        subtitle: "-0.02em",
+        body: "0em",
+        button: "0.02em",
+        "mono-data": "0.04em",
+        "mono-data-loose": "0.14em",
+        "mono-button": "0.16em",
+        "mono-eyebrow": "0.18em",
+        "mono-registration": "0.2em",
+      },
+      transitionTimingFunction: {
+        wav: "cubic-bezier(.2,.8,.2,1)",
+      },
+      transitionDuration: {
+        wav: "120ms",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "wave-pulse": {
+          "0%, 100%": { transform: "scaleY(1)" },
+          "50%": { transform: "scaleY(1.15)" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "wave-pulse": "wave-pulse 1.6s ease-in-out infinite",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+};
+
+export default config;
