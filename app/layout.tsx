@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Unbounded, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const unbounded = Unbounded({
@@ -37,7 +38,10 @@ export default function RootLayout({
       lang="en"
       className={`${unbounded.variable} ${hanken.variable} ${jetbrains.variable}`}
     >
-      <body className="bg-bg">{children}</body>
+      <body className="bg-bg">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
