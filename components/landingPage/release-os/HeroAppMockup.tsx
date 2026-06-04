@@ -7,6 +7,11 @@
  *   - right activity feed with 4 live events
  *   - on top: scrim + 84px pulsing play button + bottom scrubber labelled "// demo"
  *
+ * Click the play button → the real demo video replaces the mockup poster.
+ * Click the small close (×) in the top-right while playing → reverts to the
+ * poster. The video uses `preload="metadata"` so the bytes only download on
+ * demand (keeps the Hero LCP fast).
+ *
  * Layout breakpoints (max-width):
  *   - 860px → drop the 3D rotateX, hide right activity panel, shrink sidebar
  *   - 620px → hide sidebar entirely, shrink play button, simplify rows
@@ -17,6 +22,9 @@
  * Source of truth: `Wavloops - OS Release 2026/Pages/Wavloops Landing.html`
  */
 
+"use client";
+
+import { useRef, useState } from "react";
 import { Icon, type IconName } from "./Icon";
 
 /** Sidebar nav items (the leftmost column of the mockup). */
@@ -121,6 +129,29 @@ const BADGE_STYLES: Record<RowStatus, string> = {
 };
 
 export function HeroAppMockup() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handlePlay = () => {
+    setIsPlaying(true);
+    // play() in a microtask so the <video> element is visible first —
+    // some browsers reject play() calls on hidden elements.
+    queueMicrotask(() => {
+      videoRef.current?.play().catch(() => {
+        // play() can reject if the user navigated away mid-click; safe to ignore
+      });
+    });
+  };
+
+  const handleClose = () => {
+    const v = videoRef.current;
+    if (v) {
+      v.pause();
+      v.currentTime = 0;
+    }
+    setIsPlaying(false);
+  };
+
   return (
     <div
       id="demo"
@@ -299,57 +330,101 @@ export function HeroAppMockup() {
             </div>
           </aside>
 
-          {/* ====== video overlay ====== */}
-          {/* scrim */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-[3]"
-            style={{
-              background:
-                "radial-gradient(60% 70% at 50% 42%, rgba(5,5,7,0.28), rgba(5,5,7,0.62))",
-            }}
+          {/* ====== video (lazy — only bytes download when user clicks play) ====== */}
+          <video
+            ref={videoRef}
+            src="/Videos/Demo_Video_ReleaseOS.mp4"
+            preload="metadata"
+            playsInline
+            controls={isPlaying}
+            onEnded={handleClose}
+            className={`absolute inset-0 z-[5] h-full w-full bg-black object-cover transition-opacity duration-300 ${
+              isPlaying ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
           />
 
-          {/* play button + pulsing ring */}
-          <div className="absolute left-1/2 top-[46%] z-[4] -translate-x-1/2 -translate-y-1/2">
+          {/* Close (×) button — only when playing. Sits above native controls. */}
+          {isPlaying && (
             <button
               type="button"
-              aria-label="Play demo"
-              className="relative flex h-[84px] w-[84px] items-center justify-center rounded-full border-none bg-accent text-white transition-transform duration-wav ease-wav hover:scale-[1.06] max-[620px]:h-[64px] max-[620px]:w-[64px]"
+              onClick={handleClose}
+              aria-label="Close demo"
+              className="absolute right-[16px] top-[16px] z-[6] flex h-[34px] w-[34px] items-center justify-center rounded-full border border-white/[0.18] bg-black/60 text-white backdrop-blur-md transition-colors duration-wav ease-wav hover:bg-black/80"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          )}
+
+          {/* ====== poster overlays (scrim + play + bottom scrubber) ====== */}
+          {/* Hidden whilst the video plays via opacity + pointer-events. */}
+          <div
+            className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-300 ${
+              isPlaying ? "opacity-0" : "opacity-100"
+            }`}
+          >
+            {/* scrim */}
+            <div
+              aria-hidden
+              className="absolute inset-0 z-[3]"
               style={{
-                boxShadow:
-                  "0 0 0 10px rgba(43,37,255,0.16), 0 20px 50px -12px rgba(43,37,255,0.9)",
+                background:
+                  "radial-gradient(60% 70% at 50% 42%, rgba(5,5,7,0.28), rgba(5,5,7,0.62))",
+              }}
+            />
+
+            {/* play button + pulsing ring */}
+            <div className="absolute left-1/2 top-[46%] z-[4] -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
+              <button
+                type="button"
+                onClick={handlePlay}
+                aria-label="Play demo"
+                className="relative flex h-[84px] w-[84px] items-center justify-center rounded-full border-none bg-accent text-white transition-transform duration-wav ease-wav hover:scale-[1.06] max-[620px]:h-[64px] max-[620px]:w-[64px]"
+                style={{
+                  boxShadow:
+                    "0 0 0 10px rgba(43,37,255,0.16), 0 20px 50px -12px rgba(43,37,255,0.9)",
+                }}
+              >
+                <Icon name="play" size={30} />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-[10px] rounded-full border border-[rgba(96,90,255,0.5)] motion-safe:[animation:wv-play-ring_2.4s_ease-out_infinite]"
+                />
+              </button>
+            </div>
+
+            {/* bottom scrubber (decorative — real controls appear on the
+                video element itself once playback starts) */}
+            <div
+              className="absolute inset-x-0 bottom-0 z-[4] flex items-center gap-[16px] px-[22px] py-[20px]"
+              style={{
+                background:
+                  "linear-gradient(180deg, transparent, rgba(5,5,7,0.85))",
               }}
             >
-              <Icon name="play" size={30} />
-              {/* pulsing ring */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -inset-[10px] rounded-full border border-[rgba(96,90,255,0.5)] motion-safe:[animation:wv-play-ring_2.4s_ease-out_infinite]"
-              />
-            </button>
-          </div>
-
-          {/* bottom scrubber */}
-          <div
-            className="absolute inset-x-0 bottom-0 z-[4] flex items-center gap-[16px] px-[22px] py-[20px]"
-            style={{
-              background:
-                "linear-gradient(180deg, transparent, rgba(5,5,7,0.85))",
-            }}
-          >
-            <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.13em] text-[#dcdcff]">
-              <span className="text-accent">//</span> Demo — see it work
-            </span>
-            <span className="relative h-[4px] flex-1 overflow-hidden rounded-[4px] bg-white/[0.16]">
-              <span
-                aria-hidden
-                className="absolute inset-y-0 left-0 w-[34%] rounded-[4px] bg-accent"
-              />
-            </span>
-            <span className="shrink-0 font-mono text-[10.5px] text-text-2">
-              0:00 / 1:24
-            </span>
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.13em] text-[#dcdcff]">
+                <span className="text-accent">//</span> Demo — see it work
+              </span>
+              <span className="relative h-[4px] flex-1 overflow-hidden rounded-[4px] bg-white/[0.16]">
+                <span
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 w-[34%] rounded-[4px] bg-accent"
+                />
+              </span>
+              <span className="shrink-0 font-mono text-[10.5px] text-text-2">
+                0:00 / 1:24
+              </span>
+            </div>
           </div>
         </div>
       </div>
