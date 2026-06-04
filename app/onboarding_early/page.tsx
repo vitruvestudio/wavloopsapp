@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { OnboardingFlow } from "./onboarding-flow";
 
 export const metadata: Metadata = {
-  title: "Claim your spot — Wavloops Early Access",
+  title: "Claim your early-access spot — Wavloops",
   description:
-    "Founding Producer Program — answer a few quick questions to claim one of the first 20 spots.",
+    "Founding Producer Program — four quick questions to claim one of the first 20 spots. Lock your early-access price for life.",
 };
 
 export default function OnboardingEarlyPage() {

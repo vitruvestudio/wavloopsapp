@@ -1,0 +1,114 @@
+/* ============================================================
+   Wavloops — Design Tokens
+   colors_and_type.css · single source of truth
+   Dark only. Editorial brutalist-clean, premium-rounded.
+   Accent: electric blue #2B25FF.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+:root{
+  /* ---- surfaces (dark only) ---- */
+  --bg:#0A0A0A;            /* page background */
+  --bg-deep:#050505;       /* deepest sections */
+  --surface-1:#131314;     /* cards / panels */
+  --surface-2:#1A1A1C;     /* popovers / hover fills */
+  --surface-3:#242427;     /* elevation +1 / tracks */
+  --line:#222224;          /* hairline */
+  --line-strong:#323235;   /* borders, inputs, chips */
+
+  /* ---- text ---- */
+  --text-1:#F7F7F5;        /* primary */
+  --text-2:#9A9A97;        /* secondary / muted */
+  --text-3:#5A5A58;        /* tertiary / hints, mono captions */
+
+  /* ---- accent (electric blue, kept) ---- */
+  --accent:#2B25FF;
+  --accent-hover:#4A45FF;
+  --accent-ink:#FFFFFF;
+  --accent-soft:rgba(64,58,255,.16);   /* washes, active chips */
+  --accent-line:rgba(96,90,255,.40);   /* active borders */
+  --danger:#FF453A;
+
+  /* ---- type families ---- */
+  --font-display:'Unbounded', system-ui, sans-serif;   /* H1–H4, metrics, wordmark */
+  --font-body:'Hanken Grotesk', system-ui, sans-serif; /* default UI + body */
+  --font-mono:'JetBrains Mono', ui-monospace, monospace; /* eyebrows, data, labels */
+
+  /* ---- type scale (px / line-height / tracking) ---- */
+  --display-hero: 96px;   --display-hero-lh: .92;  --display-hero-ls: -.05em;
+  --display-h2:   64px;   --display-h2-lh:   .95;  --display-h2-ls:   -.045em;
+  --display-h3:   34px;   --display-h3-lh:   1.0;  --display-h3-ls:   -.04em;
+  --display-metric:26px;  --display-metric-lh:1.0; --display-metric-ls:-.03em;
+  --title:        20px;   --title-lh:        1.2;
+  --lead:         18px;   --lead-lh:         1.55;
+  --body:         14px;   --body-lh:         1.55;
+  --caption:      12px;   --caption-lh:      1.5;
+  --mono-eyebrow: 11px;   --mono-eyebrow-ls: .20em;
+  --mono-data:    10px;   --mono-data-ls:    .08em;
+  --mono-tiny:    9.5px;  --mono-tiny-ls:    .12em;
+
+  /* ---- spacing (4/8 scale) ---- */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px;
+  --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px;
+
+  /* ---- radii (PREMIUM ROUNDED — pills for interactive, soft cards) ---- */
+  --r-sm:10px;     /* small thumbs, inputs */
+  --r-cover:12px;  /* cover art */
+  --r-card:16px;   /* cards / panels */
+  --r-pill:999px;  /* buttons, chips, tags, search */
+
+  /* ---- borders ---- */
+  --border-hairline:1px;
+  --border-strong:2px;
+
+  /* ---- motion ---- */
+  --ease:cubic-bezier(.2,.8,.2,1);   /* "ease-wav" */
+  --dur:120ms;
+
+  /* ---- elevation (subtle; elevation is mostly tonal) ---- */
+  --shadow-pop:0 20px 50px -20px rgba(0,0,0,.7);
+  --glow-accent:0 0 0 4px var(--accent-soft), 0 10px 30px -10px rgba(64,58,255,.8);
+}
+
+/* ============================================================
+   Semantic base — opt-in helpers
+   ============================================================ */
+
+.wv-display-hero{ font-family:var(--font-display); font-weight:700; font-size:var(--display-hero); line-height:var(--display-hero-lh); letter-spacing:var(--display-hero-ls); }
+.wv-display-h2{ font-family:var(--font-display); font-weight:700; font-size:var(--display-h2); line-height:var(--display-h2-lh); letter-spacing:var(--display-h2-ls); }
+.wv-display-h3{ font-family:var(--font-display); font-weight:600; font-size:var(--display-h3); line-height:var(--display-h3-lh); letter-spacing:var(--display-h3-ls); }
+.wv-metric{ font-family:var(--font-display); font-weight:600; font-size:var(--display-metric); letter-spacing:var(--display-metric-ls); }
+.wv-title{ font-family:var(--font-body); font-weight:600; font-size:var(--title); line-height:var(--title-lh); }
+.wv-lead{ font-family:var(--font-body); font-size:var(--lead); line-height:var(--lead-lh); color:var(--text-2); }
+.wv-body{ font-family:var(--font-body); font-size:var(--body); line-height:var(--body-lh); }
+.wv-caption{ font-family:var(--font-body); font-size:var(--caption); line-height:var(--caption-lh); }
+
+/* Eyebrow — the signature editorial label. Prefix with // and a section number. */
+.wv-eyebrow{ font-family:var(--font-mono); font-size:var(--mono-eyebrow); letter-spacing:var(--mono-eyebrow-ls); text-transform:uppercase; color:var(--text-2); }
+.wv-eyebrow .slash{ color:var(--accent); }
+
+/* Mono data string (BPM · KEY · WAV · STEMS) */
+.wv-data{ font-family:var(--font-mono); font-size:var(--mono-data); letter-spacing:var(--mono-data-ls); text-transform:uppercase; color:var(--text-3); }
+
+/* Grain — apply to any "material" dark surface (0.06 opacity overlay). */
+.wv-grain{ position:relative; isolation:isolate; }
+.wv-grain::after{
+  content:""; position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:overlay; z-index:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size:200px 200px;
+}
+.wv-grain > *{ position:relative; z-index:1; }
+
+/* Buttons — premium pills */
+.wv-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:var(--font-body); font-weight:600; font-size:14px; cursor:pointer; border-radius:var(--r-pill); padding:11px 22px; border:1px solid transparent; transition:all var(--dur) var(--ease); white-space:nowrap; }
+.wv-btn-primary{ background:var(--accent); color:#fff; }
+.wv-btn-primary:hover{ background:var(--accent-hover); box-shadow:var(--glow-accent); transform:translateY(-1px); }
+.wv-btn-primary:active{ transform:scale(.98); }
+.wv-btn-ghost{ background:transparent; color:var(--text-1); border-color:var(--line-strong); }
+.wv-btn-ghost:hover{ background:var(--surface-2); border-color:var(--text-3); }
+.wv-btn-sm{ padding:8px 16px; font-size:13px; }
+
+/* Data tag / chip */
+.wv-tag{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-2); border:1px solid var(--line-strong); border-radius:var(--r-pill); padding:3px 10px; display:inline-flex; gap:5px; align-items:center; white-space:nowrap; }
+.wv-tag-accent{ color:#fff; border-color:var(--accent-line); background:var(--accent-soft); }

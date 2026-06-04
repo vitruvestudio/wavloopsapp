@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wavloops — Icons</title>
+<link rel="stylesheet" href="colors_and_type.css" />
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--bg); color:var(--text-1); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:64px 40px 96px; }
+
+  .head .eyebrow{ font-family:var(--font-mono); font-size:var(--mono-eyebrow); letter-spacing:.20em; text-transform:uppercase; color:var(--text-2); }
+  .head .eyebrow .s{ color:var(--accent); }
+  .head h1{ font-family:var(--font-display); font-weight:700; font-size:clamp(34px,5vw,60px); letter-spacing:-.05em; line-height:.96; margin:16px 0 0; }
+  .head p{ font-size:16px; line-height:1.6; color:var(--text-2); max-width:62ch; margin:18px 0 0; }
+  .head .meta{ display:flex; gap:10px; flex-wrap:wrap; margin-top:24px; }
+
+  .controls{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:40px 0 8px; padding:16px 18px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--surface-1); position:sticky; top:16px; z-index:5; backdrop-filter:blur(18px); }
+  .controls .lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); }
+  .controls input[type=search]{ flex:1; min-width:180px; background:var(--bg); border:1px solid var(--line-strong); border-radius:var(--r-pill); color:var(--text-1); font-family:var(--font-body); font-size:14px; padding:9px 16px; outline:none; }
+  .controls input[type=search]:focus{ border-color:var(--accent-line); }
+  .controls .seg{ display:flex; gap:4px; background:var(--bg); border:1px solid var(--line-strong); border-radius:var(--r-pill); padding:3px; }
+  .controls .seg button{ font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--text-2); background:none; border:none; border-radius:var(--r-pill); padding:6px 12px; cursor:pointer; }
+  .controls .seg button.on{ background:var(--surface-2); color:var(--text-1); }
+  .controls .count{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+
+  .group{ margin-top:44px; }
+  .group h2{ font-family:var(--font-mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); margin:0 0 18px; display:flex; align-items:center; gap:10px; }
+  .group h2 .s{ color:var(--accent); }
+  .group h2 .ln{ flex:1; height:1px; background:var(--line); }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(118px,1fr)); gap:10px; }
+  .cell{ display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 12px 14px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--surface-1); cursor:pointer; transition:border-color var(--dur) var(--ease), transform var(--dur) var(--ease), background var(--dur) var(--ease); }
+  .cell:hover{ border-color:var(--accent-line); transform:translateY(-3px); background:var(--surface-2); }
+  .cell .ico{ color:var(--text-1); display:flex; align-items:center; justify-content:center; height:30px; }
+  .cell:hover .ico{ color:var(--accent); }
+  .cell .nm{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.04em; color:var(--text-3); text-align:center; word-break:break-word; line-height:1.3; }
+  .cell:hover .nm{ color:var(--text-2); }
+  .cell.copied{ border-color:var(--accent); }
+  .cell.copied .nm{ color:var(--accent); }
+
+  .toast{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none; transition:all 200ms var(--ease); background:var(--accent); color:#fff; font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:11px 18px; border-radius:var(--r-pill); box-shadow:var(--glow-accent); z-index:30; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .usage{ margin-top:60px; border-top:1px solid var(--line); padding-top:36px; }
+  .usage h3{ font-family:var(--font-mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--text-2); margin:0 0 16px; }
+  .usage pre{ background:var(--bg-deep); border:1px solid var(--line); border-radius:var(--r-card); padding:18px 20px; overflow:auto; margin:0 0 14px; }
+  .usage code{ font-family:var(--font-mono); font-size:12.5px; line-height:1.7; color:var(--text-1); }
+  .usage .cmt{ color:var(--text-3); }
+  .usage .tok{ color:#9d9aff; }
+  .empty{ padding:48px; text-align:center; font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow"><span class="s">//</span> 006 &mdash; iconography</div>
+      <h1>Wavloops icons</h1>
+      <p>The brand&rsquo;s own icon set &mdash; geometric, editorial, premium. Drawn on a 24px grid with a 1.7px stroke, round caps, and <b>currentColor</b> so they inherit text color and the accent on active states. Click any icon to copy its name.</p>
+      <div class="head meta">
+        <span class="wv-tag">24PX GRID</span>
+        <span class="wv-tag">1.7PX STROKE</span>
+        <span class="wv-tag">CURRENTCOLOR</span>
+        <span class="wv-tag wv-tag-accent" id="totalTag">&mdash; ICONS</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <span class="lbl">Find</span>
+      <input type="search" id="q" placeholder="Search icons by name…" autocomplete="off" />
+      <span class="lbl">Size</span>
+      <div class="seg" id="sizeSeg">
+        <button data-s="20">20</button>
+        <button data-s="24" class="on">24</button>
+        <button data-s="32">32</button>
+        <button data-s="40">40</button>
+      </div>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div id="groups"></div>
+    <div class="empty" id="empty" style="display:none">No icons match that search.</div>
+
+    <div class="usage">
+      <h3>// Using the set</h3>
+      <pre><code><span class="cmt">&lt;!-- 1 · load the set --&gt;</span>
+&lt;<span class="tok">script</span> src="wavloops-icons.js"&gt;&lt;/<span class="tok">script</span>&gt;
+
+<span class="cmt">&lt;!-- 2 · inline attribute (auto-hydrates) --&gt;</span>
+&lt;<span class="tok">span</span> data-wv-icon="upload"&gt;&lt;/<span class="tok">span</span>&gt;
+&lt;<span class="tok">span</span> data-wv-icon="play" data-size="32" data-stroke="2"&gt;&lt;/<span class="tok">span</span>&gt;
+
+<span class="cmt">&lt;!-- 3 · web component --&gt;</span>
+&lt;<span class="tok">wv-icon</span> name="cart" size="20"&gt;&lt;/<span class="tok">wv-icon</span>&gt;
+
+<span class="cmt">// 4 · programmatic (returns an SVG string)</span>
+el.innerHTML = WavloopsIcons.svg(<span class="tok">'youtube'</span>, { size: 18 });</code></pre>
+      <p style="font-size:13px; color:var(--text-3); font-family:var(--font-mono); letter-spacing:.04em; margin:0;">Color follows <b style="color:var(--text-2)">currentColor</b> &mdash; set <b style="color:var(--text-2)">color:</b> on the parent. Names list: <b style="color:var(--text-2)">WavloopsIcons.names()</b></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied</div>
+
+  <script src="wavloops-icons.js"></script>
+  <script>
+    var GROUPS = [
+      ['Navigation & app', ['upload','library','visual-library','producer-wall','queue','calendar','settings','home','search','bell','grid']],
+      ['Playback', ['play','pause','skip-back','skip-forward','shuffle','repeat','volume']],
+      ['Audio & metadata', ['waveform','bpm','key','mood','file-audio','file-wave','file-stems','zip','download','cover']],
+      ['Commerce', ['cart','price-tag','link','lock','unlock','store','wallet']],
+      ['Workflow & status', ['check','check-circle','x','plus','minus','chevron-right','chevron-down','arrow-right','arrow-up-right','bolt','spark','target','clock','send']],
+      ['People & social', ['user','user-add','heart','eye','more','edit','share','filter']],
+      ['Platforms', ['youtube','soundcloud','discord','instagram','email']],
+      ['Brand', ['wavloops-mark']]
+    ];
+    var SIZE = 24;
+    var groupsEl = document.getElementById('groups');
+    var emptyEl = document.getElementById('empty');
+    var countEl = document.getElementById('count');
+    var toast = document.getElementById('toast');
+    var total = WavloopsIcons.names().length;
+    document.getElementById('totalTag').textContent = total + ' ICONS';
+
+    function render(filter){
+      filter = (filter||'').trim().toLowerCase();
+      groupsEl.innerHTML='';
+      var shown=0;
+      GROUPS.forEach(function(g){
+        var names = g[1].filter(function(n){ return !filter || n.indexOf(filter)>-1; });
+        if(!names.length) return;
+        shown += names.length;
+        var sec=document.createElement('div'); sec.className='group';
+        var h=document.createElement('h2'); h.innerHTML='<span class="s">//</span> '+g[0]+'<span class="ln"></span>';
+        sec.appendChild(h);
+        var grid=document.createElement('div'); grid.className='grid';
+        names.forEach(function(n){
+          var cell=document.createElement('div'); cell.className='cell'; cell.title='Click to copy "'+n+'"';
+          cell.innerHTML='<span class="ico">'+WavloopsIcons.svg(n,{size:SIZE})+'</span><span class="nm">'+n+'</span>';
+          cell.addEventListener('click', function(){ copy(n, cell); });
+          grid.appendChild(cell);
+        });
+        sec.appendChild(grid); groupsEl.appendChild(sec);
+      });
+      emptyEl.style.display = shown? 'none':'block';
+      countEl.textContent = shown+' / '+total;
+    }
+    function copy(name, cell){
+      var t = 'data-wv-icon="'+name+'"';
+      (navigator.clipboard ? navigator.clipboard.writeText(name) : Promise.resolve()).catch(function(){});
+      cell.classList.add('copied'); setTimeout(function(){ cell.classList.remove('copied'); }, 700);
+      toast.textContent = 'Copied "'+name+'"';
+      toast.classList.add('show'); clearTimeout(window.__tt); window.__tt=setTimeout(function(){ toast.classList.remove('show'); }, 1300);
+    }
+    document.getElementById('q').addEventListener('input', function(e){ render(e.target.value); });
+    document.getElementById('sizeSeg').addEventListener('click', function(e){
+      var b=e.target.closest('button[data-s]'); if(!b) return;
+      SIZE=+b.getAttribute('data-s');
+      this.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on');
+      render(document.getElementById('q').value);
+    });
+    render('');
+  </script>
+
+  <template id="__bundler_thumbnail">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0A0A0A"/><g stroke="#2B25FF" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M30 42v-9M26 37l4-4 4 4"/><circle cx="66" cy="38" r="8"/><path d="M30 64l5-5 4 4 6-7 6 8"/><rect cx="64" x="58" y="58" width="14" height="14" rx="3"/></g></svg>
+  </template>
+</body>
+</html>

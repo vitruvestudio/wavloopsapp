@@ -1,30 +1,108 @@
+/* ============================================================
+   Wavloops — Design System 2026 · globals.css
+   Source of truth for CSS tokens + .wv-* helper classes.
+   Mirrored in tailwind.config.ts (theme.extend).
+   ============================================================ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Hero mockup — pulsing ring behind the demo play button.
+   Declared globally (outside @layer) because @keyframes are scoped lexically. */
+@keyframes wv-play-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* HowItWorks (S03) — chevron arrows between steps gently pulse toward the
+   next step, hinting at the flow direction. Reduced-motion users get static. */
+@keyframes wv-flow-arrow {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(5px);
+    opacity: 1;
+  }
+}
+.wv-anim-flow-arrow {
+  animation: wv-flow-arrow 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wv-anim-flow-arrow {
+    animation: none;
+  }
+}
+
+/* SafeAutoMode (S06) — fade-in-up for board cards when the user toggles
+   between Safe Mode and Auto Mode. Triggered fresh on each mount via
+   `key` change. Reduced-motion users get an instant swap. */
+@keyframes wv-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.wv-anim-fade-in-up {
+  animation: wv-fade-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wv-anim-fade-in-up {
+    animation: none;
+  }
+}
+
 @layer base {
   :root {
-    /* Surfaces */
-    --bg: #0a0a0a;
-    --bg-deep: #050505;
-    --surface-1: #111111;
-    --surface-2: #181818;
-    --surface-3: #1f1f1f;
-    --line: #262626;
-    --line-strong: #333333;
+    /* ---- surfaces (dark only) ---- */
+    --bg: #0a0a0a;            /* page background */
+    --bg-deep: #050505;       /* deepest sections */
+    --surface-1: #131314;     /* cards / panels */
+    --surface-2: #1a1a1c;     /* popovers / hover fills */
+    --surface-3: #242427;     /* elevation +1 / tracks */
+    --line: #222224;          /* hairline */
+    --line-strong: #323235;   /* borders, inputs, chips */
 
-    /* Text */
-    --text-1: #fafafa;
-    --text-2: #9a9a9a;
-    --text-3: #5c5c5c;
+    /* ---- text ---- */
+    --text-1: #f7f7f5;        /* primary */
+    --text-2: #9a9a97;        /* secondary / muted */
+    --text-3: #5a5a58;        /* tertiary / hints, mono captions */
 
-    /* Accent */
+    /* ---- accent (electric blue) ---- */
     --accent: #2b25ff;
+    --accent-hover: #4a45ff;
     --accent-ink: #ffffff;
-    --destructive: #ff3b30;
+    --accent-soft: rgba(64, 58, 255, 0.16);   /* washes, active chips */
+    --accent-line: rgba(96, 90, 255, 0.4);    /* active borders */
+    --danger: #ff453a;
 
-    /* Motion */
+    /* ---- radii (premium rounded — pills for interactive, soft cards) ---- */
+    --r-sm: 10px;
+    --r-cover: 12px;
+    --r-card: 16px;
+    --r-pill: 999px;
+
+    /* ---- motion ---- */
     --ease-wav: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --dur: 120ms;
+
+    /* ---- elevation (subtle; elevation is mostly tonal) ---- */
+    --shadow-pop: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+    --glow-accent: 0 0 0 4px var(--accent-soft),
+      0 10px 30px -10px rgba(64, 58, 255, 0.8);
   }
 
   html {
@@ -48,28 +126,237 @@
 }
 
 @layer components {
-  /* Grain overlay — applique sur tout container "matière". 0.06 opacity. */
+  /* ============================================================
+     Type helpers
+     ============================================================ */
+
+  .wv-display-hero {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 96px;
+    line-height: 0.92;
+    letter-spacing: -0.05em;
+  }
+
+  .wv-display-h2 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 64px;
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+  }
+
+  .wv-display-h3 {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .wv-metric {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 26px;
+    letter-spacing: -0.03em;
+  }
+
+  .wv-title {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  .wv-lead {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--text-2);
+  }
+
+  .wv-body {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .wv-caption {
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* Eyebrow — the brand's signature editorial label.
+     Prefix with `<span class="slash">//</span>` and a section number.
+     e.g. <div class="wv-eyebrow"><span class="slash">//</span> 002 — The model</div> */
+  .wv-eyebrow {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .wv-eyebrow .slash {
+    color: var(--accent);
+  }
+
+  /* Mono data string — e.g. "124 BPM · B MINOR · WAV · STEMS" */
+  .wv-data {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  /* ============================================================
+     Grain overlay — applies a 6% film grain to any material surface.
+     Use on cards, hero blocks, the blue manifesto block.
+     Class is `.wv-grain` (DS 2026). Legacy `.wav-grain` kept below as alias.
+     ============================================================ */
+
+  .wv-grain,
   .wav-grain {
     position: relative;
     isolation: isolate;
   }
+  .wv-grain::after,
   .wav-grain::after {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.5;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     background-size: 200px 200px;
     z-index: 1;
   }
+  .wv-grain > *,
   .wav-grain > * {
     position: relative;
     z-index: 2;
   }
 
-  /* Eyebrow utilitaire mono uppercase */
+  /* ============================================================
+     Buttons — premium pills
+     ============================================================ */
+
+  .wv-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: var(--r-pill);
+    padding: 11px 22px;
+    border: 1px solid transparent;
+    transition: all var(--dur) var(--ease-wav);
+    white-space: nowrap;
+  }
+  .wv-btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .wv-btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: var(--glow-accent);
+    transform: translateY(-1px);
+  }
+  .wv-btn-primary:active {
+    transform: scale(0.98);
+  }
+  .wv-btn-ghost {
+    background: transparent;
+    color: var(--text-1);
+    border-color: var(--line-strong);
+  }
+  .wv-btn-ghost:hover {
+    background: var(--surface-2);
+    border-color: var(--text-3);
+  }
+  .wv-btn-sm {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .wv-btn-lg {
+    padding: 15px 28px;
+    font-size: 15px;
+  }
+
+  /* ============================================================
+     Headline highlight — accent fill sitting BEHIND the text.
+     Used on the hero H1 ("the boring part."). Constrained line-height +
+     inline-block keep the highlight from bleeding into the line above,
+     and the ::before pseudo paints the fill on its own z-layer.
+     ============================================================ */
+
+  .wv-hl-accent {
+    position: relative;
+    display: inline-block;
+    color: #fff;
+    line-height: 1;
+    padding: 0.1em 0.12em 0.14em;
+    margin: 0 -0.04em;
+    border-radius: 0.06em;
+    vertical-align: baseline;
+    z-index: 0;
+    max-width: 100%;
+  }
+  .wv-hl-accent::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  /* Inline keyword underline — white text + accent-blue bottom rule.
+     Inherits font-weight from its context, so it can sit inside body copy
+     (add a Tailwind weight class like `font-semibold` to lift it) OR inside
+     a heading (no extra class needed — the H2/H3 weight carries through).
+     `box-decoration-break: clone` keeps the underline intact across wraps. */
+  .wv-kw {
+    color: #fff;
+    box-shadow: inset 0 -2px 0 var(--accent);
+    padding-bottom: 1px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* ============================================================
+     Tags / chips — mono pills
+     ============================================================ */
+
+  .wv-tag {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill);
+    padding: 3px 10px;
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    white-space: nowrap;
+  }
+  .wv-tag-accent {
+    color: #fff;
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+  }
+
+  /* ============================================================
+     Legacy helper kept for current landing — use .wv-eyebrow going forward
+     ============================================================ */
+
   .wav-eyebrow {
     font-family: var(--font-mono), ui-monospace, monospace;
     font-size: 11px;

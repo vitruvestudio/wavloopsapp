@@ -40,7 +40,7 @@ function emailShell(title: string, body: string): string {
         ${body}
         <tr><td style="padding:20px 32px;border-top:1px solid #262626;">
           <p style="margin:0;color:#5C5C5C;font-size:10px;text-transform:uppercase;letter-spacing:0.18em;line-height:1.6;">
-            Wavloops · Gated downloads for music producers
+            Wavloops · Drop a beat. We build the rest.
           </p>
         </td></tr>
       </table>
@@ -75,7 +75,7 @@ function userEmailContent(producerName: string) {
         Hey ${escapeHtml(producerName)},
       </p>
       <p style="margin:0 0 24px;color:#9A9A9A;font-size:14px;line-height:1.6;">
-        Your application is in. We&rsquo;re reviewing the first 20 founding producer spots before the private launch on <strong style="color:#FAFAFA;">June 20</strong>.
+        Your application is in. We&rsquo;re reviewing the first 20 founding producer spots before the private launch.
       </p>
       <p style="margin:0 0 12px;color:#5C5C5C;font-size:10px;text-transform:uppercase;letter-spacing:0.18em;">
         If selected, you get
@@ -87,11 +87,11 @@ function userEmailContent(producerName: string) {
         </td></tr>
         <tr><td style="padding:4px 0;color:#FAFAFA;font-size:14px;line-height:1.6;">
           <span style="display:inline-block;width:2px;height:12px;background:#2B25FF;vertical-align:middle;margin-right:12px;"></span>
-          $4.99/mo founding price locked for life (instead of $19/mo)
+          Early-access price locked for life
         </td></tr>
         <tr><td style="padding:4px 0;color:#FAFAFA;font-size:14px;line-height:1.6;">
           <span style="display:inline-block;width:2px;height:12px;background:#2B25FF;vertical-align:middle;margin-right:12px;"></span>
-          Help setting up your first gated kit page
+          Help connecting your YouTube channel and your first drop
         </td></tr>
         <tr><td style="padding:4px 0;color:#FAFAFA;font-size:14px;line-height:1.6;">
           <span style="display:inline-block;width:2px;height:12px;background:#2B25FF;vertical-align:middle;margin-right:12px;"></span>
@@ -112,12 +112,12 @@ function userEmailContent(producerName: string) {
 
 Hey ${producerName},
 
-Your application is in. We're reviewing the first 20 founding producer spots before the private launch on June 20.
+Your application is in. We're reviewing the first 20 founding producer spots before the private launch.
 
 If selected, you get:
 - Early access before public launch
-- $4.99/mo founding price locked for life (instead of $19/mo)
-- Help setting up your first gated kit page
+- Early-access price locked for life
+- Help connecting your YouTube channel and your first drop
 - Priority influence on the roadmap
 
 We'll reach out within 48 hours with next steps.
@@ -148,7 +148,7 @@ function adminEmailContent(payload: OnboardingPayload) {
         ${row("Email", `<a href="mailto:${escapeHtml(payload.email)}" style="color:#FAFAFA;text-decoration:none;">${escapeHtml(payload.email)}</a>`)}
         ${row("Work URL", `<a href="${escapeHtml(payload.workUrl)}" style="color:#FAFAFA;text-decoration:none;">${escapeHtml(payload.workUrl)}</a>`)}
         ${row("Interest", escapeHtml(interestLabel))}
-        ${row("Grow goals", payload.growGoals.length > 0 ? escapeHtml(payload.growGoals.join(" · ")) : "<span style=\"color:#5C5C5C;\">none selected</span>")}
+        ${row("Pain points", payload.growGoals.length > 0 ? escapeHtml(payload.growGoals.join(" · ")) : "<span style=\"color:#5C5C5C;\">none selected</span>")}
       </table>
       <p style="margin:24px 0 0;color:#5C5C5C;font-size:11px;line-height:1.6;">
         Review and update status in Supabase &rarr; <a href="https://supabase.com/dashboard/project/_/editor" style="color:#2B25FF;text-decoration:none;">onboarding_early</a> table.
@@ -163,7 +163,7 @@ Producer: ${payload.producerName}
 Email: ${payload.email}
 Work URL: ${payload.workUrl}
 Interest: ${interestLabel}
-Grow goals: ${payload.growGoals.join(", ") || "none selected"}
+Pain points: ${payload.growGoals.join(", ") || "none selected"}
 
 Review in Supabase → onboarding_early table.`;
 

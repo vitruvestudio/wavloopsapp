@@ -25,9 +25,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wavloops — Gated downloads for producers",
+  title: "Wavloops — Drop a beat. We build the rest.",
   description:
-    "Turn your free kits into a growth engine. Gate your drum kits, loops, and presets behind a follow, email, or Discord join.",
+    "Upload your beats once. Wavloops auto-prepares the cover, sales link, YouTube title, description, tags, video and schedule. Founding access $4.99/mo — locked for life.",
 };
 
 export default function RootLayout({

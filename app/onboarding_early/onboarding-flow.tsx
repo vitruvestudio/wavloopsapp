@@ -1,49 +1,62 @@
+/**
+ * OnboardingFlow — Release OS edition
+ *
+ * Multi-step waitlist intake at /onboarding_early. 4 questions, no Q5
+ * (interest level was dropped — every new applicant is by definition early
+ * access).
+ *
+ * Flow:
+ *   intro → Q1 producer name → Q2 email → Q3 work URL
+ *         → Q4 pain points (multi-select) → submit → final
+ *
+ * Visual language is aligned with the Release OS landing:
+ *   - Same glow + grid bg pattern as the Hero
+ *   - Stripped Topbar (logo + back link only — no nav, no CTA)
+ *   - All buttons via `.wv-btn-primary` / `.wv-btn-ghost`
+ *   - Eyebrows via `.wv-eyebrow`
+ *   - rounded-pill for inputs/chips/buttons, rounded-card for cover artefacts
+ *   - Honeypot + transition gating preserved from V1
+ */
+
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Atmosphere } from "@/components/landingPage/atmosphere";
-import { CheckIcon } from "@/components/landingPage/icons";
+import { useState } from "react";
+import { Icon } from "@/components/landingPage/release-os/Icon";
 import { submitOnboarding } from "./actions";
 
-const TOTAL_QUESTIONS = 5;
+const TOTAL_QUESTIONS = 4;
 const TRANSITION_MS = 700;
 
-const GROW_OPTIONS = [
-  "Email list",
-  "Instagram followers",
-  "Tiktok followers",
-  "Youtube subscribers",
-  "Discord community",
-  "Future kit sales",
+const PAIN_POINTS = [
+  "Making thumbnails",
+  "Writing titles & tags",
+  "Uploading to YouTube",
+  "Sending beats to artists",
+  "Setting up sales pages",
+  "Staying consistent",
   "Not sure yet",
-];
+] as const;
 
-const INTEREST_OPTIONS = [
-  { value: "early-access", label: "I want early access" },
-  { value: "test-real-kit", label: "I want to test it with a real free kit" },
-  { value: "curious", label: "I'm just curious for now" },
-];
-
-type StepId = "intro" | 1 | 2 | 3 | 4 | 5 | "final";
+type StepId = "intro" | 1 | 2 | 3 | 4 | "final";
 
 type Answers = {
   producerName: string;
   email: string;
   workUrl: string;
-  growGoals: string[];
-  interestLevel: string;
+  painPoints: string[];
 };
 
 const INITIAL_ANSWERS: Answers = {
   producerName: "",
   email: "",
   workUrl: "",
-  growGoals: [],
-  interestLevel: "",
+  painPoints: [],
 };
 
-/* ---------- Shared atoms ---------- */
+/* ================================================================== */
+/* ATOMS — all migrated to Release OS DS tokens                        */
+/* ================================================================== */
 
 function PrimaryButton({
   children,
@@ -61,7 +74,7 @@ function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="group inline-flex w-full items-center justify-center gap-s-3 rounded-r-1 bg-accent px-[28px] py-[18px] text-[15px] font-semibold uppercase leading-none tracking-button text-accent-ink transition-colors duration-wav ease-wav hover:bg-accent-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[200px]"
+      className="wv-btn wv-btn-primary wv-btn-lg group w-full justify-center disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:min-w-[220px]"
     >
       {children}
       <span
@@ -76,18 +89,15 @@ function PrimaryButton({
 
 function QuestionEyebrow({ number }: { number: number }) {
   return (
-    <div className="inline-flex items-center gap-s-2">
-      <span aria-hidden className="h-[12px] w-[3px] bg-accent" />
-      <span className="font-mono text-mono-eyebrow uppercase tracking-mono-eyebrow text-text-3">
-        Question {number} of {TOTAL_QUESTIONS}
-      </span>
+    <div className="wv-eyebrow">
+      <span className="slash">//</span> Question {number} of {TOTAL_QUESTIONS}
     </div>
   );
 }
 
 function QuestionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="font-display text-[28px] font-extrabold uppercase leading-[0.95] tracking-[-0.04em] text-text-1 sm:text-[36px] md:text-[40px]">
+    <h2 className="font-display text-[clamp(28px,4vw,48px)] font-bold uppercase leading-[0.96] tracking-[-0.045em] text-text-1 text-balance">
       {children}
     </h2>
   );
@@ -120,7 +130,7 @@ function TextField({
       inputMode={inputMode}
       required={required}
       autoFocus
-      className="h-[56px] w-full rounded-r-1 border border-line-strong bg-transparent px-s-4 text-[18px] text-text-1 placeholder:text-text-3 transition-colors duration-wav ease-wav focus:border-accent focus:outline-none"
+      className="h-[56px] w-full rounded-pill border border-line-strong bg-surface-1/40 px-[22px] text-[16px] text-text-1 placeholder:text-text-3 transition-colors duration-wav ease-wav focus:border-accent focus:outline-none"
     />
   );
 }
@@ -139,59 +149,26 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex h-[36px] items-center rounded-r-1 px-s-4 text-[13px] font-medium transition-colors duration-wav ease-wav ${
+      className={`inline-flex h-[40px] items-center gap-[8px] rounded-pill border px-[16px] font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors duration-wav ease-wav ${
         selected
-          ? "border border-accent bg-accent text-accent-ink"
-          : "border border-line-strong text-text-2 hover:border-text-1 hover:text-text-1"
+          ? "border-accent bg-accent text-white"
+          : "border-line-strong text-text-2 hover:border-text-3 hover:text-text-1"
       }`}
     >
+      {selected && <Icon name="check" size={12} />}
       {label}
     </button>
   );
 }
 
-function OptionCard({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`flex w-full items-center gap-s-4 rounded-r-2 border px-s-5 py-s-4 text-left transition-colors duration-wav ease-wav ${
-        selected
-          ? "border-accent bg-surface-2"
-          : "border-line-strong bg-surface-1 hover:border-text-1"
-      }`}
-    >
-      <span
-        className={`flex h-[24px] w-[24px] flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-wav ease-wav ${
-          selected ? "border-accent" : "border-line-strong"
-        }`}
-      >
-        {selected && (
-          <span aria-hidden className="h-[10px] w-[10px] rounded-full bg-accent" />
-        )}
-      </span>
-      <span className="text-[15px] font-medium leading-snug text-text-1 sm:text-[16px]">
-        {label}
-      </span>
-    </button>
-  );
-}
-
-/* ---------- Loading state ---------- */
+/* ================================================================== */
+/* STATES                                                              */
+/* ================================================================== */
 
 function LoadingState() {
   return (
-    <div className="flex flex-col items-center justify-center gap-s-4 py-s-8">
-      <div className="flex items-center gap-s-2">
+    <div className="flex flex-col items-center justify-center gap-[16px] py-[48px]">
+      <div className="flex items-center gap-[8px]">
         {[0, 200, 400].map((delay) => (
           <span
             key={delay}
@@ -201,35 +178,40 @@ function LoadingState() {
           />
         ))}
       </div>
-      <p className="font-mono text-mono-eyebrow uppercase tracking-mono-eyebrow text-text-2">
+      <p className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-text-2">
         Saving your answer
       </p>
     </div>
   );
 }
 
-/* ---------- Screens ---------- */
-
 function IntroScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-s-5 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:gap-s-6">
-      <span className="inline-flex h-[22px] items-center gap-s-2 rounded-r-1 border border-accent px-s-2 font-mono text-mono-eyebrow uppercase tracking-mono-data text-accent">
-        <span aria-hidden className="animate-pulse">●</span>
-        Early Access
+    <div className="flex flex-col items-center gap-[24px] text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:gap-[28px]">
+      <span className="inline-flex items-center gap-[7px] rounded-pill border border-accent-line bg-accent-soft px-[10px] py-[5px] font-mono text-[9.5px] uppercase tracking-[0.13em] text-[#cfd0ff]">
+        <span
+          aria-hidden
+          className="h-[5px] w-[5px] rounded-full bg-accent"
+          style={{ boxShadow: "0 0 0 3px var(--accent-soft)" }}
+        />
+        20 founding spots
       </span>
-      <h1 className="font-display text-[32px] font-extrabold uppercase leading-[0.9] tracking-[-0.04em] text-text-1 sm:text-[44px] md:text-[52px]">
-        Claim your early access spot.
+      <h1 className="max-w-[18ch] text-balance font-display text-[clamp(32px,5vw,56px)] font-bold uppercase leading-[0.95] tracking-[-0.045em] text-text-1">
+        Claim your{" "}
+        <span className="wv-kw">early-access</span> spot.
       </h1>
-      <p className="max-w-md text-[15px] leading-[1.55] text-text-2 sm:text-lead">
-        Answer a few quick questions so we can understand what you want to grow
-        with Wavloops.
+      <p className="max-w-[44ch] text-pretty text-[clamp(15px,1.3vw,17px)] leading-[1.55] text-text-2">
+        Four quick questions so we can understand what part of the workflow
+        Wavloops should handle for you first.
       </p>
-      <p className="font-mono text-mono-caption uppercase tracking-mono-eyebrow text-text-3">
-        <span className="text-text-1">Only 20 founding producer spots</span>{" "}
-        <span aria-hidden className="mx-s-1 text-line-strong">·</span> No credit
-        card required
+      <p className="font-mono text-[10px] uppercase tracking-[0.13em] text-text-3">
+        <span className="text-text-1">No credit card required</span>{" "}
+        <span aria-hidden className="mx-[6px] text-line-strong">
+          ·
+        </span>{" "}
+        Takes under 1 minute
       </p>
-      <div className="mt-s-3">
+      <div className="mt-[8px]">
         <PrimaryButton onClick={onStart}>Start</PrimaryButton>
       </div>
     </div>
@@ -238,30 +220,28 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
 
 function FinalScreen() {
   return (
-    <div className="flex flex-col items-center gap-s-5 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:gap-s-6">
-      <div className="flex h-[64px] w-[64px] items-center justify-center rounded-r-2 bg-accent text-accent-ink">
-        <CheckIcon />
-      </div>
-      <h1 className="font-display text-[32px] font-extrabold uppercase leading-[0.9] tracking-[-0.04em] text-text-1 sm:text-[40px] md:text-[44px]">
-        You&apos;re on the founding producer list.
+    <div className="flex flex-col items-center gap-[24px] text-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500 sm:gap-[28px]">
+      <span className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-accent text-white">
+        <Icon name="check" size={32} />
+      </span>
+      <h1 className="max-w-[18ch] text-balance font-display text-[clamp(28px,4.4vw,46px)] font-bold uppercase leading-[0.95] tracking-[-0.045em] text-text-1">
+        You&rsquo;re on the founding producer list.
       </h1>
-      <p className="max-w-md text-[15px] leading-[1.55] text-text-2 sm:text-lead">
-        We&apos;re reviewing the first 20 producer spots before the private
-        launch. If selected, you&apos;ll get early access and lock your founding
-        price at{" "}
-        <span className="font-semibold text-text-1">$4.99/mo</span> instead of{" "}
-        <span className="text-text-3 line-through">$19/mo</span>.
+      <p className="max-w-[44ch] text-pretty text-[clamp(15px,1.3vw,17px)] leading-[1.55] text-text-2">
+        We&rsquo;ll be in touch as soon as your spot opens. Your{" "}
+        <b className="font-semibold text-text-1">early-access price</b> is now{" "}
+        <b className="font-semibold text-text-1">locked for life</b>.
       </p>
-      <p className="font-mono text-mono-caption uppercase tracking-mono-eyebrow text-text-3">
-        <span className="text-text-1">Private launch planned for June 20</span>{" "}
-        <span aria-hidden className="mx-s-1 text-line-strong">·</span> No credit
-        card required
+      <p className="font-mono text-[10px] uppercase tracking-[0.13em] text-text-3">
+        <Icon
+          name="lock"
+          size={11}
+          className="mr-[6px] inline-block text-accent align-[-1px]"
+        />
+        No credit card required
       </p>
-      <div className="mt-s-3">
-        <Link
-          href="/"
-          className="group inline-flex w-full items-center justify-center gap-s-3 rounded-r-1 bg-accent px-[28px] py-[18px] text-[15px] font-semibold uppercase leading-none tracking-button text-accent-ink transition-colors duration-wav ease-wav hover:bg-accent-hover active:translate-y-px sm:w-auto sm:min-w-[200px]"
-        >
+      <div className="mt-[8px]">
+        <Link href="/" className="wv-btn wv-btn-ghost wv-btn-lg group">
           Back to site
           <span
             aria-hidden
@@ -274,6 +254,10 @@ function FinalScreen() {
     </div>
   );
 }
+
+/* ================================================================== */
+/* QUESTION SCREENS                                                    */
+/* ================================================================== */
 
 type TextQuestionProps = {
   number: number;
@@ -310,11 +294,11 @@ function TextQuestion({
         e.preventDefault();
         if (isValid) onNext();
       }}
-      className="flex flex-col gap-s-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-300"
+      className="flex flex-col gap-[24px] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-300"
     >
       <QuestionEyebrow number={number} />
       <QuestionTitle>{title}</QuestionTitle>
-      <div className="flex flex-col gap-s-2">
+      <div className="flex flex-col gap-[10px]">
         <TextField
           type={type}
           value={value}
@@ -325,12 +309,12 @@ function TextQuestion({
           required
         />
         {helper && (
-          <p className="font-mono text-mono-tiny uppercase tracking-mono-eyebrow text-text-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.13em] text-text-3">
             {helper}
           </p>
         )}
       </div>
-      <div className="mt-s-2">
+      <div className="mt-[8px]">
         <PrimaryButton type="submit" disabled={!isValid}>
           Continue
         </PrimaryButton>
@@ -342,17 +326,21 @@ function TextQuestion({
 function MultiSelectQuestion({
   number,
   title,
+  helper,
+  ctaLabel,
   options,
   value,
   onChange,
-  onNext,
+  onComplete,
 }: {
   number: number;
   title: string;
-  options: string[];
+  helper?: string;
+  ctaLabel: string;
+  options: ReadonlyArray<string>;
   value: string[];
   onChange: (v: string[]) => void;
-  onNext: () => void;
+  onComplete: () => void;
 }) {
   const toggle = (option: string) => {
     onChange(
@@ -363,10 +351,10 @@ function MultiSelectQuestion({
   };
 
   return (
-    <div className="flex flex-col gap-s-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-300">
+    <div className="flex flex-col gap-[24px] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-300">
       <QuestionEyebrow number={number} />
       <QuestionTitle>{title}</QuestionTitle>
-      <div className="flex flex-wrap gap-s-2">
+      <div className="flex flex-wrap gap-[10px]">
         {options.map((option) => (
           <Chip
             key={option}
@@ -376,57 +364,111 @@ function MultiSelectQuestion({
           />
         ))}
       </div>
-      <p className="font-mono text-mono-tiny uppercase tracking-mono-eyebrow text-text-3">
-        Select any that apply
-      </p>
-      <div className="mt-s-2">
-        <PrimaryButton onClick={onNext} disabled={value.length === 0}>
-          Continue
+      {helper && (
+        <p className="font-mono text-[10px] uppercase tracking-[0.13em] text-text-3">
+          {helper}
+        </p>
+      )}
+      <div className="mt-[8px]">
+        <PrimaryButton onClick={onComplete} disabled={value.length === 0}>
+          {ctaLabel}
         </PrimaryButton>
       </div>
     </div>
   );
 }
 
-function SingleSelectQuestion({
-  number,
-  title,
-  options,
-  value,
-  onChange,
-  onSubmit,
+/* ================================================================== */
+/* TOPBAR — stripped: brand on left, back + progress on right          */
+/* ================================================================== */
+
+function FlowTopbar({
+  isQuestion,
+  step,
+  onBack,
 }: {
-  number: number;
-  title: string;
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-  onSubmit: () => void;
+  isQuestion: boolean;
+  step: StepId;
+  onBack: () => void;
 }) {
+  const stepNum = typeof step === "number" ? step : 0;
+
   return (
-    <div className="flex flex-col gap-s-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-2 motion-safe:duration-300">
-      <QuestionEyebrow number={number} />
-      <QuestionTitle>{title}</QuestionTitle>
-      <div className="flex flex-col gap-s-3">
-        {options.map((option) => (
-          <OptionCard
-            key={option.value}
-            label={option.label}
-            selected={value === option.value}
-            onClick={() => onChange(option.value)}
+    <header className="relative z-10 bg-transparent">
+      <div className="mx-auto flex h-[68px] max-w-[1200px] items-center gap-[20px] px-5 sm:px-8">
+        {/* brand */}
+        <Link
+          href="/"
+          aria-label="Wavloops home"
+          className="flex shrink-0 items-center gap-[10px]"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/Photos/wavloops-icon.png"
+            alt=""
+            className="block h-[22px] w-auto"
           />
-        ))}
+          <span className="font-display text-[17px] font-bold tracking-[-0.01em] text-text-1">
+            WAVLOOPS
+            <span className="ml-px align-super text-[9px] text-accent">
+              &trade;
+            </span>
+          </span>
+        </Link>
+
+        {/* right: progress + back */}
+        <div className="ml-auto flex items-center gap-[12px]">
+          {isQuestion && (
+            <div className="hidden items-center gap-[10px] sm:flex">
+              <div className="h-[2px] w-[120px] overflow-hidden rounded-full bg-line-strong">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-500 ease-wav"
+                  style={{ width: `${(stepNum / TOTAL_QUESTIONS) * 100}%` }}
+                />
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-text-3">
+                {stepNum} / {TOTAL_QUESTIONS}
+              </span>
+            </div>
+          )}
+
+          {isQuestion ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="group inline-flex items-center gap-[6px] rounded-pill border border-line-strong bg-surface-1/40 px-[14px] py-[8px] font-mono text-[10px] uppercase tracking-[0.13em] text-text-2 backdrop-blur-md transition-colors duration-wav ease-wav hover:border-text-3 hover:text-text-1"
+            >
+              <span
+                aria-hidden
+                className="transition-transform duration-wav ease-wav group-hover:-translate-x-[2px]"
+              >
+                ←
+              </span>
+              Back
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-[6px] rounded-pill border border-line-strong bg-surface-1/40 px-[14px] py-[8px] font-mono text-[10px] uppercase tracking-[0.13em] text-text-2 backdrop-blur-md transition-colors duration-wav ease-wav hover:border-text-3 hover:text-text-1"
+            >
+              <span
+                aria-hidden
+                className="transition-transform duration-wav ease-wav group-hover:-translate-x-[2px]"
+              >
+                ←
+              </span>
+              Back to Wavloops
+            </Link>
+          )}
+        </div>
       </div>
-      <div className="mt-s-2">
-        <PrimaryButton onClick={onSubmit} disabled={!value}>
-          Submit
-        </PrimaryButton>
-      </div>
-    </div>
+    </header>
   );
 }
 
-/* ---------- Main flow ---------- */
+/* ================================================================== */
+/* MAIN FLOW                                                           */
+/* ================================================================== */
 
 export function OnboardingFlow() {
   const [step, setStep] = useState<StepId>("intro");
@@ -452,11 +494,10 @@ export function OnboardingFlow() {
         producerName: answers.producerName,
         email: answers.email,
         workUrl: answers.workUrl,
-        growGoals: answers.growGoals,
-        interestLevel: answers.interestLevel,
+        painPoints: answers.painPoints,
         _honeypot: honeypot,
       }),
-      // Minimum 700ms loading to keep transition feel consistent
+      // min duration keeps the transition smooth even if the network is fast
       new Promise((r) => setTimeout(r, TRANSITION_MS)),
     ]);
 
@@ -479,9 +520,32 @@ export function OnboardingFlow() {
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-bg">
-      <Atmosphere intensity="strong" />
+      {/* Hero-style glow + grid bg — softer here than on the landing
+          (intensity dialled down so it doesn't pull focus from the form). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[-200px] z-0 h-[680px] w-[1100px] -translate-x-1/2"
+        style={{
+          background:
+            "radial-gradient(56% 60% at 50% 0%, rgba(43,37,255,0.22), rgba(43,37,255,0.04) 45%, transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0 opacity-40"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+          backgroundPosition: "center top",
+          WebkitMaskImage:
+            "radial-gradient(70% 70% at 50% 20%, #000 25%, transparent 72%)",
+          maskImage:
+            "radial-gradient(70% 70% at 50% 20%, #000 25%, transparent 72%)",
+        }}
+      />
 
-      {/* Honeypot — bots fill all visible-like fields, real users skip it */}
+      {/* Honeypot — visually hidden, off-screen, ignored by a11y */}
       <input
         type="text"
         name="company"
@@ -493,56 +557,11 @@ export function OnboardingFlow() {
         className="pointer-events-none absolute left-[-9999px] top-0 opacity-0"
       />
 
-      <div className="relative flex flex-1 flex-col">
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-s-4 px-s-4 py-s-4 sm:px-s-5 sm:py-s-5">
-          {isQuestion ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="group inline-flex items-center gap-s-2 rounded-r-1 border border-line-strong bg-surface-1/60 px-s-3 py-s-2 font-mono text-mono-tiny uppercase tracking-mono-button text-text-2 backdrop-blur-md transition-colors duration-wav ease-wav hover:border-text-1 hover:text-text-1"
-            >
-              <span
-                aria-hidden
-                className="transition-transform duration-wav ease-wav group-hover:-translate-x-[2px]"
-              >
-                ←
-              </span>
-              Back
-            </button>
-          ) : (
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-s-2 rounded-r-1 border border-line-strong bg-surface-1/60 px-s-3 py-s-2 font-mono text-mono-tiny uppercase tracking-mono-button text-text-2 backdrop-blur-md transition-colors duration-wav ease-wav hover:border-text-1 hover:text-text-1"
-            >
-              <span
-                aria-hidden
-                className="transition-transform duration-wav ease-wav group-hover:-translate-x-[2px]"
-              >
-                ←
-              </span>
-              Back to Wavloops
-            </Link>
-          )}
+      <div className="relative z-[2] flex flex-1 flex-col">
+        <FlowTopbar isQuestion={isQuestion} step={step} onBack={goBack} />
 
-          {isQuestion && (
-            <div className="flex items-center gap-s-3">
-              <div className="hidden h-[2px] w-[120px] overflow-hidden bg-line-strong sm:block">
-                <div
-                  className="h-full bg-accent transition-all duration-500 ease-wav"
-                  style={{ width: `${(step / TOTAL_QUESTIONS) * 100}%` }}
-                />
-              </div>
-              <span className="font-mono text-mono-tiny uppercase tracking-mono-eyebrow text-text-3">
-                {step} / {TOTAL_QUESTIONS}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Main content area */}
-        <main className="relative flex flex-1 items-center justify-center px-s-4 py-s-6 sm:px-s-5 sm:py-s-7">
-          <div className="w-full max-w-lg">
+        <main className="relative flex flex-1 items-center justify-center px-5 py-[40px] sm:px-8 sm:py-[56px]">
+          <div className="w-full max-w-[560px]">
             {transitioning ? (
               <LoadingState />
             ) : step === "intro" ? (
@@ -578,41 +597,34 @@ export function OnboardingFlow() {
                 number={3}
                 title="Where can we see your work?"
                 placeholder="https://instagram.com/yourname"
-                helper="Instagram, Youtube, Tiktok, BeatStars, Gumroad or website URL"
+                helper="Instagram, YouTube, TikTok, BeatStars or website URL"
                 type="url"
                 inputMode="url"
                 autoComplete="url"
                 value={answers.workUrl}
-                onChange={(workUrl) => setAnswers((a) => ({ ...a, workUrl }))}
+                onChange={(workUrl) =>
+                  setAnswers((a) => ({ ...a, workUrl }))
+                }
                 onNext={() => goNext(4)}
               />
             ) : step === 4 ? (
-              <MultiSelectQuestion
-                number={4}
-                title="What do you want to grow with your free downloads?"
-                options={GROW_OPTIONS}
-                value={answers.growGoals}
-                onChange={(growGoals) =>
-                  setAnswers((a) => ({ ...a, growGoals }))
-                }
-                onNext={() => goNext(5)}
-              />
-            ) : step === 5 ? (
               <>
-                <SingleSelectQuestion
-                  number={5}
-                  title="How interested are you in testing Wavloops?"
-                  options={INTEREST_OPTIONS}
-                  value={answers.interestLevel}
-                  onChange={(interestLevel) =>
-                    setAnswers((a) => ({ ...a, interestLevel }))
+                <MultiSelectQuestion
+                  number={4}
+                  title="What slows you down today?"
+                  helper="Select anything that matches — we'll prioritize accordingly"
+                  ctaLabel="Submit"
+                  options={PAIN_POINTS}
+                  value={answers.painPoints}
+                  onChange={(painPoints) =>
+                    setAnswers((a) => ({ ...a, painPoints }))
                   }
-                  onSubmit={handleSubmit}
+                  onComplete={handleSubmit}
                 />
                 {submitError && (
                   <p
                     role="alert"
-                    className="mt-s-4 text-center font-mono text-mono-caption uppercase tracking-mono-eyebrow text-destructive"
+                    className="mt-[20px] text-center font-mono text-[10px] uppercase tracking-[0.13em] text-danger"
                   >
                     {submitError}
                   </p>
