@@ -86,7 +86,7 @@ const PLANS: ReadonlyArray<Plan> = [
 /* SUB-COMPONENT — single plan card                                    */
 /* ================================================================== */
 
-function PlanCard({ plan }: { plan: Plan }) {
+function PlanCard({ plan, ctaHref }: { plan: Plan; ctaHref: string }) {
   const highlighted = !!plan.highlighted;
 
   return (
@@ -143,7 +143,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 
       {/* CTA */}
       <Link
-        href="/onboarding_early"
+        href={ctaHref}
         className={`wv-btn ${
           plan.ctaVariant === "primary" ? "wv-btn-primary" : "wv-btn-ghost"
         } mt-[22px] w-full justify-center`}
@@ -183,7 +183,15 @@ function PlanCard({ plan }: { plan: Plan }) {
 /* SECTION                                                             */
 /* ================================================================== */
 
-export function Pricing() {
+interface PricingProps {
+  /** Optional CTA destination override — variant landings point to their
+   *  own angle-specific onboarding flow. */
+  ctaHref?: string;
+}
+
+export function Pricing({
+  ctaHref = "/onboarding_early",
+}: PricingProps = {}) {
   return (
     <section
       id="pricing"
@@ -213,7 +221,7 @@ export function Pricing() {
         {/* plans grid */}
         <div className="mx-auto grid max-w-[840px] grid-cols-2 items-stretch gap-[20px] max-[720px]:max-w-[420px] max-[720px]:grid-cols-1 max-[720px]:gap-[26px]">
           {PLANS.map((plan) => (
-            <PlanCard key={plan.name} plan={plan} />
+            <PlanCard key={plan.name} plan={plan} ctaHref={ctaHref} />
           ))}
         </div>
 

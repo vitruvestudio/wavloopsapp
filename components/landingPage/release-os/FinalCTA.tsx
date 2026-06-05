@@ -19,7 +19,15 @@
 import Link from "next/link";
 import { Icon } from "./Icon";
 
-export function FinalCTA() {
+interface FinalCTAProps {
+  /** Optional CTA destination override — variant landings point to their
+   *  own angle-specific onboarding flow. */
+  ctaHref?: string;
+}
+
+export function FinalCTA({
+  ctaHref = "/onboarding_early",
+}: FinalCTAProps = {}) {
   return (
     <section
       id="your-move"
@@ -64,7 +72,7 @@ export function FinalCTA() {
             {/* CTAs — inverted for accent bg */}
             <div className="mt-[40px] flex flex-wrap items-center justify-center gap-[13px]">
               <Link
-                href="/onboarding_early"
+                href={ctaHref}
                 className="inline-flex items-center justify-center whitespace-nowrap rounded-pill bg-white px-[28px] py-[15px] font-body text-[15px] font-semibold text-accent transition-[transform,background-color,box-shadow] duration-wav ease-wav hover:-translate-y-[1px] hover:bg-white/[0.94] hover:shadow-[0_14px_30px_-12px_rgba(0,0,0,0.45)] active:translate-y-0"
               >
                 Get early access

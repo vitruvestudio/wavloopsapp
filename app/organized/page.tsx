@@ -52,19 +52,24 @@ const ORGANIZED_NAV = [
   { href: "#faq", label: "FAQ" },
 ] as const;
 
+/** Angle-specific onboarding for the organize variant. Distinct from the
+ *  root /onboarding_early so we can tell where the lead came from and
+ *  collect organize-shaped pain points. */
+const ORGANIZED_CTA = "/onboarding_organized";
+
 export default function OrganizedLanding() {
   return (
     <div className="relative">
       <AnnouncementBar />
-      <Topbar navItems={ORGANIZED_NAV} />
+      <Topbar navItems={ORGANIZED_NAV} ctaHref={ORGANIZED_CTA} />
       <main>
         <Hero />
         <Chaos />
         <HowItWorks />
         <Features />
-        <Pricing />
+        <Pricing ctaHref={ORGANIZED_CTA} />
         <FAQ />
-        <FinalCTA />
+        <FinalCTA ctaHref={ORGANIZED_CTA} />
       </main>
       <Footer />
     </div>

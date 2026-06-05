@@ -173,7 +173,7 @@ export function Hero() {
         {/* CTA row */}
         <div className="mt-[38px] flex flex-wrap items-center justify-center gap-[13px]">
           <Link
-            href="/onboarding_early"
+            href="/onboarding_organized"
             className="wv-btn wv-btn-primary wv-btn-lg"
           >
             Get early access

@@ -41,9 +41,15 @@ interface TopbarProps {
   /** Optional nav override — used by variant landings (e.g. `/organized`)
    *  to swap "Producer Wall" for the section that actually exists there. */
   navItems?: ReadonlyArray<{ href: string; label: string }>;
+  /** Optional CTA destination override — variant landings point to their
+   *  own angle-specific onboarding flow (e.g. /onboarding_organized). */
+  ctaHref?: string;
 }
 
-export function Topbar({ navItems = DEFAULT_NAV }: TopbarProps = {}) {
+export function Topbar({
+  navItems = DEFAULT_NAV,
+  ctaHref = "/onboarding_early",
+}: TopbarProps = {}) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -109,7 +115,7 @@ export function Topbar({ navItems = DEFAULT_NAV }: TopbarProps = {}) {
             />
             20 founding spots
           </span>
-          <Link href="/onboarding_early" className="wv-btn wv-btn-primary">
+          <Link href={ctaHref} className="wv-btn wv-btn-primary">
             Get early access
           </Link>
           <button
