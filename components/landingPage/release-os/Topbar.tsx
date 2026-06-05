@@ -29,14 +29,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
 
-const NAV_ITEMS = [
+/** Default nav for the root `/` landing (auto-workflow angle). */
+const DEFAULT_NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: "#how", label: "How it works" },
   { href: "#wall", label: "Producer Wall" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
-] as const;
+];
 
-export function Topbar() {
+interface TopbarProps {
+  /** Optional nav override — used by variant landings (e.g. `/organized`)
+   *  to swap "Producer Wall" for the section that actually exists there. */
+  navItems?: ReadonlyArray<{ href: string; label: string }>;
+}
+
+export function Topbar({ navItems = DEFAULT_NAV }: TopbarProps = {}) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -77,7 +84,7 @@ export function Topbar() {
 
         {/* nav (hidden < md) */}
         <nav className="mx-auto hidden items-center gap-[6px] md:flex">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
