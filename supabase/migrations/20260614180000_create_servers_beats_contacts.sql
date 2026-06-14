@@ -125,21 +125,8 @@ create policy beats_owner_all on public.beats
   using (owner_id = current_profile_id())
   with check (owner_id = current_profile_id());
 
--- Beats inside a public server are readable by anyone (so artists
--- landing on /s/<slug> see them). We check via EXISTS on server_beats
--- joined to servers.
-drop policy if exists beats_public_select on public.beats;
-create policy beats_public_select on public.beats
-  for select to public
-  using (
-    exists (
-      select 1
-      from public.server_beats sb
-      join public.servers s on s.id = sb.server_id
-      where sb.beat_id = beats.id
-        and s.visibility = 'public'
-    )
-  );
+-- The `beats_public_select` policy needs `server_beats` to exist, so
+-- it's defined further down (right after `server_beats` is created).
 
 -- ============================================================
 -- server_beats (pivot: a beat belongs to N servers, a server has N beats)
@@ -155,6 +142,21 @@ create table if not exists public.server_beats (
 create index if not exists server_beats_beat_idx on public.server_beats (beat_id);
 
 alter table public.server_beats enable row level security;
+
+-- Now that server_beats exists, we can wire the public-read policy on
+-- beats. A beat is publicly readable when it's part of a public server.
+drop policy if exists beats_public_select on public.beats;
+create policy beats_public_select on public.beats
+  for select to public
+  using (
+    exists (
+      select 1
+      from public.server_beats sb
+      join public.servers s on s.id = sb.server_id
+      where sb.beat_id = beats.id
+        and s.visibility = 'public'
+    )
+  );
 
 -- Owner of the server (which is also the owner of the beat, by design)
 -- can do anything with the membership row.
