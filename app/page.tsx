@@ -1,15 +1,26 @@
 /**
- * Wavloops V3 — root entry redirect.
+ * Wavloops V3 — root entry, session-aware redirect.
  *
- * Sends every visitor to `/auth`. When Supabase auth is wired (next commit),
- * this will be replaced with a session-aware redirect:
- *   - has session  → /dashboard
- *   - no session   → /auth
- * For now, unauthenticated entry is the only state.
+ * The proxy.ts file at the project root also handles the auth/no-auth
+ * branching for `/dashboard`, `/auth`, etc. This page is the explicit
+ * fallback for visitors landing on `/`:
+ *
+ *   has session    → /dashboard
+ *   no session     → /auth
+ *
+ * We call `supabase.auth.getUser()` (not `getSession()`) because the
+ * session cookie can be spoofed; `getUser` verifies with the Auth
+ * server before returning.
  */
 
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-export default function HomePage() {
-  redirect("/auth");
+export default async function HomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  redirect(user ? "/dashboard" : "/auth");
 }

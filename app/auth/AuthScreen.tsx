@@ -1,52 +1,47 @@
 /**
- * AuthScreen — split-screen producer auth entry.
+ * AuthScreen — split-screen producer auth entry, wired to Supabase.
  *
- * Pixel-ported from prototype `screens_producer_a.jsx`:
+ * Visual ported pixel-for-pixel from prototype `screens_producer_a.jsx`.
  *
  *   ┌─ LEFT (hidden < 900px) ─────────┬─ RIGHT (form) ─────────────┐
  *   │  Logo                            │  WELCOME BACK              │
- *   │                                  │  Log in to Wavloops        │
- *   │  Your beats,                     │                            │
- *   │  a living link.                  │  EMAIL                     │
- *   │  (display 52, line 0.98)         │  [you@studio.com........]  │
- *   │  Drop beats into shareable…      │  PASSWORD                  │
- *   │  (body-l max-w 380)              │  [••••••••..............]  │
- *   │                                  │                            │
- *   │  FOR PRODUCERS · V1              │  [    Log in    ]   lg     │
- *   │                                  │  ─── OR ───                │
- *   │  Radial accent surface 25%/20%   │  [ Continue with Google ]  │
- *   │  + diagonal hatch lines 60°      │  No account yet? Sign up   │
+ *   │  Your beats,                     │  Log in to Wavloops        │
+ *   │  a living link.                  │  EMAIL  / PASSWORD         │
+ *   │  Drop beats into shareable…      │  [   Log in   ]   lg       │
+ *   │  FOR PRODUCERS · V1              │  ─── OR ───                │
+ *   │  Radial accent + diagonal hatch  │  [Continue with Google]    │
+ *   │                                  │  No account yet? Sign up   │
  *   └──────────────────────────────────┴────────────────────────────┘
  *
- * Wiring status (V1 J2):
- *   - Form submit: redirects to `/dashboard` for now. Real Supabase auth
- *     lands in the next commit (signUp / signIn / OAuth + middleware).
- *   - Google button: disabled. We'll re-enable when Supabase OAuth is
- *     configured (Google Cloud project + redirect URL).
- *   - Toggle login/signup is local state only.
+ * Form is wired via React 19's `useActionState`. On success the server
+ * action calls `redirect()` (we never see the success state — we navigate
+ * away). On failure we surface `state.error` inline above the submit
+ * button. Pending state disables the submit and changes the label.
+ *
+ * Google button is intentionally disabled until we wire Supabase OAuth
+ * (Google Cloud project + redirect URL configured outside the codebase).
  */
 
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Logo } from "@/components/ui/Logo";
+import { signInAction, signUpAction, type AuthState } from "./actions";
 
 type Mode = "login" | "signup";
 
 export function AuthScreen() {
-  const router = useRouter();
   const [mode, setMode] = React.useState<Mode>("login");
   const isLogin = mode === "login";
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // V1 stub — Supabase signIn/signUp lands in the next commit.
-    // After wiring: signup → /onboarding, login → /dashboard.
-    router.push("/dashboard");
-  };
+  const action = isLogin ? signInAction : signUpAction;
+  const [state, formAction, pending] = useActionState<AuthState | null, FormData>(
+    action,
+    null,
+  );
 
   return (
     <div className="flex min-h-[100dvh] bg-bg-0">
@@ -108,11 +103,7 @@ export function AuthScreen() {
         className="flex flex-1 items-center justify-center"
         style={{ padding: 32 }}
       >
-        <form
-          onSubmit={onSubmit}
-          className="w-full"
-          style={{ maxWidth: 380 }}
-        >
+        <form action={formAction} className="w-full" style={{ maxWidth: 380 }}>
           {/* Heading */}
           <div style={{ marginBottom: 30 }}>
             <div
@@ -144,8 +135,41 @@ export function AuthScreen() {
               autoComplete={isLogin ? "current-password" : "new-password"}
               required
             />
-            <Button type="submit" size="lg" full style={{ marginTop: 6 }}>
-              {isLogin ? "Log in" : "Create account"}
+
+            {/* Server-action error / status — surfaces both auth failures
+                and the "confirm your inbox" message after signup. */}
+            {state?.error && (
+              <div
+                role="alert"
+                className="t-body-s"
+                style={{
+                  marginTop: 2,
+                  padding: "10px 12px",
+                  borderRadius: "var(--r-sm)",
+                  background: "var(--danger-surface)",
+                  color: "var(--danger)",
+                  border: "1px solid var(--danger)",
+                  lineHeight: 1.4,
+                }}
+              >
+                {state.error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              full
+              disabled={pending}
+              style={{ marginTop: 6 }}
+            >
+              {pending
+                ? isLogin
+                  ? "Logging in…"
+                  : "Creating account…"
+                : isLogin
+                  ? "Log in"
+                  : "Create account"}
             </Button>
           </div>
 
@@ -167,7 +191,7 @@ export function AuthScreen() {
             />
           </div>
 
-          {/* Google — disabled until Supabase OAuth is wired (V1 next commit) */}
+          {/* Google — disabled until Supabase OAuth is wired */}
           <Button
             type="button"
             variant="secondary"

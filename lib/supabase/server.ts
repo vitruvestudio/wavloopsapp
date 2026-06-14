@@ -1,31 +1,52 @@
+/**
+ * Server-side Supabase client.
+ *
+ * Bound to the current request's cookies. Use this in:
+ *   - React Server Components (page.tsx / layout.tsx)
+ *   - Server Actions (`"use server"` files)
+ *   - Route Handlers (app/.../route.ts)
+ *
+ * Next.js 16 made `cookies()` async, so this factory is async too.
+ * Always `await createClient()` then use the returned client.
+ *
+ * IMPORTANT: never use this to make authorization decisions based on
+ * `supabase.auth.getSession()`. Use `getUser()` (verified by the Auth
+ * server) or `getClaims()` (verified locally via JWKS) instead — the
+ * session cookie can be spoofed.
+ *
+ * The previous service-role helper was removed (unused). When we need
+ * RLS-bypassing admin operations (webhooks, scheduled jobs), we'll
+ * reintroduce it as `lib/supabase/admin.ts` with the service-role key.
+ */
+
 import "server-only";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-let cached: SupabaseClient | null = null;
+export async function createClient() {
+  const cookieStore = await cookies();
 
-/**
- * Server-side Supabase client using the service role key.
- * NEVER import this from a client component.
- */
-export function getServerSupabase(): SupabaseClient {
-  if (cached) return cached;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceRoleKey) {
-    throw new Error(
-      "Missing Supabase env vars. Check .env.local for NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
-    );
-  }
-
-  cached = createClient(url, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
+          } catch {
+            // Server Components cannot set cookies at render time.
+            // That's fine — the proxy refreshes the session on every
+            // navigation, so this is only ever called outside RSC.
+          }
+        },
+      },
     },
-  });
-
-  return cached;
+  );
 }
