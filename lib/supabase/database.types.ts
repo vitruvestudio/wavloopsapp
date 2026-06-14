@@ -104,3 +104,11 @@ export interface LikeRow {
   server_id: string;
   liked_at: string;
 }
+
+/** Row of the `servers_with_stats` view — ServerRow + the three counts
+ *  the Dashboard needs in one query (see migration #3). */
+export interface ServerWithStatsRow extends ServerRow {
+  beats_count: number;
+  contacts_count: number;
+  plays_count: number;
+}
