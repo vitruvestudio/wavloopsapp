@@ -27,13 +27,13 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { Logo } from "@/components/ui/Logo";
 import { TagInput } from "@/components/ui/TagInput";
+import { saveProfileAction, skipOnboardingAction } from "./actions";
 
 /* ============================================================
    StepDots — progress indicator at the top of the body
@@ -290,7 +290,6 @@ const CERT_PRESET = [
    ============================================================ */
 
 export function OnboardingWizard() {
-  const router = useRouter();
   const [step, setStep] = React.useState(0);
   const [name, setName] = React.useState("");
   const [avatarImg, setAvatarImg] = React.useState<string | null>(null);
@@ -299,6 +298,11 @@ export function OnboardingWizard() {
   const [certs, setCerts] = React.useState<string[]>([]);
   const [placements, setPlacements] = React.useState<Placement[]>([]);
   const [link, setLink] = React.useState("");
+
+  // Server-action plumbing — useTransition gates the pending UI on both
+  // Finish and Skip, serverError surfaces inline above the footer nav.
+  const [pending, startTransition] = React.useTransition();
+  const [serverError, setServerError] = React.useState<string | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -331,8 +335,28 @@ export function OnboardingWizard() {
   };
 
   const finish = () => {
-    // V1: no DB save yet — that lands in the next commit. Just navigate.
-    router.push("/dashboard");
+    setServerError(null);
+    startTransition(async () => {
+      const result = await saveProfileAction({
+        name,
+        bio,
+        socials,
+        certifications: certs,
+        placements,
+        avatarDataUrl: avatarImg,
+      });
+      // On success, the action calls redirect() and we never get here.
+      // Only the error path returns a value.
+      if (result?.error) setServerError(result.error);
+    });
+  };
+
+  const skip = () => {
+    setServerError(null);
+    startTransition(async () => {
+      const result = await skipOnboardingAction();
+      if (result?.error) setServerError(result.error);
+    });
   };
 
   const stepBodies: ReadonlyArray<React.ReactNode> = [
@@ -561,8 +585,9 @@ export function OnboardingWizard() {
         <span className="flex-1" />
         <button
           type="button"
-          onClick={finish}
-          className="t-mono-s cursor-pointer border-0 bg-transparent"
+          onClick={skip}
+          disabled={pending}
+          className="t-mono-s cursor-pointer border-0 bg-transparent disabled:opacity-50"
           style={{ color: "var(--fg-3)" }}
         >
           SKIP FOR NOW
@@ -595,6 +620,26 @@ export function OnboardingWizard() {
 
           <div style={{ marginBottom: 34 }}>{stepBodies[step]}</div>
 
+          {/* Server-action error — surfaces upload failures, RLS denials,
+              or any other thrown error from save / skip. */}
+          {serverError && (
+            <div
+              role="alert"
+              className="t-body-s"
+              style={{
+                marginBottom: 16,
+                padding: "10px 12px",
+                borderRadius: "var(--r-sm)",
+                background: "var(--danger-surface)",
+                color: "var(--danger)",
+                border: "1px solid var(--danger)",
+                lineHeight: 1.4,
+              }}
+            >
+              {serverError}
+            </div>
+          )}
+
           {/* Footer nav */}
           <div className="flex items-center" style={{ gap: 12 }}>
             {step > 0 && (
@@ -602,6 +647,7 @@ export function OnboardingWizard() {
                 variant="ghost"
                 icon="chevron-left"
                 onClick={() => setStep((s) => s - 1)}
+                disabled={pending}
               >
                 Back
               </Button>
@@ -609,21 +655,28 @@ export function OnboardingWizard() {
             <span className="flex-1" />
             <button
               type="button"
-              onClick={finish}
-              className="t-mono-s cursor-pointer border-0 bg-transparent"
+              onClick={skip}
+              disabled={pending}
+              className="t-mono-s cursor-pointer border-0 bg-transparent disabled:opacity-50"
               style={{ color: "var(--fg-3)" }}
             >
               SKIP
             </button>
             {last ? (
-              <Button size="lg" icon="check" onClick={finish}>
-                Finish &amp; go to library
+              <Button
+                size="lg"
+                icon="check"
+                onClick={finish}
+                disabled={pending}
+              >
+                {pending ? "Saving…" : "Finish & go to library"}
               </Button>
             ) : (
               <Button
                 size="lg"
                 iconRight="arrow-right"
                 onClick={() => setStep((s) => s + 1)}
+                disabled={pending}
               >
                 Continue
               </Button>
