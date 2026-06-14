@@ -1,40 +1,68 @@
 /**
- * Tag — mono uppercase chip. Used for BPM, key, mood, genre,
- * visibility, status — anywhere small technical metadata lives.
+ * Tag — mono uppercase chip (BPM, key, mood, genre, visibility…).
  *
- * Variants:
- *   outline (default) — hairline border, bg-1, fg-2 text
- *   solid             — bg-2 fill, no border (denser tables)
- *   accent            — accent-surface fill, accent-text — for the played key,
- *                       active filter chip, currently-playing badge
+ * Mirrors the prototype's Tag (components.jsx) exactly:
+ *   - Height 22, padding "0 8px"
+ *   - .t-mono-s (font-mono, ~10px, letter-spacing .1em, uppercase)
+ *   - Variants:
+ *       default — transparent bg + border-2 + fg-3 text
+ *       solid   — bg-3 fill + fg-2 text (denser tables)
+ *       accent  — accent-surface + accent-text (active filter, currently
+ *                 playing key, server visibility = public)
+ *       ok      — ok-surface + ok text (success states)
+ *   - Optional 11px prefix icon
  */
 
 import * as React from "react";
+import { Icon, type IconName } from "./Icon";
 
-type Variant = "outline" | "solid" | "accent";
+type TagVariant = "default" | "solid" | "accent" | "ok";
 
 interface TagProps {
   children: React.ReactNode;
-  variant?: Variant;
+  variant?: TagVariant;
+  icon?: IconName;
   className?: string;
 }
 
-const VARIANT: Record<Variant, string> = {
-  outline: "border border-border-1 bg-bg-1 text-fg-2",
-  solid: "bg-bg-2 text-fg-2",
-  accent: "bg-accent-surface text-accent-text",
+const VARIANT_STYLE: Record<TagVariant, React.CSSProperties> = {
+  default: {
+    background: "transparent",
+    color: "var(--fg-3)",
+    border: "1px solid var(--border-2)",
+  },
+  solid: {
+    background: "var(--bg-3)",
+    color: "var(--fg-2)",
+    border: "1px solid transparent",
+  },
+  accent: {
+    background: "var(--accent-surface)",
+    color: "var(--accent-text)",
+    border: "1px solid transparent",
+  },
+  ok: {
+    background: "var(--ok-surface)",
+    color: "var(--ok)",
+    border: "1px solid transparent",
+  },
 };
 
-export function Tag({ children, variant = "outline", className }: TagProps) {
+export function Tag({ children, variant = "default", icon, className }: TagProps) {
   return (
     <span
-      className={[
-        "inline-flex items-center rounded-sm px-[8px] py-[3px]",
-        "font-mono text-[10px] font-medium uppercase tracking-mono-s",
-        VARIANT[variant],
-        className ?? "",
-      ].join(" ")}
+      className={["t-mono-s inline-flex items-center", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+      style={{
+        height: 22,
+        padding: "0 8px",
+        gap: 5,
+        borderRadius: "var(--r-sm)",
+        ...VARIANT_STYLE[variant],
+      }}
     >
+      {icon && <Icon name={icon} size={11} />}
       {children}
     </span>
   );

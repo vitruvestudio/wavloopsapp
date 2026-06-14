@@ -18,8 +18,8 @@
 "use client";
 
 import Image from "next/image";
-import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { PlayButton } from "@/components/ui/PlayButton";
 import { Tag } from "@/components/ui/Tag";
 import { Waveform } from "@/components/ui/Waveform";
 import { usePlayer } from "./PlayerContext";
@@ -72,14 +72,7 @@ export function PlayerDock() {
         </div>
 
         {/* Play / pause */}
-        <button
-          type="button"
-          onClick={() => toggle(current)}
-          aria-label={playing ? "Pause" : "Play"}
-          className="flex h-10 w-10 items-center justify-center rounded-pill bg-accent text-accent-fg shadow-glow transition-transform active:scale-95"
-        >
-          <Icon name={playing ? "pause" : "play"} size={18} />
-        </button>
+        <PlayButton size={40} playing={playing} onClick={() => toggle(current)} />
       </div>
 
       {/* === DESKTOP LAYOUT (md+) === */}
@@ -115,14 +108,7 @@ export function PlayerDock() {
               iconSize={18}
               label="Previous"
             />
-            <button
-              type="button"
-              onClick={() => toggle(current)}
-              aria-label={playing ? "Pause" : "Play"}
-              className="flex h-10 w-10 items-center justify-center rounded-pill bg-accent text-accent-fg shadow-glow transition-transform hover:scale-[1.06] active:scale-100"
-            >
-              <Icon name={playing ? "pause" : "play"} size={18} />
-            </button>
+            <PlayButton size={40} playing={playing} onClick={() => toggle(current)} />
             <IconButton name="skip-fwd" size={34} iconSize={18} label="Next" />
           </div>
 

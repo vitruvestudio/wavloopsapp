@@ -51,14 +51,23 @@ interface IconProps {
   className?: string;
   /** Override stroke width if needed (default 1.75). */
   stroke?: number;
+  /** Inline style override (e.g. PlayButton optical-centring marginLeft). */
+  style?: React.CSSProperties;
 }
 
-export function Icon({ name, size = 20, className, stroke = 1.75 }: IconProps) {
+export function Icon({
+  name,
+  size = 20,
+  className,
+  stroke = 1.75,
+  style,
+}: IconProps) {
   const common = {
     width: size,
     height: size,
     viewBox: "0 0 24 24",
     className,
+    style,
     "aria-hidden": true,
   } as const;
 
