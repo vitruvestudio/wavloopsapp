@@ -19,7 +19,7 @@
 "use client";
 
 import * as React from "react";
-import { Avatar } from "@/components/ui/Avatar";
+import { AccountMenu } from "@/components/app/AccountMenu";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
@@ -143,19 +143,8 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         className="rounded-pill"
       />
 
-      {/* account pill — collapses to avatar-only under sm */}
-      <button
-        type="button"
-        className="inline-flex items-center rounded-pill border border-border-1 transition-colors duration-fast hover:bg-bg-2"
-        style={{ height: 40, padding: "0 8px 0 6px", gap: 9 }}
-      >
-        <Avatar name="Tyler Mills" label="TM" size={28} />
-        <Icon
-          name="chevron-down"
-          size={15}
-          className="hidden text-fg-3 sm:inline-block"
-        />
-      </button>
+      {/* account pill + dropdown (Account / Settings / Upgrade / Log out) */}
+      <AccountMenu />
     </header>
   );
 }

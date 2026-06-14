@@ -42,7 +42,11 @@ export type IconName =
   | "heart"
   | "external"
   | "eye"
-  | "chevron-left";
+  | "chevron-left"
+  /* dropdown / account menu */
+  | "user"
+  | "flame"
+  | "log-out";
 
 interface IconProps {
   name: IconName;
@@ -244,6 +248,32 @@ export function Icon({
       return (
         <svg {...common} {...lineProps}>
           <path d="M15 6l-6 6 6 6" />
+        </svg>
+      );
+
+    /* -------------------- dropdown / account menu -------------------- */
+    case "user":
+      /* Single user silhouette — distinct from "users" plural icon
+         (which is two figures, used for Contacts nav). */
+      return (
+        <svg {...common} {...lineProps}>
+          <circle cx="12" cy="8.5" r="3.75" />
+          <path d="M4.5 20c0-3.6 3-6 7.5-6s7.5 2.4 7.5 6" />
+        </svg>
+      );
+    case "flame":
+      /* Upgrade-plan glyph. Single tear-shaped flame. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M12 3s-1 3-3 5.5-3.5 4.5-3.5 7.2A6.5 6.5 0 0012 22a6.5 6.5 0 006.5-6.3c0-2.3-1.4-4-2.7-5.4-1.8-1.9-2-3.5-2-4.3-1.2 1.4-2 2.3-3 3.5C10.5 7 11.5 4.5 12 3z" />
+        </svg>
+      );
+    case "log-out":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H10" />
         </svg>
       );
 
