@@ -1,12 +1,12 @@
 /**
- * Dashboard — placeholder smoke test for the App shell.
+ * Dashboard — placeholder smoke test for the App shell (responsive).
  *
- * Two parts (matches the proto's DashboardScreen):
- *   1. PageHeader  — title + mono sub (count summary) + right buttons
- *   2. Content     — empty state: accent-surface tile + h2 + body-l + CTA,
- *                    centred at 8vh from the top
+ * Right slot:
+ *   - "Show demo" ghost button hidden < sm (640px) — keeps the topbar tight
+ *     on small phones where the primary CTA already says everything.
+ *   - "Create a server" primary CTA always visible.
  *
- * Server grid lands in the next commit (ServerCard primitive + real data).
+ * Empty state: 8vh margin top, max-w 460, accent-surface tile + h2 + body.
  */
 
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,6 @@ import { Icon } from "@/components/ui/Icon";
 import { PageHeader } from "@/components/app/PageHeader";
 
 export default function DashboardPage() {
-  // Placeholder summary numbers. Real values land with Supabase data.
   const activeCount = 0;
   const artistsCount = 0;
 
@@ -24,23 +23,25 @@ export default function DashboardPage() {
         title="Servers"
         sub={`${activeCount} ACTIVE · ${artistsCount} ARTISTS REACHED`}
         right={
-          <div className="flex items-center" style={{ gap: 10 }}>
-            <Button variant="ghost" size="sm">
-              Show demo
+          <div className="flex shrink-0 items-center gap-[8px] lg:gap-[10px]">
+            <span className="hidden sm:block">
+              <Button variant="ghost" size="sm">
+                Show demo
+              </Button>
+            </span>
+            <Button icon="plus" size="sm" className="lg:!h-[38px] lg:!text-[14px]">
+              <span className="hidden sm:inline">Create a server</span>
+              <span className="sm:hidden">Create</span>
             </Button>
-            <Button icon="plus">Create a server</Button>
           </div>
         }
       />
 
-      <div style={{ padding: "28px 30px 48px" }}>
-        {/* Empty state — proto-faithful: no dashed border, just centered text */}
+      <div className="px-[18px] py-[24px] lg:px-[30px] lg:pb-[48px] lg:pt-[28px]">
+        {/* Empty state — proto-faithful, centered text without dashed card */}
         <div
           className="mx-auto flex flex-col items-center text-center"
-          style={{
-            maxWidth: 460,
-            marginTop: "8vh",
-          }}
+          style={{ maxWidth: 460, marginTop: "8vh" }}
         >
           <div
             className="flex items-center justify-center text-accent-text"

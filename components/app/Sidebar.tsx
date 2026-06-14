@@ -1,20 +1,23 @@
 /**
  * Sidebar — Wavloops V3 producer-side nav.
  *
- * Mirrors the prototype exactly (see proto: components_app.jsx →
- * ProducerShell + QuickAdd + PSidebarItem):
- *   - Width: 244px expanded · 76px collapsed
- *   - Padding: 20px (12-14)px 14px
- *   - Brand row at TOP: Logo (size 27) | IconButton(sidebar-toggle)
- *     → collapsed = just the toggle, centered
- *   - Hairline divider beneath the brand row
- *   - Quick add button (accent-filled, chevron-down at the end —
- *     suggests a popover that lands in a future commit)
- *   - Nav items: Servers · Beat library · Contacts · Settings
- *     → active = accent-surface fill + 3px accent left-bar
- *     → hover = bg-2 fill + fg-1 text
+ * Responsive strategy:
+ *   <  lg : `position: fixed`, 280px wide overlay, slides in from the
+ *           left, controlled by `mobileOpen` prop. Backdrop + body
+ *           scroll lock are handled by the (app) layout.
+ *   >= lg : In-flow, 244px expanded / 76px collapsed, collapse state
+ *           persisted in localStorage `wl-srv-nav`.
  *
- * State (collapsed/expanded) persisted in localStorage (`wl-srv-nav`).
+ * Tapping a nav link on mobile auto-closes the sidebar.
+ *
+ * Inside structure (mirrors proto components_app.jsx):
+ *   - Brand row: Logo on left, sidebar-toggle on right.
+ *     Collapsed (desktop only) → just the toggle, centered.
+ *     Mobile → Logo + close button on the right.
+ *   - Hairline divider
+ *   - Quick add button (accent, with chevron-down hint)
+ *   - Nav items (Servers · Beat library · Contacts · Settings)
+ *     Active = accent-surface fill + 3px accent left-bar.
  */
 
 "use client";
@@ -30,7 +33,6 @@ interface NavItem {
   href: string;
   label: string;
   icon: IconName;
-  /** Other URL prefixes that count as "active" for this nav item. */
   matches?: string[];
 }
 
@@ -43,15 +45,23 @@ const NAV: ReadonlyArray<NavItem> = [
 
 const STORAGE_KEY = "wl-srv-nav";
 
-export function Sidebar() {
+interface SidebarProps {
+  /** Mobile-only: whether the overlay sidebar is open. Ignored on lg+. */
+  mobileOpen: boolean;
+  /** Called when the mobile sidebar should close (backdrop, link tap, etc). */
+  onCloseMobile: () => void;
+}
+
+export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
+  // Desktop collapsed state — only respected at lg+
   const [collapsed, setCollapsed] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
   }, []);
 
-  const toggle = () => {
+  const toggleCollapsed = () => {
     setCollapsed((c) => {
       const next = !c;
       localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
@@ -59,58 +69,77 @@ export function Sidebar() {
     });
   };
 
-  const width = collapsed ? 76 : 244;
-  const pad = collapsed ? 12 : 14;
+  // Desktop width depends on collapsed; mobile is always 280px (overlay).
+  const desktopWidthClass = collapsed ? "lg:w-[76px]" : "lg:w-[244px]";
+  const desktopPadClass = collapsed
+    ? "lg:px-[12px]"
+    : "lg:px-[14px]";
 
   return (
     <aside
-      className="flex shrink-0 flex-col overflow-hidden border-r border-border-1 bg-bg-1 transition-[width] duration-200 ease-out"
-      style={{
-        width,
-        paddingTop: 20,
-        paddingLeft: pad,
-        paddingRight: pad,
-        paddingBottom: 14,
-      }}
+      className={[
+        // Mobile: fixed overlay
+        "fixed inset-y-0 left-0 z-50 w-[280px] px-[18px]",
+        "transition-transform duration-200 ease-out",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: in-flow, no transform
+        "lg:relative lg:z-auto lg:translate-x-0 lg:transition-[width]",
+        desktopWidthClass,
+        desktopPadClass,
+        // Shared
+        "flex shrink-0 flex-col overflow-hidden border-r border-border-1 bg-bg-1",
+        "pt-[20px] pb-[14px]",
+      ].join(" ")}
     >
-      {/* Brand row — Logo on left, toggle on right; collapsed = just toggle */}
+      {/* Brand row */}
       <div
-        className="flex items-center"
-        style={{
-          height: 40,
-          justifyContent: collapsed ? "center" : "space-between",
-          paddingLeft: collapsed ? 0 : 6,
-          paddingRight: collapsed ? 0 : 2,
-        }}
+        className={[
+          "flex items-center",
+          // Mobile: Logo left, close button right
+          "justify-between",
+          // Desktop: same when expanded, center when collapsed
+          collapsed ? "lg:justify-center lg:px-0" : "lg:justify-between lg:pl-[6px] lg:pr-[2px]",
+        ].join(" ")}
+        style={{ height: 40 }}
       >
-        {!collapsed && <Logo size={27} />}
+        {/* On desktop collapsed, hide the logo (only show toggle). On mobile + expanded desktop, show logo. */}
+        <span className={collapsed ? "lg:hidden" : ""}>
+          <Logo size={27} />
+        </span>
+
+        {/* Mobile close button */}
+        <IconButton
+          name="close"
+          size={36}
+          onClick={onCloseMobile}
+          label="Close menu"
+          className="lg:hidden"
+        />
+
+        {/* Desktop sidebar toggle — hidden on mobile */}
         <IconButton
           name="sidebar-toggle"
           size={36}
-          onClick={toggle}
+          onClick={toggleCollapsed}
           label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="hidden lg:inline-flex"
         />
       </div>
 
-      {/* Hairline beneath brand */}
+      {/* Hairline */}
       <div
-        className="h-px bg-border-1"
-        style={{
-          marginTop: 0,
-          marginBottom: 14,
-          marginLeft: collapsed ? 4 : 6,
-          marginRight: collapsed ? 4 : 6,
-        }}
+        className={[
+          "h-px bg-border-1",
+          "mb-[14px] mx-[6px]",
+          collapsed ? "lg:mx-[4px]" : "lg:mx-[6px]",
+        ].join(" ")}
       />
 
-      {/* Quick add — primary CTA with chevron-down (popover lands later) */}
+      {/* Quick add */}
       <QuickAddButton collapsed={collapsed} />
 
       {/* Nav */}
-      <nav
-        className="flex flex-col gap-[4px]"
-        style={{ marginTop: 14 }}
-      >
+      <nav className="mt-[14px] flex flex-col gap-[4px]">
         {NAV.map((item) => {
           const active =
             pathname === item.href ||
@@ -120,35 +149,35 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
+              onClick={onCloseMobile}
               className={[
                 "group relative flex items-center rounded-md transition-[background-color,color] duration-fast",
                 active
                   ? "bg-accent-surface text-accent-text font-semibold"
                   : "text-fg-2 hover:bg-bg-2 hover:text-fg-1 font-medium",
+                // Mobile: always expanded layout. Desktop: collapsed-aware.
+                "gap-[13px] px-[13px]",
+                collapsed ? "lg:gap-0 lg:justify-center lg:px-0" : "lg:gap-[13px] lg:px-[13px]",
               ].join(" ")}
               style={{
                 height: 42,
-                padding: collapsed ? 0 : "0 13px",
-                justifyContent: collapsed ? "center" : "flex-start",
-                gap: 13,
                 fontSize: 14.5,
                 fontFamily: "var(--font-body)",
               }}
             >
-              {active && !collapsed && (
+              {/* 3px accent left-bar on active — hidden when collapsed (desktop only) */}
+              {active && (
                 <span
                   aria-hidden
-                  className="absolute rounded-pill bg-accent"
-                  style={{
-                    left: 0,
-                    top: 11,
-                    bottom: 11,
-                    width: 3,
-                  }}
+                  className={[
+                    "absolute rounded-pill bg-accent",
+                    collapsed ? "lg:hidden" : "",
+                  ].join(" ")}
+                  style={{ left: 0, top: 11, bottom: 11, width: 3 }}
                 />
               )}
               <Icon name={item.icon} size={20} />
-              {!collapsed && item.label}
+              <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
             </Link>
           );
         })}
@@ -159,49 +188,49 @@ export function Sidebar() {
   );
 }
 
-/**
- * QuickAddButton — placeholder for the dropdown popover.
- *
- * V1 visual only: the chevron-down hints at "click to expand options"
- * (New server / Upload a beat / Add an artist). The actual popover lands
- * with the Upload modal + New Contact modal in the next commit.
- */
 function QuickAddButton({ collapsed }: { collapsed: boolean }) {
-  if (collapsed) {
-    return (
+  // Collapsed only matters on desktop. On mobile we always show the full pill.
+  return (
+    <>
+      {/* Mobile + desktop expanded: full pill */}
       <button
         type="button"
-        title="Quick add"
-        className="mx-auto flex items-center justify-center rounded-pill border-none bg-accent text-accent-fg transition-colors duration-fast hover:bg-accent-hover"
+        className={[
+          "flex w-full items-center rounded-md border-none bg-accent text-accent-fg",
+          "transition-colors duration-fast hover:bg-accent-hover",
+          collapsed ? "lg:hidden" : "",
+        ].join(" ")}
         style={{
-          width: 48,
-          height: 48,
-          boxShadow: "0 6px 20px -6px var(--accent-glow)",
+          height: 44,
+          padding: "0 14px",
+          gap: 10,
+          fontFamily: "var(--font-body)",
+          fontWeight: 600,
+          fontSize: 14.5,
+          boxShadow: "0 6px 20px -8px var(--accent-glow)",
         }}
       >
-        <Icon name="plus" size={22} />
+        <Icon name="plus" size={19} />
+        Quick add
+        <span className="flex-1" />
+        <Icon name="chevron-down" size={15} />
       </button>
-    );
-  }
 
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center rounded-md border-none bg-accent text-accent-fg transition-colors duration-fast hover:bg-accent-hover"
-      style={{
-        height: 44,
-        padding: "0 14px",
-        gap: 10,
-        fontFamily: "var(--font-body)",
-        fontWeight: 600,
-        fontSize: 14.5,
-        boxShadow: "0 6px 20px -8px var(--accent-glow)",
-      }}
-    >
-      <Icon name="plus" size={19} />
-      Quick add
-      <span className="flex-1" />
-      <Icon name="chevron-down" size={15} />
-    </button>
+      {/* Desktop collapsed only: circular icon */}
+      {collapsed && (
+        <button
+          type="button"
+          title="Quick add"
+          className="mx-auto hidden items-center justify-center rounded-pill border-none bg-accent text-accent-fg transition-colors duration-fast hover:bg-accent-hover lg:flex"
+          style={{
+            width: 48,
+            height: 48,
+            boxShadow: "0 6px 20px -6px var(--accent-glow)",
+          }}
+        >
+          <Icon name="plus" size={22} />
+        </button>
+      )}
+    </>
   );
 }

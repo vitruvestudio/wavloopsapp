@@ -24,6 +24,8 @@ export type IconName =
   | "settings"
   | "plus"
   | "sidebar-toggle"
+  | "menu"
+  | "close"
   /* topbar */
   | "search"
   | "bell"
@@ -116,6 +118,19 @@ export function Icon({ name, size = 20, className, stroke = 1.75 }: IconProps) {
           <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
           <path d="M9 4.5v15" />
           <path d="M6.25 9.25l-1 1 1 1" />
+        </svg>
+      );
+    case "menu":
+      /* Hamburger — 3 horizontal lines. Used for mobile sidebar open. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      );
+    case "close":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       );
 
