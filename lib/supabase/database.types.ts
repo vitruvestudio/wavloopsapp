@@ -29,3 +29,78 @@ export interface PlacementRecord {
   platform: "Spotify" | "YouTube";
   icon: string;
 }
+
+/* ============================================================
+   Servers & beats (migration #2)
+   ============================================================ */
+
+export type ArtworkMode = "auto" | "color" | "image";
+export type Visibility = "public" | "private";
+export type BeatType = "comp" | "loop";
+
+export interface ServerRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  style_text: string | null;
+  description: string | null;
+  artist_types: string[];
+  artwork_mode: ArtworkMode;
+  accent_hue: number | null;
+  artwork_image_url: string | null;
+  visibility: Visibility;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BeatRow {
+  id: string;
+  owner_id: string;
+  title: string;
+  type: BeatType | null;
+  bpm: number | null;
+  key: string | null;
+  audio_url: string | null;
+  wave_seed: string;
+  duration_seconds: number | null;
+  mood: string[];
+  has_stems: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServerBeatRow {
+  server_id: string;
+  beat_id: string;
+  position: number;
+  added_at: string;
+}
+
+export interface ContactRow {
+  id: string;
+  server_id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  socials: Record<string, string>;
+  first_seen_at: string;
+  last_active_at: string;
+}
+
+export interface ListenRow {
+  id: string;
+  contact_id: string;
+  beat_id: string;
+  server_id: string;
+  listened_at: string;
+  completion_pct: number | null;
+}
+
+export interface LikeRow {
+  id: string;
+  contact_id: string;
+  beat_id: string;
+  server_id: string;
+  liked_at: string;
+}
