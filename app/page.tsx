@@ -1,44 +1,43 @@
 /**
- * Wavloops Release OS — root landing at `/`.
+ * Wavloops V3 — placeholder home.
  *
- * Assembles the AnnouncementBar (founding-access strip), the floating
- * transparent Topbar, the 8 release-os sections, and the legacy Footer.
+ * Temporary minimal page surfaced at `/` while the producer app
+ * (auth → onboarding → dashboard) is being built. Replaces the
+ * V1/V2 marketing landings (archived under git tag
+ * `v1-landings-archive`).
  *
- * Page-level metadata is inherited from `app/layout.tsx`. Override here
- * only if a per-page SEO tweak (OG image, twitter card, etc.) is needed.
+ * Doubles as a smoke test for the new design system — if you can
+ * read centred Unbounded over a cool-tinted dark surface with an
+ * uppercase mono kicker, the tokens are wired correctly.
  */
 
-import { Footer } from "@/components/landingPage/footer";
-import { AnnouncementBar } from "@/components/landingPage/release-os/AnnouncementBar";
-import { BoringPart } from "@/components/landingPage/release-os/BoringPart";
-import { FAQ } from "@/components/landingPage/release-os/FAQ";
-import { FinalCTA } from "@/components/landingPage/release-os/FinalCTA";
-import { Hero } from "@/components/landingPage/release-os/Hero";
-import { HowItWorks } from "@/components/landingPage/release-os/HowItWorks";
-import { Pricing } from "@/components/landingPage/release-os/Pricing";
-import { ProducerWall } from "@/components/landingPage/release-os/ProducerWall";
-import { Topbar } from "@/components/landingPage/release-os/Topbar";
-import { WhatYouGet } from "@/components/landingPage/release-os/WhatYouGet";
+import Image from "next/image";
 
-export default function Home() {
+export default function HomePlaceholder() {
   return (
-    <div className="relative">
-      {/* Thin opaque founding-access announcement strip (36px) pinned above
-          the Topbar. The Topbar in turn sits at top-[36px] and stays
-          transparent so the Hero glow + grid still bleed through underneath. */}
-      <AnnouncementBar />
-      <Topbar />
-      <main>
-        <Hero />
-        <BoringPart />
-        <HowItWorks />
-        <WhatYouGet />
-        <ProducerWall />
-        <Pricing />
-        <FAQ />
-        <FinalCTA />
-      </main>
-      <Footer />
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center px-sp-6 text-center">
+      <div className="flex max-w-[480px] flex-col items-center gap-sp-6">
+        <Image
+          src="/Photos/wavloops-icon.png"
+          alt="Wavloops"
+          width={56}
+          height={56}
+          priority
+        />
+
+        <div className="t-mono-s text-accent-text">RELAUNCHING SOON · V1</div>
+
+        <h1 className="t-display" style={{ fontSize: "clamp(40px, 6vw, 64px)" }}>
+          Your beats, a&nbsp;living link.
+        </h1>
+
+        <p className="t-body-l max-w-[40ch]">
+          Drop beats into shareable servers. Send one link — capture every
+          contact and see who listens, in real time.
+        </p>
+
+        <div className="t-mono-s text-fg-4">FOR PRODUCERS · 20 FOUNDING SPOTS</div>
+      </div>
+    </main>
   );
 }

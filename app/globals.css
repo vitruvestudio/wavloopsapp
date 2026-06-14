@@ -1,368 +1,284 @@
 /* ============================================================
-   Wavloops — Design System 2026 · globals.css
-   Source of truth for CSS tokens + .wv-* helper classes.
-   Mirrored in tailwind.config.ts (theme.extend).
+   WAVLOOPS V3 — Design System Foundations
+   --------------------------------------------------------------
+   Cool-tinted surfaces, electric indigo accent (#2B25FF).
+   Dark mode is canonical; light mode is fully supported.
+   Toggle by setting  data-theme="light"  on <html> (default = dark).
+
+   Fonts (Unbounded / Hanken Grotesk / JetBrains Mono) are loaded
+   via next/font in app/layout.tsx — exposed here as CSS vars.
    ============================================================ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Hero mockup — pulsing ring behind the demo play button.
-   Declared globally (outside @layer) because @keyframes are scoped lexically. */
-@keyframes wv-play-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
+:root {
+  /* Font family CSS vars are set by next/font in app/layout.tsx
+     — `--font-display`, `--font-body`, `--font-mono` — and cascade
+     down through the className on <html>. Do not redeclare here. */
+
+  /* ---------- BRAND ACCENT (theme-independent) ---------- */
+  --accent: #2b25ff;
+  --accent-hover: oklch(0.575 0.255 268);
+  --accent-press: oklch(0.405 0.255 267);
+  --accent-fg: #ffffff;
+  --accent-ring: oklch(0.49 0.29 267 / 0.45);
+
+  /* ---------- SPACING (4px base) ---------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ---------- RADII (10px default) ---------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  /* ---------- MOTION ---------- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 360ms;
 }
 
-/* HowItWorks (S03) — chevron arrows between steps gently pulse toward the
-   next step, hinting at the flow direction. Reduced-motion users get static. */
-@keyframes wv-flow-arrow {
-  0%,
-  100% {
-    transform: translateX(0);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translateX(5px);
-    opacity: 1;
-  }
-}
-.wv-anim-flow-arrow {
-  animation: wv-flow-arrow 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .wv-anim-flow-arrow {
-    animation: none;
-  }
+/* ============================================================
+   DARK MODE (canonical)
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-0: oklch(0.145 0.012 265);
+  --bg-1: oklch(0.18 0.013 265);
+  --bg-2: oklch(0.216 0.014 265);
+  --bg-3: oklch(0.262 0.015 265);
+  --bg-inset: oklch(0.122 0.011 265);
+
+  --border-1: oklch(1 0 0 / 0.08);
+  --border-2: oklch(1 0 0 / 0.15);
+  --border-strong: oklch(1 0 0 / 0.26);
+
+  --fg-1: oklch(0.985 0.003 265);
+  --fg-2: oklch(0.745 0.012 265);
+  --fg-3: oklch(0.565 0.013 265);
+  --fg-4: oklch(0.44 0.012 265);
+
+  --accent-surface: oklch(0.49 0.29 267 / 0.16);
+  --accent-text: oklch(0.74 0.18 268);
+  --accent-glow: oklch(0.55 0.27 268 / 0.55);
+
+  --ok: oklch(0.78 0.16 152);
+  --warn: oklch(0.8 0.15 78);
+  --danger: oklch(0.7 0.2 22);
+  --ok-surface: oklch(0.78 0.16 152 / 0.14);
+  --warn-surface: oklch(0.8 0.15 78 / 0.14);
+  --danger-surface: oklch(0.7 0.2 22 / 0.14);
+
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-md: 0 8px 24px -8px oklch(0 0 0 / 0.55);
+  --shadow-lg: 0 24px 60px -16px oklch(0 0 0 / 0.65);
+  --shadow-pop: 0 16px 48px -12px oklch(0 0 0 / 0.7);
 }
 
-/* SafeAutoMode (S06) — fade-in-up for board cards when the user toggles
-   between Safe Mode and Auto Mode. Triggered fresh on each mount via
-   `key` change. Reduced-motion users get an instant swap. */
-@keyframes wv-fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.wv-anim-fade-in-up {
-  animation: wv-fade-in-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .wv-anim-fade-in-up {
-    animation: none;
-  }
+/* ============================================================
+   LIGHT MODE
+   ============================================================ */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-0: oklch(0.975 0.004 265);
+  --bg-1: oklch(1 0 0);
+  --bg-2: oklch(0.992 0.003 265);
+  --bg-3: oklch(0.955 0.006 265);
+  --bg-inset: oklch(0.958 0.005 265);
+
+  --border-1: oklch(0 0 0 / 0.08);
+  --border-2: oklch(0 0 0 / 0.14);
+  --border-strong: oklch(0 0 0 / 0.22);
+
+  --fg-1: oklch(0.205 0.022 265);
+  --fg-2: oklch(0.415 0.018 265);
+  --fg-3: oklch(0.545 0.015 265);
+  --fg-4: oklch(0.66 0.012 265);
+
+  --accent-surface: oklch(0.49 0.29 267 / 0.1);
+  --accent-text: oklch(0.46 0.27 267);
+  --accent-glow: oklch(0.49 0.29 267 / 0.35);
+
+  --ok: oklch(0.58 0.16 152);
+  --warn: oklch(0.62 0.15 70);
+  --danger: oklch(0.55 0.22 25);
+  --ok-surface: oklch(0.58 0.16 152 / 0.12);
+  --warn-surface: oklch(0.62 0.15 70 / 0.12);
+  --danger-surface: oklch(0.55 0.22 25 / 0.12);
+
+  --shadow-sm: 0 1px 2px oklch(0.2 0.02 265 / 0.08);
+  --shadow-md: 0 10px 28px -10px oklch(0.2 0.04 265 / 0.16);
+  --shadow-lg: 0 28px 64px -18px oklch(0.2 0.04 265 / 0.22);
+  --shadow-pop: 0 18px 48px -12px oklch(0.2 0.04 265 / 0.2);
 }
 
+/* ============================================================
+   BASE / RESET
+   ============================================================ */
 @layer base {
-  :root {
-    /* ---- surfaces (dark only) ---- */
-    --bg: #0a0a0a;            /* page background */
-    --bg-deep: #050505;       /* deepest sections */
-    --surface-1: #131314;     /* cards / panels */
-    --surface-2: #1a1a1c;     /* popovers / hover fills */
-    --surface-3: #242427;     /* elevation +1 / tracks */
-    --line: #222224;          /* hairline */
-    --line-strong: #323235;   /* borders, inputs, chips */
-
-    /* ---- text ---- */
-    --text-1: #f7f7f5;        /* primary */
-    --text-2: #9a9a97;        /* secondary / muted */
-    --text-3: #5a5a58;        /* tertiary / hints, mono captions */
-
-    /* ---- accent (electric blue) ---- */
-    --accent: #2b25ff;
-    --accent-hover: #4a45ff;
-    --accent-ink: #ffffff;
-    --accent-soft: rgba(64, 58, 255, 0.16);   /* washes, active chips */
-    --accent-line: rgba(96, 90, 255, 0.4);    /* active borders */
-    --danger: #ff453a;
-
-    /* ---- radii (premium rounded — pills for interactive, soft cards) ---- */
-    --r-sm: 10px;
-    --r-cover: 12px;
-    --r-card: 16px;
-    --r-pill: 999px;
-
-    /* ---- motion ---- */
-    --ease-wav: cubic-bezier(0.2, 0.8, 0.2, 1);
-    --dur: 120ms;
-
-    /* ---- elevation (subtle; elevation is mostly tonal) ---- */
-    --shadow-pop: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
-    --glow-accent: 0 0 0 4px var(--accent-soft),
-      0 10px 30px -10px rgba(64, 58, 255, 0.8);
+  * {
+    box-sizing: border-box;
   }
-
   html {
-    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
-
   body {
-    background-color: var(--bg);
-    color: var(--text-1);
-    font-family: var(--font-body), system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1.55;
+    margin: 0;
+    background: var(--bg-0);
+    color: var(--fg-1);
+    font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-
   ::selection {
     background: var(--accent);
-    color: var(--accent-ink);
+    color: var(--accent-fg);
+  }
+  ::placeholder {
+    color: var(--fg-4);
+  }
+  /* Native scrollbar tuned for dark surfaces */
+  *::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--bg-3);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-3) transparent;
   }
 }
 
+/* ============================================================
+   TYPE — semantic classes
+   Display = Unbounded · Body = Hanken · Mono = JetBrains UPPERCASE
+   ============================================================ */
 @layer components {
-  /* ============================================================
-     Type helpers
-     ============================================================ */
-
-  .wv-display-hero {
-    font-family: var(--font-display), system-ui, sans-serif;
+  .t-display-xl {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 96px;
-    line-height: 0.92;
-    letter-spacing: -0.05em;
+    font-size: clamp(48px, 5.2vw, 72px);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    color: var(--fg-1);
   }
-
-  .wv-display-h2 {
-    font-family: var(--font-display), system-ui, sans-serif;
+  .t-display {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 64px;
-    line-height: 0.95;
-    letter-spacing: -0.045em;
+    font-size: 48px;
+    line-height: 1.02;
+    letter-spacing: -0.018em;
+    color: var(--fg-1);
   }
-
-  .wv-display-h3 {
-    font-family: var(--font-display), system-ui, sans-serif;
-    font-weight: 600;
+  .t-h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
     font-size: 34px;
-    line-height: 1;
-    letter-spacing: -0.04em;
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    color: var(--fg-1);
   }
-
-  .wv-metric {
-    font-family: var(--font-display), system-ui, sans-serif;
+  .t-h2 {
+    font-family: var(--font-display);
     font-weight: 600;
     font-size: 26px;
-    letter-spacing: -0.03em;
+    line-height: 1.12;
+    letter-spacing: -0.012em;
+    color: var(--fg-1);
   }
-
-  .wv-title {
-    font-family: var(--font-body), system-ui, sans-serif;
+  .t-h3 {
+    font-family: var(--font-display);
     font-weight: 600;
-    font-size: 20px;
+    font-size: 19px;
     line-height: 1.2;
+    letter-spacing: -0.008em;
+    color: var(--fg-1);
   }
 
-  .wv-lead {
-    font-family: var(--font-body), system-ui, sans-serif;
-    font-size: 18px;
-    line-height: 1.55;
-    color: var(--text-2);
-  }
-
-  .wv-body {
-    font-family: var(--font-body), system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1.55;
-  }
-
-  .wv-caption {
-    font-family: var(--font-body), system-ui, sans-serif;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  /* Eyebrow — the brand's signature editorial label.
-     Prefix with `<span class="slash">//</span>` and a section number.
-     e.g. <div class="wv-eyebrow"><span class="slash">//</span> 002 — The model</div> */
-  .wv-eyebrow {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--text-2);
-  }
-  .wv-eyebrow .slash {
-    color: var(--accent);
-  }
-
-  /* Mono data string — e.g. "124 BPM · B MINOR · WAV · STEMS" */
-  .wv-data {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-3);
-  }
-
-  /* ============================================================
-     Grain overlay — applies a 6% film grain to any material surface.
-     Use on cards, hero blocks, the blue manifesto block.
-     Class is `.wv-grain` (DS 2026). Legacy `.wav-grain` kept below as alias.
-     ============================================================ */
-
-  .wv-grain,
-  .wav-grain {
-    position: relative;
-    isolation: isolate;
-  }
-  .wv-grain::after,
-  .wav-grain::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.5;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-    background-size: 200px 200px;
-    z-index: 1;
-  }
-  .wv-grain > *,
-  .wav-grain > * {
-    position: relative;
-    z-index: 2;
-  }
-
-  /* ============================================================
-     Buttons — premium pills
-     ============================================================ */
-
-  .wv-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-family: var(--font-body), system-ui, sans-serif;
+  /* Body — Hanken Grotesk */
+  .t-title {
+    font-family: var(--font-body);
     font-weight: 600;
+    font-size: 16px;
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+    color: var(--fg-1);
+  }
+  .t-body-l {
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--fg-2);
+  }
+  .t-body {
+    font-family: var(--font-body);
+    font-weight: 400;
     font-size: 14px;
-    cursor: pointer;
-    border-radius: var(--r-pill);
-    padding: 11px 22px;
-    border: 1px solid transparent;
-    transition: all var(--dur) var(--ease-wav);
-    white-space: nowrap;
+    line-height: 1.5;
+    color: var(--fg-2);
   }
-  .wv-btn-primary {
-    background: var(--accent);
-    color: var(--accent-ink);
-  }
-  .wv-btn-primary:hover {
-    background: var(--accent-hover);
-    box-shadow: var(--glow-accent);
-    transform: translateY(-1px);
-  }
-  .wv-btn-primary:active {
-    transform: scale(0.98);
-  }
-  .wv-btn-ghost {
-    background: transparent;
-    color: var(--text-1);
-    border-color: var(--line-strong);
-  }
-  .wv-btn-ghost:hover {
-    background: var(--surface-2);
-    border-color: var(--text-3);
-  }
-  .wv-btn-sm {
-    padding: 8px 16px;
+  .t-body-s {
+    font-family: var(--font-body);
+    font-weight: 400;
     font-size: 13px;
-  }
-  .wv-btn-lg {
-    padding: 15px 28px;
-    font-size: 15px;
+    line-height: 1.45;
+    color: var(--fg-3);
   }
 
-  /* ============================================================
-     Headline highlight — accent fill sitting BEHIND the text.
-     Used on the hero H1 ("the boring part."). Constrained line-height +
-     inline-block keep the highlight from bleeding into the line above,
-     and the ::before pseudo paints the fill on its own z-layer.
-     ============================================================ */
-
-  .wv-hl-accent {
-    position: relative;
-    display: inline-block;
-    color: #fff;
-    line-height: 1;
-    padding: 0.1em 0.12em 0.14em;
-    margin: 0 -0.04em;
-    border-radius: 0.06em;
-    vertical-align: baseline;
-    z-index: 0;
-    max-width: 100%;
-  }
-  .wv-hl-accent::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--accent);
-    border-radius: inherit;
-    z-index: -1;
-  }
-
-  /* Inline keyword underline — white text + accent-blue bottom rule.
-     Inherits font-weight from its context, so it can sit inside body copy
-     (add a Tailwind weight class like `font-semibold` to lift it) OR inside
-     a heading (no extra class needed — the H2/H3 weight carries through).
-     `box-decoration-break: clone` keeps the underline intact across wraps. */
-  .wv-kw {
-    color: #fff;
-    box-shadow: inset 0 -2px 0 var(--accent);
-    padding-bottom: 1px;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-
-  /* ============================================================
-     Tags / chips — mono pills
-     ============================================================ */
-
-  .wv-tag {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 9.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-2);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--r-pill);
-    padding: 3px 10px;
-    display: inline-flex;
-    gap: 5px;
-    align-items: center;
-    white-space: nowrap;
-  }
-  .wv-tag-accent {
-    color: #fff;
-    border-color: var(--accent-line);
-    background: var(--accent-soft);
-  }
-
-  /* ============================================================
-     Legacy helper kept for current landing — use .wv-eyebrow going forward
-     ============================================================ */
-
-  .wav-eyebrow {
-    font-family: var(--font-mono), ui-monospace, monospace;
+  /* Mono — technical metadata, tags, BPM/key/format. ALWAYS uppercase. */
+  .t-mono {
+    font-family: var(--font-mono);
+    font-weight: 500;
     font-size: 11px;
-    line-height: 1.6;
-    letter-spacing: 0.18em;
+    line-height: 1.3;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--text-2);
+    color: var(--fg-3);
+  }
+  .t-mono-s {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 10px;
+    line-height: 1.3;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+  }
+  .t-mono-lg {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-2);
   }
 }
