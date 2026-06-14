@@ -1,14 +1,21 @@
 /**
  * (app) — route group layout for every producer-side screen.
  *
- * Responsive strategy:
- *   - lg+ (1024px+) : Sidebar in-flow (244/76 collapsible), TopBar full
- *   - <  lg         : Sidebar slides over (fixed 280px overlay + backdrop),
- *                     hamburger button in the TopBar opens it
+ * Architecture mirrors the prototype's `ProducerShell`:
  *
- * Client component so we can own the mobile-sidebar open state here and
- * pass it into both <Sidebar /> and <TopBar />. Child pages stay
- * server-rendered (the children prop is opaque to this client boundary).
+ *   ┌──────────────── outer flex column ────────────────┐
+ *   │  ┌── inner flex row (flex-1 min-h-0 overflow-hidden)──┐
+ *   │  │   Sidebar │ TopBar + content + per-page header     │
+ *   │  └──────────────────────────────────────────────────┘
+ *   │  PlayerDock — full-bleed across sidebar + content    │
+ *   └──────────────────────────────────────────────────────┘
+ *
+ * The PlayerDock spans the FULL viewport width (not just the content
+ * column) — it's a screen-level fixture, not a content-level one.
+ *
+ * Responsive:
+ *   - < lg : Sidebar slides over the content as a 280px overlay
+ *   - lg+  : Sidebar in-flow (244/76 collapsible)
  */
 
 "use client";
@@ -37,7 +44,7 @@ export default function AppLayout({
     }
   }, [mobileOpen]);
 
-  // Close mobile sidebar on Escape
+  // Close on Escape
   React.useEffect(() => {
     if (!mobileOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -49,8 +56,8 @@ export default function AppLayout({
 
   return (
     <PlayerProvider>
-      <div className="flex h-[100dvh] w-full overflow-hidden bg-bg-0">
-        {/* Mobile backdrop — fades + click-to-close */}
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-bg-0">
+        {/* Mobile backdrop */}
         {mobileOpen && (
           <button
             type="button"
@@ -60,16 +67,21 @@ export default function AppLayout({
           />
         )}
 
-        <Sidebar
-          mobileOpen={mobileOpen}
-          onCloseMobile={() => setMobileOpen(false)}
-        />
+        {/* Inner row: Sidebar + content column */}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <Sidebar
+            mobileOpen={mobileOpen}
+            onCloseMobile={() => setMobileOpen(false)}
+          />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar onMenuClick={() => setMobileOpen(true)} />
-          <main className="flex-1 overflow-y-auto">{children}</main>
-          <PlayerDock />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopBar onMenuClick={() => setMobileOpen(true)} />
+            <main className="flex-1 overflow-y-auto">{children}</main>
+          </div>
         </div>
+
+        {/* PlayerDock — full-bleed across the whole viewport width */}
+        <PlayerDock />
       </div>
     </PlayerProvider>
   );

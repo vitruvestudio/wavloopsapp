@@ -72,15 +72,18 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         className="rounded-pill lg:hidden"
       />
 
-      {/* Search — left-aligned, max 440px on lg+, grows on mobile */}
+      {/* Search — h38 (proto's `size="sm"`), left-aligned, max 440px on lg+, grows on mobile */}
       <div className="min-w-0 flex-1 lg:max-w-[440px] lg:flex-none lg:basis-[440px]">
-        <div className="flex h-9 items-center gap-sp-2 rounded-md border border-border-1 bg-bg-inset px-sp-3 text-fg-3 transition-colors focus-within:border-accent">
-          <Icon name="search" size={16} />
+        <div
+          className="flex items-center gap-sp-2 rounded-md border border-border-2 bg-bg-inset px-sp-3 text-fg-3 transition-colors focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)]"
+          style={{ height: 38 }}
+        >
+          <Icon name="search" size={17} className="text-fg-3" />
           <input
             type="search"
-            placeholder="Search…"
+            placeholder="Search servers, beats, contacts…"
             className="t-body min-w-0 flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4"
-            style={{ fontSize: 13 }}
+            style={{ fontSize: 14 }}
           />
         </div>
       </div>
@@ -144,13 +147,13 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       <button
         type="button"
         className="inline-flex items-center rounded-pill border border-border-1 transition-colors duration-fast hover:bg-bg-2"
-        style={{ height: 40, padding: "0 4px 0 4px", gap: 9 }}
+        style={{ height: 40, padding: "0 8px 0 6px", gap: 9 }}
       >
         <Avatar name="Tyler Mills" label="TM" size={28} />
         <Icon
           name="chevron-down"
           size={15}
-          className="hidden text-fg-3 sm:inline-block sm:mr-[4px]"
+          className="hidden text-fg-3 sm:inline-block"
         />
       </button>
     </header>

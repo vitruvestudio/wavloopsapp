@@ -82,8 +82,8 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         "fixed inset-y-0 left-0 z-50 w-[280px] px-[18px]",
         "transition-transform duration-200 ease-out",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
-        // Desktop: in-flow, no transform
-        "lg:relative lg:z-auto lg:translate-x-0 lg:transition-[width]",
+        // Desktop: in-flow, width transitions with proto's --ease easing
+        "lg:relative lg:z-auto lg:translate-x-0 lg:transition-[width] lg:duration-200 lg:ease",
         desktopWidthClass,
         desktopPadClass,
         // Shared

@@ -142,7 +142,7 @@ export function PlayerDock() {
 
         {/* RIGHT — key + volume */}
         <div className="flex items-center justify-end gap-[12px]">
-          <Tag variant="accent">{current.key}</Tag>
+          <Tag variant="solid">{current.key}</Tag>
           <IconButton name="volume" size={34} iconSize={18} label="Volume" />
         </div>
       </div>
