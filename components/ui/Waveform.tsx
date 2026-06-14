@@ -16,6 +16,7 @@
 "use client";
 
 import * as React from "react";
+import { genBars } from "@/lib/seed";
 
 interface WaveformProps {
   seed: string;
@@ -33,32 +34,6 @@ interface WaveformProps {
   accent?: string;
   glow?: boolean;
   className?: string;
-}
-
-/** Stable hash → uint, matches the proto's `hashSeed`. */
-function hashSeed(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** Deterministic LCG bar generator — matches the proto's `genBars`. */
-function genBars(seed: string, n: number): number[] {
-  let s = hashSeed(seed) || 1;
-  const rnd = () => {
-    s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-  const out: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const env = Math.sin((i / n) * Math.PI) * 0.5 + 0.5; // gentle envelope
-    const v = 0.16 + (rnd() * 0.7 + rnd() * 0.3) * env;
-    out.push(Math.min(1, v));
-  }
-  return out;
 }
 
 export function Waveform({

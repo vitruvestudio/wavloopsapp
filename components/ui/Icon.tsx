@@ -58,7 +58,11 @@ export type IconName =
   | "arrow-right"
   | "check"
   | "trash"
-  | "x";
+  | "x"
+  /* server card / visibility */
+  | "lock"
+  | "chevron-right"
+  | "note";
 
 interface IconProps {
   name: IconName;
@@ -372,6 +376,32 @@ export function Icon({
       return (
         <svg {...common} {...lineProps}>
           <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      );
+
+    /* -------------------- server card / visibility -------------------- */
+    case "lock":
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+          <path d="M7.5 10.5V7a4.5 4.5 0 019 0v3.5" />
+        </svg>
+      );
+    case "chevron-right":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      );
+    case "note":
+      /* Single music note — used for COMP beat type and Spotify
+         placement glyphs. Smaller, less ornate than the `library`
+         double-note used in the sidebar nav. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M10 18V5l9-1.5v12" />
+          <circle cx="7.5" cy="18" r="2.2" fill="currentColor" stroke="none" />
+          <circle cx="16.5" cy="15.5" r="2.2" fill="currentColor" stroke="none" />
         </svg>
       );
 
