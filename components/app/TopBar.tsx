@@ -1,31 +1,35 @@
 /**
- * TopBar — Wavloops V3 sticky producer header.
+ * TopBar — Wavloops V3 global app chrome.
  *
- * Slots (left → right):
- *   - Page title + sub kicker (passed via context or page header — V1 lets
- *     the page itself render the title; the TopBar is just chrome)
- *   - Search input (centred-ish, grows to fill)
- *   - Theme toggle (sun/moon, persists to localStorage `wl-srv-theme`)
- *   - Notifications bell (dot when unread — V1 = always off)
- *   - Account avatar / menu (placeholder, dropdown comes later)
+ * Mirrors the prototype's `GlobalTopBar` exactly:
+ *   [Search 440px max] [spacer] [● LIVE] | [Preview Server Page]
+ *   [theme] [bell+dot] [account pill]
  *
- * Background is bg-0 with backdrop-blur — the only translucent surface
- * in the app per DS spec.
+ *   - Height 60, padding 0 22px
+ *   - Border-bottom hairline, opaque bg-0 (no blur — that lives on the
+ *     per-page header below it)
+ *   - LIVE is a green-ok dot + uppercase mono kicker (sync status)
+ *   - Preview Server Page = ghost-style secondary Button with `eye` icon —
+ *     jumps to the artist gate preview for the currently-viewed server
+ *   - Account = round-pill button (border-1, padding 0 8 0 6) holding
+ *     the avatar + chevron-down
  */
 
 "use client";
 
 import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
-import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { IconButton } from "@/components/ui/IconButton";
 
 const THEME_KEY = "wl-srv-theme";
 
 function useTheme() {
   const [theme, setTheme] = React.useState<"dark" | "light">("dark");
   React.useEffect(() => {
-    const stored = (localStorage.getItem(THEME_KEY) as "dark" | "light" | null) ?? "dark";
+    const stored =
+      (localStorage.getItem(THEME_KEY) as "dark" | "light" | null) ?? "dark";
     setTheme(stored);
     document.documentElement.setAttribute("data-theme", stored);
   }, []);
@@ -45,40 +49,84 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center gap-sp-4 border-b border-border-1 px-sp-6"
-      style={{
-        height: 64,
-        background: "color-mix(in oklch, var(--bg-0) 80%, transparent)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-      }}
+      className="flex shrink-0 items-center border-b border-border-1 bg-bg-0"
+      style={{ height: 60, padding: "0 22px", gap: 14, zIndex: 25 }}
     >
-      {/* search */}
-      <div className="flex h-9 min-w-0 flex-1 items-center gap-sp-2 rounded-md border border-border-1 bg-bg-inset px-sp-3 text-fg-3 transition-colors focus-within:border-accent">
-        <Icon name="search" size={16} />
-        <input
-          type="search"
-          placeholder="Search beats, servers, contacts…"
-          className="t-body min-w-0 flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4"
-        />
+      {/* search — max 440 on the LEFT */}
+      <div style={{ flex: 1, maxWidth: 440 }}>
+        <div className="flex h-9 items-center gap-sp-2 rounded-md border border-border-1 bg-bg-inset px-sp-3 text-fg-3 transition-colors focus-within:border-accent">
+          <Icon name="search" size={16} />
+          <input
+            type="search"
+            placeholder="Search servers, beats, contacts…"
+            className="t-body min-w-0 flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4"
+            style={{ fontSize: 13 }}
+          />
+        </div>
       </div>
 
-      {/* right cluster */}
-      <div className="flex shrink-0 items-center gap-sp-1">
-        <IconButton
-          name={theme === "dark" ? "sun" : "moon"}
-          onClick={toggle}
-          label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      {/* spacer */}
+      <div className="flex-1" />
+
+      {/* live sync indicator */}
+      <span
+        className="t-mono-s inline-flex items-center"
+        style={{ gap: 7, padding: "0 4px" }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "var(--ok)",
+            boxShadow: "0 0 8px 0 var(--ok)",
+          }}
         />
-        <IconButton name="bell" label="Notifications" />
-        <button
-          type="button"
-          className="ml-sp-2 inline-flex items-center gap-sp-2 rounded-pill p-[3px] pr-sp-3 text-fg-2 transition-colors hover:bg-bg-2 hover:text-fg-1"
-        >
-          <Avatar name="Producer" size={28} />
-          <Icon name="chevron-down" size={14} />
-        </button>
-      </div>
+        LIVE
+      </span>
+
+      {/* vertical divider */}
+      <div
+        aria-hidden
+        className="bg-border-2"
+        style={{ width: 1, height: 24 }}
+      />
+
+      {/* preview public profile */}
+      <Button variant="secondary" size="sm" icon="eye">
+        Preview Server Page
+      </Button>
+
+      {/* theme toggle */}
+      <IconButton
+        name={theme === "dark" ? "sun" : "moon"}
+        size={40}
+        iconSize={18}
+        onClick={toggle}
+        label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        className="rounded-pill"
+      />
+
+      {/* notifications */}
+      <IconButton
+        name="bell"
+        size={40}
+        iconSize={18}
+        label="Notifications"
+        dot
+        className="rounded-pill"
+      />
+
+      {/* account pill */}
+      <button
+        type="button"
+        className="inline-flex items-center rounded-pill border border-border-1 transition-colors duration-fast hover:bg-bg-2"
+        style={{ height: 40, padding: "0 8px 0 6px", gap: 9 }}
+      >
+        <Avatar name="Tyler Mills" label="TM" size={28} />
+        <Icon name="chevron-down" size={15} className="text-fg-3" />
+      </button>
     </header>
   );
 }

@@ -14,6 +14,8 @@ interface AvatarProps {
   name: string;
   src?: string | null;
   size?: number;
+  /** Override the auto-computed initials (e.g. force "TM" for "Tyler Mills"). */
+  label?: string;
   /** Adds an accent ring (e.g. the producer's avatar on artist gate). */
   ring?: boolean;
   className?: string;
@@ -34,8 +36,9 @@ function initialsFor(name: string): string {
   return (first + last).toUpperCase();
 }
 
-export function Avatar({ name, src, size = 36, ring, className }: AvatarProps) {
+export function Avatar({ name, src, size = 36, label, ring, className }: AvatarProps) {
   const hue = hueFor(name);
+  const initials = label ?? initialsFor(name);
   return (
     <span
       className={[
@@ -57,7 +60,7 @@ export function Avatar({ name, src, size = 36, ring, className }: AvatarProps) {
       {src ? (
         <Image src={src} alt={name} width={size} height={size} className="block h-full w-full object-cover" />
       ) : (
-        initialsFor(name)
+        initials
       )}
     </span>
   );

@@ -38,7 +38,9 @@ export type IconName =
   | "volume"
   /* misc */
   | "heart"
-  | "external";
+  | "external"
+  | "eye"
+  | "chevron-left";
 
 interface IconProps {
   name: IconName;
@@ -78,11 +80,12 @@ export function Icon({ name, size = 20, className, stroke = 1.75 }: IconProps) {
         </svg>
       );
     case "library":
+      /* Double music note — matches the proto's `note` semantic. */
       return (
         <svg {...common} {...lineProps}>
-          <rect x="3.5" y="4.5" width="3.5" height="15" rx="0.75" />
-          <rect x="9" y="4.5" width="3.5" height="15" rx="0.75" />
-          <path d="M14.5 5.5l5.5 1.5-3 13-5.5-1.5z" />
+          <path d="M9 17V4l11-2v13" />
+          <circle cx="6.25" cy="17" r="2.5" fill="currentColor" stroke="none" />
+          <circle cx="17.25" cy="15" r="2.5" fill="currentColor" stroke="none" />
         </svg>
       );
     case "users":
@@ -204,6 +207,19 @@ export function Icon({ name, size = 20, className, stroke = 1.75 }: IconProps) {
         <svg {...common} {...lineProps}>
           <path d="M9 5H5v14h14v-4" />
           <path d="M14 5h5v5M19 5l-9 9" />
+        </svg>
+      );
+    case "eye":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+    case "chevron-left":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M15 6l-6 6 6 6" />
         </svg>
       );
 
