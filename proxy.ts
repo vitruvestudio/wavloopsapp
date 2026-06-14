@@ -28,6 +28,7 @@ const APP_ROUTE_PREFIXES = [
   "/settings",
   "/servers",
   "/beats",
+  "/onboarding",
 ];
 
 export async function proxy(request: NextRequest) {

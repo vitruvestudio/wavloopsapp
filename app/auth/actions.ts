@@ -84,8 +84,10 @@ export async function signUpAction(
   }
 
   revalidatePath("/", "layout");
-  // TODO: route to /onboarding when J2 wizard lands.
-  redirect("/dashboard");
+  // Post-signup, route to the producer profile setup wizard.
+  // Once we wire the profiles table, /dashboard will start checking
+  // `onboarded_at` and bounce users here automatically if it's null.
+  redirect("/onboarding");
 }
 
 export async function signOutAction() {

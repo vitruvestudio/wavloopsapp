@@ -46,7 +46,19 @@ export type IconName =
   /* dropdown / account menu */
   | "user"
   | "flame"
-  | "log-out";
+  | "log-out"
+  /* onboarding / forms */
+  | "upload"
+  | "instagram"
+  | "x-logo"
+  | "youtube"
+  | "mic"
+  | "globe"
+  | "link"
+  | "arrow-right"
+  | "check"
+  | "trash"
+  | "x";
 
 interface IconProps {
   name: IconName;
@@ -274,6 +286,92 @@ export function Icon({
           <path d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4" />
           <path d="M16 17l5-5-5-5" />
           <path d="M21 12H10" />
+        </svg>
+      );
+
+    /* -------------------- onboarding / forms -------------------- */
+    case "upload":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M21 15v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3" />
+          <path d="M17 8l-5-5-5 5" />
+          <path d="M12 3v13" />
+        </svg>
+      );
+    case "instagram":
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+          <circle cx="12" cy="12" r="3.5" />
+          <circle cx="17.25" cy="6.75" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "x-logo":
+      /* X (Twitter) letter glyph */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M5 4l14 16M19 4L5 20" />
+        </svg>
+      );
+    case "youtube":
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="2.5" y="6.5" width="19" height="11" rx="3" />
+          <path d="M10.5 9.75v4.5l4-2.25z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "mic":
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="9" y="3" width="6" height="11" rx="3" />
+          <path d="M5.5 11a6.5 6.5 0 0013 0" />
+          <path d="M12 17.5V21" />
+          <path d="M9 21h6" />
+        </svg>
+      );
+    case "globe":
+      return (
+        <svg {...common} {...lineProps}>
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M3.5 12h17" />
+          <path d="M12 3.5c2.5 3 2.5 14 0 17" />
+          <path d="M12 3.5c-2.5 3-2.5 14 0 17" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M10 14a4 4 0 005.66 0l3-3a4 4 0 10-5.66-5.66l-1.5 1.5" />
+          <path d="M14 10a4 4 0 00-5.66 0l-3 3a4 4 0 105.66 5.66l1.5-1.5" />
+        </svg>
+      );
+    case "arrow-right":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M5 12.5l4.5 4.5L19 7" />
+        </svg>
+      );
+    case "trash":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M4 7h16" />
+          <path d="M9 7V4.5h6V7" />
+          <path d="M6.5 7l1 13a1.5 1.5 0 001.5 1.5h6a1.5 1.5 0 001.5-1.5l1-13" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
+      );
+    case "x":
+      /* Alias of close — small X used inside chips and inputs. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       );
 
