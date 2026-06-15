@@ -24,6 +24,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
+import { BeatNoteModal } from "./BeatNoteModal";
 
 /** Single-hue glow that anchors the banner — one dominant colour
  *  derived from the slug, with small adjacent-hue variants for
@@ -70,6 +71,12 @@ export function ServerView({ producer, server }: ServerViewProps) {
   const [overrides, setOverrides] = React.useState<
     Record<string, { liked?: boolean; listened?: boolean }>
   >({});
+  /** Per-beat private notes, keyed by beat id. Empty string = no note.
+   *  Phase 3 will swap for a beat_notes table scoped to the artist's
+   *  contact id. */
+  const [notes, setNotes] = React.useState<Record<string, string>>({});
+  /** Beat whose note modal is currently open; null = closed. */
+  const [noteFor, setNoteFor] = React.useState<MockBeat | null>(null);
 
   const beats = server.beats.map((b) => ({
     ...b,
@@ -367,14 +374,27 @@ export function ServerView({ producer, server }: ServerViewProps) {
             <BeatRow
               key={b.id}
               beat={b}
+              hasNote={Boolean((notes[b.id] ?? "").trim())}
               playing={playingId === b.id}
               onTogglePlay={() => togglePlay(b.id)}
               onToggleLike={() => toggleLike(b.id)}
               onToggleListened={() => toggleListened(b.id)}
+              onOpenNote={() => setNoteFor(b)}
             />
           ))
         )}
       </div>
+
+      {noteFor && (
+        <BeatNoteModal
+          beat={noteFor}
+          initialNote={notes[noteFor.id] ?? ""}
+          onClose={() => setNoteFor(null)}
+          onSave={(next) =>
+            setNotes((cur) => ({ ...cur, [noteFor.id]: next }))
+          }
+        />
+      )}
     </main>
   );
 }
@@ -421,16 +441,22 @@ function FilterChip({
 
 function BeatRow({
   beat,
+  hasNote,
   playing,
   onTogglePlay,
   onToggleLike,
   onToggleListened,
+  onOpenNote,
 }: {
   beat: MockBeat;
+  /** True when the artist has saved a private note for this beat —
+   *  drives the small accent dot on the message icon. */
+  hasNote: boolean;
   playing: boolean;
   onTogglePlay: () => void;
   onToggleLike: () => void;
   onToggleListened: () => void;
+  onOpenNote: () => void;
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
@@ -545,10 +571,11 @@ function BeatRow({
         {beat.duration}
       </span>
 
-      {/* Comment */}
+      {/* Private note */}
       <button
         type="button"
-        aria-label="Comments"
+        aria-label="Private note"
+        onClick={onOpenNote}
         className="relative inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
         style={{
           width: 32,
@@ -556,11 +583,11 @@ function BeatRow({
           borderRadius: "var(--r-sm)",
           border: "none",
           background: "transparent",
-          color: "var(--fg-4)",
+          color: hasNote ? "var(--accent-text)" : "var(--fg-4)",
         }}
       >
         <Icon name="message" size={16} />
-        {beat.commentCount > 0 && (
+        {hasNote && (
           <span
             style={{
               position: "absolute",
