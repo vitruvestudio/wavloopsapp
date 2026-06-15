@@ -71,39 +71,43 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
 
   return (
     <main
-      className="relative min-h-screen flex flex-col items-center justify-center"
+      className="relative min-h-screen flex flex-col items-center"
       style={{
         background: "oklch(0.08 0.02 270)",
         color: "#fff",
-        padding: "32px 22px 48px",
       }}
     >
-      {/* ── Background layer (artwork_mode) ───────────────────── */}
-      <GateBackground data={data} />
+      {/* ── Banner — server artwork, Discord/Spotify-style ──── */}
+      <GateBanner data={data} />
 
-      {/* ── Foreground column ─────────────────────────────────── */}
+      {/* ── Avatar — circle that overlaps the banner's bottom edge */}
       <div
-        className="relative z-10 flex flex-col items-center"
+        className="relative"
         style={{
-          width: "100%",
-          maxWidth: 420,
-          gap: 22,
+          marginTop: -72, // half of 144 avatar size — straddles the banner edge
+          zIndex: 10,
         }}
       >
-        {/* Avatar with accent glow */}
-        <div className="relative">
-          <span
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, oklch(0.65 0.18 270 / 0.6), transparent 70%)",
-              filter: "blur(20px)",
-              transform: "scale(1.4)",
-              zIndex: -1,
-            }}
-          />
+        <span
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, oklch(0.65 0.18 270 / 0.45), transparent 70%)",
+            filter: "blur(22px)",
+            transform: "scale(1.5)",
+            zIndex: -1,
+          }}
+        />
+        <div
+          style={{
+            padding: 4,
+            borderRadius: "50%",
+            background: "oklch(0.08 0.02 270)", // matches the page bg so the
+            // ring reads as a clean cut-out around the avatar
+          }}
+        >
           <div
             style={{
               padding: 3,
@@ -115,11 +119,22 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
             <Avatar
               name={data.producer_name ?? handleAt}
               src={data.producer_avatar_url}
-              size={108}
+              size={132}
             />
           </div>
         </div>
+      </div>
 
+      {/* ── Foreground column ─────────────────────────────────── */}
+      <div
+        className="relative z-10 flex flex-col items-center"
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          gap: 22,
+          padding: "22px 22px 48px",
+        }}
+      >
         {/* Kicker */}
         <div
           className="t-mono-s"
@@ -281,47 +296,48 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
 }
 
 /* ============================================================
-   GateBackground — full-bleed layer that reflects artwork_mode
+   GateBanner — top banner that shows the server's artwork. The
+   avatar overlaps its bottom edge (sketch reference Theo shared).
    ============================================================ */
 
-function GateBackground({ data }: { data: ArtistGateData }) {
+function GateBanner({ data }: { data: ArtistGateData }) {
   return (
-    <>
+    <section
+      aria-hidden
+      className="relative overflow-hidden w-full"
+      style={{
+        height: "clamp(180px, 32vw, 260px)",
+      }}
+    >
+      {data.artwork_mode === "image" && data.artwork_image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={data.artwork_image_url}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      ) : data.artwork_mode === "color" && data.accent_hue != null ? (
+        <CoverArt fill seed={data.slug} hue={data.accent_hue} />
+      ) : (
+        <BeatMosaic data={data} />
+      )}
+      {/* Bottom fade — banner blends into the page background so the
+          avatar circle reads as cleanly cut out, with no hard edge. */}
       <div
-        aria-hidden
-        className="absolute inset-0 overflow-hidden"
-        style={{ zIndex: 0 }}
-      >
-        {data.artwork_mode === "image" && data.artwork_image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={data.artwork_image_url}
-            alt=""
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              filter: "blur(2px)",
-            }}
-          />
-        ) : data.artwork_mode === "color" && data.accent_hue != null ? (
-          <CoverArt fill seed={data.slug} hue={data.accent_hue} />
-        ) : (
-          <BeatMosaic data={data} />
-        )}
-      </div>
-      {/* Darken + vignette so the foreground content stays readable
-          on top of any artwork. */}
-      <div
-        aria-hidden
-        className="absolute inset-0"
         style={{
-          zIndex: 1,
+          position: "absolute",
+          inset: 0,
           background:
-            "radial-gradient(ellipse at top, oklch(0 0 0 / 0.45), oklch(0 0 0 / 0.85) 80%)",
+            "linear-gradient(to bottom, transparent 35%, oklch(0.08 0.02 270 / 0.4) 70%, oklch(0.08 0.02 270) 100%)",
         }}
       />
-    </>
+    </section>
   );
 }
 
