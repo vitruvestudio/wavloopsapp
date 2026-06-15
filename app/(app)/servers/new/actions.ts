@@ -151,6 +151,5 @@ export async function createServerAction(
 
   revalidatePath("/dashboard", "page");
   revalidatePath("/library", "page");
-  // J3.5 will replace this with `/servers/${createdServer.slug}`.
-  redirect("/dashboard");
+  redirect(`/servers/${createdServer.slug}`);
 }

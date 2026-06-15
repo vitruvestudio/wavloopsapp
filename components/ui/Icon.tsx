@@ -74,7 +74,12 @@ export type IconName =
   | "info"
   /* library view toggle */
   | "view-list"
-  | "view-grid";
+  | "view-grid"
+  /* server detail page actions */
+  | "copy"
+  | "share"
+  | "edit"
+  | "mail";
 
 interface IconProps {
   name: IconName;
@@ -504,6 +509,43 @@ export function Icon({
           <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2" />
           <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2" />
           <rect x="13" y="13" width="7.5" height="7.5" rx="1.2" />
+        </svg>
+      );
+
+    /* -------------------- server detail actions -------------------- */
+    case "copy":
+      /* Two stacked rounded rectangles — clipboard duplicate. */
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="9" y="9" width="11" height="11" rx="2" />
+          <path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1" />
+        </svg>
+      );
+    case "share":
+      /* Three nodes connected by two lines — generic share glyph. */
+      return (
+        <svg {...common} {...lineProps}>
+          <circle cx="18" cy="5" r="2.5" />
+          <circle cx="6" cy="12" r="2.5" />
+          <circle cx="18" cy="19" r="2.5" />
+          <path d="M8.25 10.75l7.5-4.5" />
+          <path d="M8.25 13.25l7.5 4.5" />
+        </svg>
+      );
+    case "edit":
+      /* Pencil — classic edit affordance. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M14.5 4.5l5 5L8 21l-5.5.5L3 16z" />
+          <path d="M13 6l5 5" />
+        </svg>
+      );
+    case "mail":
+      /* Envelope. */
+      return (
+        <svg {...common} {...lineProps}>
+          <rect x="3" y="5.5" width="18" height="13" rx="2" />
+          <path d="M3.5 7l8.5 6.5L20.5 7" />
         </svg>
       );
 
