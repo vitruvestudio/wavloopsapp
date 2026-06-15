@@ -96,6 +96,7 @@ export function ServerCard({
         style={{ height: 132, gap: 2 }}
       >
         {server.artwork_mode === "image" && server.artwork_image_url ? (
+          // ─ IMAGE: full uploaded cover
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={server.artwork_image_url}
@@ -109,7 +110,22 @@ export function ServerCard({
               display: "block",
             }}
           />
+        ) : server.artwork_mode === "color" && server.accent_hue != null ? (
+          // ─ COLOR: a single, full-bleed generative cover tinted with
+          // the producer's chosen hue. No mosaic — the whole point of
+          // this mode is "the cover IS this colour".
+          <div style={{ position: "absolute", inset: 0 }}>
+            <CoverArt
+              fill
+              seed={server.slug}
+              hue={server.accent_hue}
+            />
+          </div>
         ) : (
+          // ─ AUTO: mosaic of the producer's beats. First slice picks
+          // up the server's accent_hue when set (rare in Auto, but it
+          // keeps the rule honest); subsequent slices keep their per-
+          // beat hue for variety.
           covers.map((c, i) => (
             <div key={i} className="relative flex-1">
               {c.src ? (
@@ -131,10 +147,6 @@ export function ServerCard({
                   fill
                   seed={c.seed}
                   hue={
-                    // First slice picks up the server's accent if set so
-                    // the whole card reads "this server colour";
-                    // subsequent slices keep their per-beat hue for
-                    // visual variety.
                     i === 0 && overlayHue != null ? overlayHue : undefined
                   }
                 />
