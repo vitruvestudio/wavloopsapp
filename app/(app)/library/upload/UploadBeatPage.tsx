@@ -51,7 +51,6 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
 import { VisBadge } from "@/components/ui/VisBadge";
-import { Waveform } from "@/components/ui/Waveform";
 import {
   ARTIST_TYPE_SUGGEST,
   COPRODUCER_SUGGEST,
@@ -313,18 +312,6 @@ export function UploadBeatPage({
                 upload={upload}
                 onRemove={cancelUpload}
               />
-
-              <div
-                className="rounded-md border border-border-1 bg-bg-1"
-                style={{ padding: "14px 16px" }}
-              >
-                <Waveform
-                  seed={beatIdRef.current}
-                  bars={90}
-                  height={48}
-                  glow
-                />
-              </div>
             </div>
 
             {/* ============================================================
