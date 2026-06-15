@@ -28,6 +28,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { BeatRow } from "@/components/app/BeatRow";
 import { usePlayer } from "@/components/app/PlayerContext";
 import { CoverArt } from "@/components/ui/CoverArt";
@@ -87,7 +88,13 @@ export function LibraryFilters({
      ============================================================ */
 
   const player = usePlayer();
+  const router = useRouter();
   const supabase = React.useMemo(() => createClient(), []);
+
+  const openBeat = React.useCallback(
+    (beat: BeatWithStatsRow) => router.push(`/beats/${beat.id}`),
+    [router],
+  );
 
   const playBeat = React.useCallback(
     async (beat: BeatWithStatsRow) => {
@@ -312,6 +319,7 @@ export function LibraryFilters({
           now={now}
           totalCount={beats.length}
           onPlay={playBeat}
+          onOpen={openBeat}
           isCurrent={isCurrent}
           isPlaying={isPlayingNow}
         />
@@ -321,6 +329,7 @@ export function LibraryFilters({
           totalCount={beats.length}
           now={now}
           onPlay={playBeat}
+          onOpen={openBeat}
           isCurrent={isCurrent}
           isPlaying={isPlayingNow}
         />
@@ -811,6 +820,7 @@ function BeatGrid({
   totalCount,
   now,
   onPlay,
+  onOpen,
   isCurrent,
   isPlaying,
 }: {
@@ -818,6 +828,7 @@ function BeatGrid({
   totalCount: number;
   now: Date;
   onPlay: (b: BeatWithStatsRow) => void;
+  onOpen: (b: BeatWithStatsRow) => void;
   isCurrent: (id: string) => boolean;
   isPlaying: (id: string) => boolean;
 }) {
@@ -852,6 +863,7 @@ function BeatGrid({
           beat={b}
           now={now}
           onPlay={() => onPlay(b)}
+          onOpen={() => onOpen(b)}
           current={isCurrent(b.id)}
           playing={isPlaying(b.id)}
         />
@@ -864,12 +876,14 @@ function BeatCard({
   beat,
   now,
   onPlay,
+  onOpen,
   current,
   playing,
 }: {
   beat: BeatWithStatsRow;
   now: Date;
   onPlay: () => void;
+  onOpen: () => void;
   current: boolean;
   playing: boolean;
 }) {
@@ -880,11 +894,16 @@ function BeatCard({
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={onPlay}
+      onClick={onOpen}
       className="cursor-pointer"
     >
-      {/* Square cover */}
+      {/* Square cover — clicking it plays instead of opening the
+          detail page. */}
       <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onPlay();
+        }}
         className="relative overflow-hidden"
         style={{
           aspectRatio: "1 / 1",
@@ -1053,6 +1072,7 @@ function BeatList({
   now,
   totalCount,
   onPlay,
+  onOpen,
   isCurrent,
   isPlaying,
 }: {
@@ -1060,6 +1080,7 @@ function BeatList({
   now: Date;
   totalCount: number;
   onPlay: (b: BeatWithStatsRow) => void;
+  onOpen: (b: BeatWithStatsRow) => void;
   isCurrent: (id: string) => boolean;
   isPlaying: (id: string) => boolean;
 }) {
@@ -1137,6 +1158,7 @@ function BeatList({
             beat={b}
             now={now}
             onPlay={() => onPlay(b)}
+            onOpen={() => onOpen(b)}
             isCurrent={isCurrent(b.id)}
             playing={isPlaying(b.id)}
           />
