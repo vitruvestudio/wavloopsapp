@@ -59,6 +59,7 @@ import {
   decodeFilenameTitle,
   getAudioDurationSeconds,
 } from "@/lib/audio";
+import { useAudioAnalysis } from "@/lib/audio-analysis";
 import { fmtDuration } from "@/lib/fmt";
 import { consumePendingFile } from "@/lib/pending-upload";
 import { createClient } from "@/lib/supabase/client";
@@ -186,6 +187,27 @@ export function UploadBeatPage({
     if (fileUrl) URL.revokeObjectURL(fileUrl);
     router.push("/library");
   };
+
+  /* ============================================================
+     Auto-detect BPM + Key via essentia.js (lazy-loaded WASM).
+     Populates the empty cells when analysis completes — never
+     overwrites whatever the producer has manually typed.
+     ============================================================ */
+
+  const analysis = useAudioAnalysis(file);
+  const analyzing = analysis.status === "analyzing";
+
+  React.useEffect(() => {
+    if (analysis.status !== "done") return;
+    const { bpm: detectedBpm, key: detectedKey } = analysis.result;
+    if (detectedBpm > 0) {
+      setBpm((prev) => prev || String(detectedBpm));
+    }
+    if (detectedKey) {
+      setKey((prev) => prev || detectedKey);
+      setAutotuneKey((prev) => prev || detectedKey);
+    }
+  }, [analysis]);
 
   /* ============================================================
      Submit
@@ -327,6 +349,7 @@ export function UploadBeatPage({
                 autotuneKey={autotuneKey}
                 setAutotuneKey={setAutotuneKey}
                 durationSeconds={durationSeconds}
+                analyzing={analyzing}
               />
 
               <Field
@@ -558,6 +581,7 @@ function AutoDetectedPanel({
   autotuneKey,
   setAutotuneKey,
   durationSeconds,
+  analyzing,
 }: {
   bpm: string;
   setBpm: (v: string) => void;
@@ -566,6 +590,7 @@ function AutoDetectedPanel({
   autotuneKey: string;
   setAutotuneKey: (v: string) => void;
   durationSeconds: number | null;
+  analyzing: boolean;
 }) {
   return (
     <div>
@@ -574,7 +599,7 @@ function AutoDetectedPanel({
         style={{ marginBottom: 12, gap: 6, color: "var(--accent-text)" }}
       >
         <Icon name="zap" size={12} />
-        AUTO-DETECTED
+        {analyzing ? "ANALYZING TEMPO + KEY…" : "AUTO-DETECTED"}
       </div>
       <div
         className="grid grid-cols-2 xl:grid-cols-4"
@@ -586,13 +611,20 @@ function AutoDetectedPanel({
           onChange={setBpm}
           placeholder="—"
           suffix="BPM"
+          analyzing={analyzing}
         />
-        <KeyCell label="KEY" value={keyValue} onChange={setKey} />
+        <KeyCell
+          label="KEY"
+          value={keyValue}
+          onChange={setKey}
+          analyzing={analyzing}
+        />
         <LengthCell durationSeconds={durationSeconds} />
         <KeyCell
           label="AUTOTUNE KEY"
           value={autotuneKey}
           onChange={setAutotuneKey}
+          analyzing={analyzing}
         />
       </div>
       <div className="t-body-s" style={{ marginTop: 10 }}>
@@ -610,9 +642,13 @@ function AutoDetectedPanel({
 function CellShell({
   label,
   children,
+  analyzing,
 }: {
   label: string;
   children: React.ReactNode;
+  /** During analysis: hide the zap (it lights up when detected
+   *  arrives) and replace `children` with a pulsing skeleton. */
+  analyzing?: boolean;
 }) {
   return (
     <div
@@ -627,14 +663,33 @@ function CellShell({
         style={{ gap: 5, color: "var(--fg-4)" }}
       >
         {label}
-        <Icon
-          name="zap"
-          size={11}
-          style={{ color: "var(--accent-text)" }}
-        />
+        {!analyzing && (
+          <Icon
+            name="zap"
+            size={11}
+            style={{ color: "var(--accent-text)" }}
+          />
+        )}
       </div>
-      <div style={{ marginTop: 6 }}>{children}</div>
+      <div style={{ marginTop: 6 }}>
+        {analyzing ? <CellShimmer /> : children}
+      </div>
     </div>
+  );
+}
+
+function CellShimmer() {
+  return (
+    <div
+      aria-hidden
+      className="animate-pulse"
+      style={{
+        height: 17,
+        width: 58,
+        borderRadius: 4,
+        background: "var(--bg-3)",
+      }}
+    />
   );
 }
 
@@ -644,15 +699,17 @@ function NumberCell({
   onChange,
   placeholder,
   suffix,
+  analyzing,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   suffix?: string;
+  analyzing?: boolean;
 }) {
   return (
-    <CellShell label={label}>
+    <CellShell label={label} analyzing={analyzing}>
       <div className="flex items-baseline" style={{ gap: 6 }}>
         <input
           inputMode="numeric"
@@ -676,13 +733,15 @@ function KeyCell({
   label,
   value,
   onChange,
+  analyzing,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  analyzing?: boolean;
 }) {
   return (
-    <CellShell label={label}>
+    <CellShell label={label} analyzing={analyzing}>
       <div className="flex items-center" style={{ gap: 6 }}>
         <select
           value={value}
