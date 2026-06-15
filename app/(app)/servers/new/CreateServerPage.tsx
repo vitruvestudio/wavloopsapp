@@ -310,11 +310,12 @@ export function CreateServerPage({
           style={{ gap: 32 }}
         >
           {/* ============================================================
-              FORM (DOM order 1 → mobile renders first)
-              On lg+, `order-2` pushes it into the second grid column.
+              FORM — always `order-2`. On mobile it renders below the
+              preview (1 col stack); on lg+ it sits in the right
+              grid column.
              ============================================================ */}
           <div
-            className="flex flex-col lg:order-2"
+            className="order-2 flex flex-col"
             style={{ gap: 24 }}
           >
             <div>
@@ -574,14 +575,14 @@ export function CreateServerPage({
           </div>
 
           {/* ============================================================
-              LIVE PREVIEW — DOM order 2 (mobile renders below the form)
-              On lg+, `order-1` puts it in the first grid column (left)
-              and `sticky` anchors it just below the PageHeader so it
-              stays visible while the producer scrolls the form. Mirrors
-              the Upload Beat page's left-column-sticky pattern.
+              LIVE PREVIEW — always `order-1`. On mobile renders at the
+              TOP (producer sees the result first, then scrolls down to
+              fill the form). On lg+ goes into the left grid column and
+              becomes sticky so it stays in view while the form
+              scrolls. Mirrors the Upload Beat artwork-sticky pattern.
              ============================================================ */}
           <div
-            className="lg:order-1 lg:sticky lg:self-start"
+            className="order-1 lg:sticky lg:self-start"
             style={{ top: 92 }}
           >
             <div
