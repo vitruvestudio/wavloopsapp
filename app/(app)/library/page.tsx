@@ -218,9 +218,9 @@ function BeatList({
           IN SERVERS
         </span>
         <span
-          className="t-mono-s hidden sm:inline-block shrink-0"
+          className="t-mono-s shrink-0"
           style={{
-            width: 14 * 3 + 38 + 38 + 38,
+            width: 100,
             textAlign: "right",
             color: "var(--fg-4)",
           }}

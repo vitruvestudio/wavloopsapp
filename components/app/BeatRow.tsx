@@ -207,7 +207,7 @@ export function BeatRow({
           )}
         </div>
 
-        {/* Bottom row — type tag · BPM · KEY · mood tags */}
+        {/* Bottom row — type tag · BPM · KEY · LENGTH · mood tags */}
         <div
           className="flex items-center flex-wrap"
           style={{ gap: 7, marginTop: 5 }}
@@ -226,6 +226,9 @@ export function BeatRow({
             items={[
               beat.bpm != null ? `${beat.bpm} BPM` : null,
               beat.key,
+              beat.duration_seconds != null
+                ? fmtDuration(beat.duration_seconds)
+                : null,
             ]}
           />
           {beat.mood.map((m) => (
@@ -267,8 +270,8 @@ export function BeatRow({
 
       {showEngagement && (
         <div
-          className="hidden sm:flex items-center shrink-0"
-          style={{ gap: 14 }}
+          className="hidden sm:flex items-center justify-end shrink-0"
+          style={{ gap: 16, width: 100 }}
         >
           <span
             className="t-mono-s inline-flex items-center"
@@ -283,16 +286,6 @@ export function BeatRow({
           >
             <Icon name="heart" size={12} />
             {beat.likes_count}
-          </span>
-          <span
-            className="t-mono-s"
-            style={{
-              width: 38,
-              textAlign: "right",
-              color: "var(--fg-4)",
-            }}
-          >
-            {fmtDuration(beat.duration_seconds)}
           </span>
         </div>
       )}
