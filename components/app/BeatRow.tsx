@@ -177,15 +177,36 @@ export function BeatRow({
 
       {/* Title + meta */}
       <div className="min-w-0 flex-1">
+        {/* Top row — title on the left, "PRODUCED BY …" on the right.
+            The producers line is hidden under md to keep mobile rows
+            uncluttered. */}
         <div
-          className="t-title truncate"
-          style={{
-            fontSize: 14.5,
-            color: isCurrent ? "var(--accent-text)" : "var(--fg-1)",
-          }}
+          className="flex items-baseline"
+          style={{ gap: 12 }}
         >
-          {beat.title}
+          <div
+            className="t-title truncate min-w-0 flex-1"
+            style={{
+              fontSize: 14.5,
+              color: isCurrent ? "var(--accent-text)" : "var(--fg-1)",
+            }}
+          >
+            {beat.title}
+          </div>
+          {beat.co_producers.length > 0 && (
+            <span
+              className="t-mono-s hidden md:inline-block truncate shrink-0"
+              style={{
+                color: "var(--fg-3)",
+                maxWidth: 280,
+              }}
+            >
+              PROD&nbsp;BY&nbsp;{beat.co_producers.join(" · ")}
+            </span>
+          )}
         </div>
+
+        {/* Bottom row — type tag · BPM · KEY · mood tags · artist type tags */}
         <div
           className="flex items-center flex-wrap"
           style={{ gap: 7, marginTop: 5 }}
@@ -207,7 +228,12 @@ export function BeatRow({
             ]}
           />
           {beat.mood.map((m) => (
-            <Tag key={m}>{m}</Tag>
+            <Tag key={`mood-${m}`}>{m}</Tag>
+          ))}
+          {beat.artist_types.map((a) => (
+            <Tag key={`type-${a}`} variant="solid">
+              {a}
+            </Tag>
           ))}
         </div>
       </div>

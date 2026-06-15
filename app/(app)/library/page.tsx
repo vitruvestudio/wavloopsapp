@@ -86,11 +86,11 @@ export default async function LibraryPage() {
 
 function Dropzone() {
   return (
-    <UploadTrigger>
+    <UploadTrigger block>
       <div
         role="button"
         tabIndex={0}
-        className="flex items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]"
+        className="flex w-full items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]"
         style={{
           gap: 18,
           padding: "18px 22px",

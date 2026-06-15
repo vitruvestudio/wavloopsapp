@@ -20,14 +20,21 @@ import { UploadModal } from "@/components/app/UploadModal";
 
 interface UploadTriggerProps {
   children: React.ReactNode;
+  /** Wrapper `display` mode. Default "inline-block" works for buttons.
+   *  Pass "block" when wrapping a full-width row (e.g. the library
+   *  dropzone banner) so the child can stretch edge-to-edge. */
+  block?: boolean;
 }
 
-export function UploadTrigger({ children }: UploadTriggerProps) {
+export function UploadTrigger({ children, block }: UploadTriggerProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
     <>
-      <span onClick={() => setOpen(true)} className="inline-block">
+      <span
+        onClick={() => setOpen(true)}
+        className={block ? "block" : "inline-block"}
+      >
         {children}
       </span>
       <UploadModal open={open} onClose={() => setOpen(false)} />
