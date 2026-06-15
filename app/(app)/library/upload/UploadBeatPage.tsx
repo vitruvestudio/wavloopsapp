@@ -633,7 +633,6 @@ function CellShell({
       style={{
         padding: "12px 14px",
         borderRadius: "var(--r-md)",
-        boxShadow: "var(--shadow-sm)",
       }}
     >
       <div
