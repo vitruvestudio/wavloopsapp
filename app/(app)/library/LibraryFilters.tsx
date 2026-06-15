@@ -108,14 +108,14 @@ export function LibraryFilters({
 
   return (
     <div>
-      {/* Search + Segmented row */}
+      {/* Search + Segmented row — same height so they read as one
+          toolbar. */}
       <div
         className="flex flex-col sm:flex-row items-stretch sm:items-center"
-        style={{ gap: 12, marginBottom: 12 }}
+        style={{ gap: 10, marginBottom: 14 }}
       >
         <SearchBeats value={search} onChange={setSearch} />
         <Segmented<TypeFilter>
-          size="sm"
           options={[
             { value: "all", label: "All" },
             { value: "comp", label: "Compositions" },
@@ -226,19 +226,19 @@ function SearchBeats({
 }) {
   return (
     <div
-      className="flex items-center bg-bg-inset border border-border-2 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)] flex-1 min-w-0"
+      className="flex items-center bg-bg-inset border border-border-1 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)] flex-1 min-w-0"
       style={{
-        height: 38,
+        height: 36,
         padding: "0 14px",
-        gap: 10,
+        gap: 9,
         borderRadius: "var(--r-pill)",
       }}
     >
-      <Icon name="search" size={16} className="text-fg-3" />
+      <Icon name="search" size={15} className="text-fg-3" />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search your beats by name, mood or key…"
+        placeholder="Search your beats…"
         className="min-w-0 flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4"
         style={{
           fontFamily: "var(--font-body)",
@@ -293,11 +293,11 @@ function FilterChip({
         aria-expanded={open}
         className="t-mono-s inline-flex items-center cursor-pointer transition-colors duration-fast"
         style={{
-          height: 32,
-          padding: "0 12px",
-          gap: 8,
+          height: 30,
+          padding: "0 11px",
+          gap: 6,
           borderRadius: "var(--r-pill)",
-          border: `1px solid ${active ? "var(--accent)" : "var(--border-2)"}`,
+          border: `1px solid ${active ? "var(--accent)" : "var(--border-1)"}`,
           background: active ? "var(--accent-surface)" : "transparent",
           color: active ? "var(--accent-text)" : "var(--fg-2)",
         }}
@@ -320,12 +320,16 @@ function FilterChip({
               onClear();
             }}
             className="inline-flex items-center"
-            style={{ marginLeft: -2 }}
+            style={{ marginLeft: -2, color: "var(--fg-3)" }}
           >
-            <Icon name="close" size={12} />
+            <Icon name="close" size={11} />
           </span>
         ) : (
-          <Icon name="chevron-down" size={12} />
+          <Icon
+            name="chevron-down"
+            size={11}
+            style={{ color: "var(--fg-3)" }}
+          />
         )}
       </button>
 
