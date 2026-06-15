@@ -38,7 +38,7 @@ import { Icon } from "@/components/ui/Icon";
 import { RadioCard } from "@/components/ui/RadioCard";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
-import { ARTIST_TYPE_SUGGEST } from "@/lib/audio";
+import { ARTIST_TYPE_SUGGEST, MOOD_SUGGEST } from "@/lib/audio";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
 import { createServerAction } from "./actions";
@@ -71,7 +71,7 @@ export function CreateServerPage({
      ============================================================ */
 
   const [name, setName] = React.useState("");
-  const [styleText, setStyleText] = React.useState("");
+  const [styleTags, setStyleTags] = React.useState<string[]>([]);
   const [description, setDescription] = React.useState("");
   const [artistTypes, setArtistTypes] = React.useState<string[]>([]);
   const [artworkMode, setArtworkMode] = React.useState<ArtworkMode>("auto");
@@ -149,6 +149,13 @@ export function CreateServerPage({
 
   const slug = React.useMemo(() => slugify(name) || "untitled", [name]);
 
+  /** Style/mood tags joined with " · " for the DB column (text) +
+   *  the live preview's display string. */
+  const styleText = React.useMemo(
+    () => (styleTags.length > 0 ? styleTags.join(" · ") : null),
+    [styleTags],
+  );
+
   /** A faux ServerRow built from the live form state — fed to the
    *  preview ServerCard so the producer sees the result as they type. */
   const previewServer = React.useMemo<ServerRow>(
@@ -157,7 +164,7 @@ export function CreateServerPage({
       owner_id: "preview",
       name: name.trim() || "Server name",
       slug,
-      style_text: styleText.trim() || null,
+      style_text: styleText,
       description: description.trim() || null,
       artist_types: artistTypes,
       artwork_mode: artworkMode,
@@ -236,7 +243,7 @@ export function CreateServerPage({
 
       const result = await createServerAction({
         name,
-        style_text: styleText.trim() || null,
+        style_text: styleText,
         description: description.trim() || null,
         artist_types: artistTypes,
         artwork_mode: artworkMode,
@@ -328,12 +335,19 @@ export function CreateServerPage({
               />
             </div>
 
-            <Field
-              label="STYLE / MOOD"
-              value={styleText}
-              onChange={(e) => setStyleText(e.target.value)}
-              placeholder="e.g. Trap · Dark"
-            />
+            <div>
+              <div className="t-mono-s" style={{ marginBottom: 10 }}>
+                STYLE / MOOD
+              </div>
+              <TagInput
+                value={styleTags}
+                onChange={setStyleTags}
+                max={4}
+                suggestions={MOOD_SUGGEST as string[]}
+                placeholder="e.g. Trap, Dark…"
+                accent
+              />
+            </div>
 
             <div>
               <div className="t-mono-s" style={{ marginBottom: 8 }}>
