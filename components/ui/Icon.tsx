@@ -82,7 +82,9 @@ export type IconName =
   | "mail"
   /* contact detail */
   | "clock"
-  | "phone";
+  | "phone"
+  /* settings placements */
+  | "spotify";
 
 interface IconProps {
   name: IconName;
@@ -564,6 +566,14 @@ export function Icon({
       return (
         <svg {...common} {...lineProps}>
           <path d="M5 4h3l2 5-2.5 1.5a11 11 0 005 5L14 13l5 2v3a2 2 0 01-2 2A14 14 0 013 6a2 2 0 012-2z" />
+        </svg>
+      );
+
+    case "spotify":
+      /* Filled circle + three nested arcs — the universal Spotify glyph. */
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.3a.62.62 0 01-.86.21c-2.36-1.44-5.33-1.77-8.83-.97a.63.63 0 11-.28-1.22c3.83-.88 7.12-.5 9.76 1.12a.62.62 0 01.21.86zm1.24-2.78a.78.78 0 01-1.08.26c-2.7-1.66-6.82-2.14-10.01-1.17a.78.78 0 11-.45-1.5c3.65-1.1 8.19-.57 11.29 1.34a.78.78 0 01.25 1.07zm.11-2.9c-3.24-1.93-8.6-2.1-11.7-1.16a.93.93 0 01-.55-1.79c3.56-1.08 9.48-.87 13.21 1.34a.94.94 0 11-.96 1.61z" />
         </svg>
       );
 
