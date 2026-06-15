@@ -87,10 +87,16 @@ export function Avatar({
         <img
           src={src}
           alt={name}
-          width={size}
-          height={size}
-          className="absolute inset-0 block h-full w-full object-cover"
           loading="lazy"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = "none";
           }}
