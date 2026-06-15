@@ -211,12 +211,11 @@ export function ArtistSidebar({
         className="flex-1 overflow-y-auto"
         style={{ padding: "0 10px 18px" }}
       >
-        {PRODUCERS.map((p, i) => (
+        {PRODUCERS.map((p) => (
           <ProducerGroup
             key={p.handle}
             producer={p}
             pathname={pathname}
-            isLast={i === PRODUCERS.length - 1}
           />
         ))}
       </div>
@@ -228,11 +227,9 @@ export function ArtistSidebar({
 function ProducerGroup({
   producer,
   pathname,
-  isLast,
 }: {
   producer: MockProducer;
   pathname: string;
-  isLast: boolean;
 }) {
   // Auto-expand if any of this producer's servers is active.
   const activeUnderHere = producer.servers.some(
@@ -242,13 +239,7 @@ function ProducerGroup({
   const totalUnread = producer.servers.reduce((n, s) => n + s.unread, 0);
 
   return (
-    <div
-      style={{
-        paddingTop: 6,
-        paddingBottom: 6,
-        borderBottom: isLast ? "none" : "1px solid var(--border-1)",
-      }}
-    >
+    <div style={{ paddingTop: 6, paddingBottom: 6 }}>
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
