@@ -93,7 +93,11 @@ export function Waveform({
             className="block transition-[background-color] duration-fast"
             style={{
               flex: 1,
-              height: `${Math.max(8, hgt * 100)}%`,
+              // toFixed(2) so the string output is identical on the
+              // server (Node) and the client (V8) — without it the
+              // float stringifier yields different precision and
+              // React throws a hydration mismatch.
+              height: `${Math.max(8, hgt * 100).toFixed(2)}%`,
               borderRadius: 2,
               background: bg,
               boxShadow:
