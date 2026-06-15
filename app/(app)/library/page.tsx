@@ -90,32 +90,44 @@ function Dropzone() {
       <div
         role="button"
         tabIndex={0}
-        className="flex w-full items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]"
+        className={[
+          "flex w-full items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]",
+          "gap-[12px] p-[14px]",
+          "sm:gap-[18px] sm:p-[18px_22px]",
+        ].join(" ")}
         style={{
-          gap: 18,
-          padding: "18px 22px",
           borderRadius: "var(--r-lg)",
           border: "1.5px dashed var(--border-2)",
           background: "transparent",
         }}
       >
-        <div className="flex items-center min-w-0" style={{ gap: 16 }}>
+        <div
+          className="flex items-center min-w-0 gap-[12px] sm:gap-[16px]"
+        >
           <div
-            className="flex items-center justify-center shrink-0 text-accent-text"
+            className={[
+              "flex items-center justify-center shrink-0 text-accent-text",
+              "w-[36px] h-[36px] sm:w-[44px] sm:h-[44px]",
+            ].join(" ")}
             style={{
-              width: 44,
-              height: 44,
               borderRadius: "var(--r-md)",
               background: "var(--accent-surface)",
             }}
           >
-            <Icon name="upload" size={20} />
+            <Icon name="upload" size={18} />
           </div>
           <div className="min-w-0">
-            <div className="t-title" style={{ fontSize: 15 }}>
-              Drag &amp; drop your beats here
+            <div className="t-title" style={{ fontSize: 14.5 }}>
+              <span className="sm:hidden">Drop a beat</span>
+              <span className="hidden sm:inline">
+                Drag &amp; drop your beats here
+              </span>
             </div>
-            <div className="t-mono-s" style={{ marginTop: 3 }}>
+            {/* Helper line — desktop only; mobile keeps the dropzone tight */}
+            <div
+              className="t-mono-s hidden sm:block"
+              style={{ marginTop: 3 }}
+            >
               WAV or MP3 · add title and style/mood tags after upload
             </div>
           </div>
