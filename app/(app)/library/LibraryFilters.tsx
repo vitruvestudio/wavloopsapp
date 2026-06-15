@@ -47,6 +47,14 @@ interface LibraryFiltersProps {
 
 type TypeFilter = "all" | "comp" | "loop";
 
+type SortKey = "recent" | "oldest" | "az";
+
+const SORT_OPTIONS: ReadonlyArray<{ value: SortKey; label: string }> = [
+  { value: "recent", label: "RECENT" },
+  { value: "oldest", label: "OLDEST" },
+  { value: "az", label: "A-Z" },
+];
+
 export function LibraryFilters({
   beats,
   servers,
@@ -61,6 +69,7 @@ export function LibraryFilters({
   );
   const [musicKey, setMusicKey] = React.useState<string | null>(null);
   const [serverId, setServerId] = React.useState<string | null>(null);
+  const [sort, setSort] = React.useState<SortKey>("recent");
 
   /** Pool of unique moods present in the producer's library +
    *  defaults from MOOD_SUGGEST — gives the chip something to show
@@ -72,9 +81,9 @@ export function LibraryFilters({
     return Array.from(set).sort();
   }, [beats]);
 
-  const filtered = React.useMemo(() => {
+  const filteredSorted = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return beats.filter((b) => {
+    const filtered = beats.filter((b) => {
       if (type === "comp" && b.type !== "comp") return false;
       if (type === "loop" && b.type !== "loop") return false;
 
@@ -104,7 +113,33 @@ export function LibraryFilters({
 
       return true;
     });
-  }, [beats, type, search, mood, bpmRange, musicKey, serverId, beatServers]);
+
+    // Sort in-place on the freshly filtered copy (no mutation of `beats`).
+    switch (sort) {
+      case "recent":
+        return filtered.sort((a, b) =>
+          b.created_at.localeCompare(a.created_at),
+        );
+      case "oldest":
+        return filtered.sort((a, b) =>
+          a.created_at.localeCompare(b.created_at),
+        );
+      case "az":
+        return filtered.sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base" }),
+        );
+    }
+  }, [
+    beats,
+    type,
+    search,
+    mood,
+    bpmRange,
+    musicKey,
+    serverId,
+    beatServers,
+    sort,
+  ]);
 
   return (
     <div>
@@ -128,9 +163,9 @@ export function LibraryFilters({
         />
       </div>
 
-      {/* Filter chips row */}
+      {/* Filter chips row — chips on the left, SORT on the right */}
       <div
-        className="flex flex-wrap"
+        className="flex flex-wrap items-center"
         style={{ gap: 8, marginBottom: 22 }}
       >
         <FilterChip
@@ -207,10 +242,15 @@ export function LibraryFilters({
             />
           )}
         </FilterChip>
+
+        {/* Spacer pushes SORT to the right edge of the chip row */}
+        <div className="ml-auto" />
+
+        <SortChip value={sort} onChange={setSort} />
       </div>
 
       {/* Filtered BeatList */}
-      <BeatList beats={filtered} now={now} totalCount={beats.length} />
+      <BeatList beats={filteredSorted} now={now} totalCount={beats.length} />
     </div>
   );
 }
@@ -358,6 +398,130 @@ function FilterChip({
           {children(() => setOpen(false))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   SortChip — always-active accent pill that opens a 3-option popover
+   ============================================================ */
+
+function SortChip({
+  value,
+  onChange,
+}: {
+  value: SortKey;
+  onChange: (next: SortKey) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onPtr = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPtr);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPtr);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current =
+    SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+
+  return (
+    <div className="inline-flex items-center" style={{ gap: 10 }}>
+      <span
+        className="t-mono-s"
+        style={{ color: "var(--fg-4)" }}
+      >
+        SORT
+      </span>
+      <div ref={wrapRef} className="relative inline-block">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="t-mono-s inline-flex items-center cursor-pointer transition-colors duration-fast"
+          style={{
+            height: 30,
+            padding: "0 11px",
+            gap: 6,
+            borderRadius: "var(--r-pill)",
+            border: "1px solid var(--accent)",
+            background: "var(--accent-surface)",
+            color: "var(--accent-text)",
+          }}
+        >
+          {current.label}
+          <Icon
+            name="chevron-down"
+            size={11}
+            style={{ color: "var(--accent-text)" }}
+          />
+        </button>
+
+        {open && (
+          <div
+            role="dialog"
+            className="absolute bg-bg-2 border border-border-2"
+            style={{
+              top: "calc(100% + 6px)",
+              right: 0,
+              minWidth: 160,
+              borderRadius: "var(--r-md)",
+              boxShadow: "var(--shadow-pop)",
+              padding: 6,
+              zIndex: 40,
+            }}
+          >
+            <div className="flex flex-col" style={{ gap: 2 }}>
+              {SORT_OPTIONS.map((opt) => {
+                const selected = opt.value === value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    className="t-mono-s flex items-center cursor-pointer transition-colors duration-fast border-0"
+                    style={{
+                      height: 32,
+                      padding: "0 12px",
+                      borderRadius: "var(--r-sm)",
+                      background: selected
+                        ? "var(--accent-surface)"
+                        : "transparent",
+                      color: selected
+                        ? "var(--accent-text)"
+                        : "var(--fg-2)",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selected)
+                        e.currentTarget.style.background = "var(--bg-3)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selected)
+                        e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
