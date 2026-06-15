@@ -25,28 +25,34 @@ import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
 
-/** Generate a soft mesh gradient — multiple radial-gradient
- *  "blobs" layered on top of a near-white base, so the surface
- *  reads as an organic colour cloud rather than a linear sweep.
- *  Each blob position is pinned (constants picked to give a
- *  Spotify/Apple Music vibe) but the four hues are deterministic
- *  from the seed so every server has its own stable signature
- *  without straight lines between bands.
+/** Mesh of deep jewel-toned blobs that radiate from the top of the
+ *  banner. Built to sit on a dark page background — the blobs are
+ *  positioned in the upper half so the bottom naturally darkens,
+ *  and a CSS mask fades the whole gradient to transparent in the
+ *  bottom third so it bleeds INTO var(--bg-0) without a seam. The
+ *  four hues are deterministic from the slug so every server keeps
+ *  its own signature.
  *  Phase 3 will swap this for real palette extraction off the
  *  cover image bytes. */
 function bannerGradient(seed: string): string {
   const h1 = hashSeed(seed) % 360;
-  const h2 = (h1 + 60 + (hashSeed(seed + "~b") % 70)) % 360;
-  const h3 = (h2 + 40 + (hashSeed(seed + "~c") % 60)) % 360;
+  const h2 = (h1 + 50 + (hashSeed(seed + "~b") % 80)) % 360;
+  const h3 = (h2 + 40 + (hashSeed(seed + "~c") % 70)) % 360;
   const h4 = (h1 + 130 + (hashSeed(seed + "~d") % 70)) % 360;
   return [
-    `radial-gradient(at 15% 25%, oklch(0.88 0.14 ${h1}) 0%, transparent 55%)`,
-    `radial-gradient(at 85% 20%, oklch(0.85 0.15 ${h2}) 0%, transparent 60%)`,
-    `radial-gradient(at 70% 95%, oklch(0.86 0.13 ${h3}) 0%, transparent 60%)`,
-    `radial-gradient(at 20% 90%, oklch(0.88 0.11 ${h4}) 0%, transparent 60%)`,
-    `oklch(0.93 0.04 ${h1})`,
+    // Blobs biased to the upper half so the bottom is naturally
+    // emptier — the mask underneath then fades anything remaining.
+    `radial-gradient(at 15% 18%, oklch(0.48 0.22 ${h1}) 0%, transparent 55%)`,
+    `radial-gradient(at 85% 12%, oklch(0.46 0.24 ${h2}) 0%, transparent 60%)`,
+    `radial-gradient(at 55% 28%, oklch(0.42 0.20 ${h3}) 0%, transparent 60%)`,
+    `radial-gradient(at 30% 48%, oklch(0.45 0.18 ${h4}) 0%, transparent 55%)`,
   ].join(", ");
 }
+
+/** Mask that fades the gradient out at the bottom 35% so it bleeds
+ *  into the page background instead of stopping with a hard line. */
+const BANNER_FADE_MASK =
+  "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)";
 
 type Filter = "all" | "new" | "liked";
 
@@ -114,18 +120,30 @@ export function ServerView({ producer, server }: ServerViewProps) {
 
   return (
     <main className="flex-1 min-w-0">
-      {/* ── Banner — soft pastel gradient derived from the server
-              slug. Dark text on a light, airy surface (Spotify /
-              Apple Music style) so the banner feels lifted from
-              the artwork rather than slapped on. ───────────────── */}
+      {/* ── Banner — deep jewel-toned mesh radiating from the top,
+              fading INTO the page bg at the bottom (no hard line).
+              The gradient lives on an absolute layer behind the
+              content so the mask only affects the colour cloud,
+              not the title / artwork / play button. ──────────── */}
       <section
         className="relative overflow-hidden"
         style={{
-          padding: "30px 36px 36px",
-          background: bannerGradient(server.slug),
-          color: "var(--fg-1)",
+          padding: "32px 36px 80px",
+          color: "#fff",
         }}
       >
+        {/* Background mesh — masked to fade out at the bottom. */}
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background: bannerGradient(server.slug),
+            WebkitMaskImage: BANNER_FADE_MASK,
+            maskImage: BANNER_FADE_MASK,
+            zIndex: 0,
+          }}
+        />
+
         <div
           className="relative flex items-center"
           style={{ gap: 28, zIndex: 1 }}
@@ -179,15 +197,16 @@ export function ServerView({ producer, server }: ServerViewProps) {
                 fontSize: "clamp(34px, 5vw, 54px)",
                 lineHeight: 1.04,
                 letterSpacing: "-0.025em",
-                color: "oklch(0.18 0.02 270)",
+                color: "#fff",
                 margin: 0,
                 marginBottom: 16,
+                textShadow: "0 2px 14px oklch(0 0 0 / 0.3)",
               }}
             >
               {server.name}
             </h1>
 
-            {/* Producer mini-card */}
+            {/* Producer mini-card — white text on the dark mesh. */}
             <div
               className="flex items-center flex-wrap"
               style={{ gap: 14 }}
@@ -201,17 +220,17 @@ export function ServerView({ producer, server }: ServerViewProps) {
                 style={{
                   fontFamily: "var(--font-body)",
                   fontSize: 13.5,
-                  color: "oklch(0.25 0.02 270)",
+                  color: "#fff",
                 }}
               >
                 {producer.name} ·{" "}
-                <span style={{ color: "oklch(0.4 0.02 270)" }}>
+                <span style={{ color: "oklch(1 0 0 / 0.7)" }}>
                   @{producer.handle}
                 </span>
               </span>
               <span
                 className="t-mono-s"
-                style={{ color: "oklch(0.45 0.02 270)" }}
+                style={{ color: "oklch(1 0 0 / 0.6)" }}
               >
                 · {server.beats.length} BEATS
               </span>
@@ -232,9 +251,9 @@ export function ServerView({ producer, server }: ServerViewProps) {
                         width: 30,
                         height: 30,
                         borderRadius: "50%",
-                        background: "oklch(1 0 0 / 0.55)",
-                        border: "1px solid oklch(1 0 0 / 0.7)",
-                        color: "oklch(0.25 0.02 270)",
+                        background: "oklch(1 0 0 / 0.14)",
+                        border: "1px solid oklch(1 0 0 / 0.22)",
+                        color: "#fff",
                       }}
                     >
                       <Icon
