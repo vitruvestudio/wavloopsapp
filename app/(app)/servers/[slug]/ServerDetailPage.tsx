@@ -38,6 +38,8 @@ import type {
 } from "@/lib/supabase/database.types";
 import { AddBeatsModal } from "./AddBeatsModal";
 import { addBeatsToServerAction } from "./actions";
+import { AddContactModal } from "../../contacts/AddContactModal";
+import type { ServerStub } from "../../contacts/page";
 
 type Tab = "beats" | "artists";
 
@@ -49,6 +51,9 @@ interface ServerDetailPageProps {
   userId: string;
   /** Full producer library — populates the Add beats modal. */
   library: BeatWithStatsRow[];
+  /** Every server the producer owns — passed to the Add artist
+   *  modal so the chip group can render all options. */
+  allServers: ServerStub[];
 }
 
 export function ServerDetailPage({
@@ -57,6 +62,7 @@ export function ServerDetailPage({
   contacts,
   likesCount,
   library,
+  allServers,
 }: ServerDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
@@ -65,6 +71,7 @@ export function ServerDetailPage({
   const [copied, setCopied] = React.useState(false);
   const [addBeatsOpen, setAddBeatsOpen] = React.useState(false);
   const [addBeatsPending, startAddBeats] = React.useTransition();
+  const [addArtistOpen, setAddArtistOpen] = React.useState(false);
   const now = React.useMemo(() => new Date(), []);
 
   // Ids of beats already attached — used to filter the modal list.
@@ -260,7 +267,7 @@ export function ServerDetailPage({
                 <Button
                   icon="plus"
                   size="sm"
-                  onClick={() => stub("Add artist")}
+                  onClick={() => setAddArtistOpen(true)}
                   className="!h-[36px]"
                 >
                   Add artist
@@ -287,7 +294,7 @@ export function ServerDetailPage({
           <ArtistsTab
             contacts={contacts}
             now={now}
-            onAdd={() => stub("Add artist")}
+            onAdd={() => setAddArtistOpen(true)}
           />
         )}
       </div>
@@ -329,6 +336,13 @@ export function ServerDetailPage({
           }}
           onConfirm={addBeats}
           pending={addBeatsPending}
+        />
+      )}
+      {addArtistOpen && (
+        <AddContactModal
+          allServers={allServers}
+          defaultServerIds={[server.id]}
+          onClose={() => setAddArtistOpen(false)}
         />
       )}
     </>

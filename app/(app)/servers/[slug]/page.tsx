@@ -41,40 +41,54 @@ export default async function ServerPage({ params }: PageProps) {
   const server = serverRes.data;
   if (!server) notFound();
 
-  const [pivotRes, contactsRes, likesCountRes, userRes, libraryRes] =
-    await Promise.all([
-      supabase
-        .from("server_beats")
-        .select("beat_id, position")
-        .eq("server_id", server.id)
-        .order("position", { ascending: true }),
-      // Contacts attached to THIS server, via the server_contacts
-      // pivot (post-migration #7 contacts are owner-scoped, not
-      // server-scoped). Each row is a contact + its membership
-      // metadata; we flatten in JS below.
-      supabase
-        .from("server_contacts")
-        .select(
-          "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at)",
-        )
-        .eq("server_id", server.id)
-        .order("granted_at", { ascending: false })
-        .returns<
-          Array<{ granted_at: string; contacts: ContactRow | null }>
-        >(),
-      supabase
-        .from("likes")
-        .select("*", { count: "exact", head: true })
-        .eq("server_id", server.id),
-      supabase.auth.getUser(),
-      // The producer's full library — used to populate the
-      // "Add beats" modal. RLS scopes it to their own beats only.
-      supabase
-        .from("beats_with_stats")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .returns<BeatWithStatsRow[]>(),
-    ]);
+  const [
+    pivotRes,
+    contactsRes,
+    likesCountRes,
+    userRes,
+    libraryRes,
+    allServersRes,
+  ] = await Promise.all([
+    supabase
+      .from("server_beats")
+      .select("beat_id, position")
+      .eq("server_id", server.id)
+      .order("position", { ascending: true }),
+    // Contacts attached to THIS server, via the server_contacts
+    // pivot (post-migration #7 contacts are owner-scoped, not
+    // server-scoped). Each row is a contact + its membership
+    // metadata; we flatten in JS below.
+    supabase
+      .from("server_contacts")
+      .select(
+        "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at)",
+      )
+      .eq("server_id", server.id)
+      .order("granted_at", { ascending: false })
+      .returns<
+        Array<{ granted_at: string; contacts: ContactRow | null }>
+      >(),
+    supabase
+      .from("likes")
+      .select("*", { count: "exact", head: true })
+      .eq("server_id", server.id),
+    supabase.auth.getUser(),
+    // The producer's full library — used to populate the
+    // "Add beats" modal. RLS scopes it to their own beats only.
+    supabase
+      .from("beats_with_stats")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .returns<BeatWithStatsRow[]>(),
+    // The producer's full server list — used by the "Add artist"
+    // modal so the chip group can render every server, with the
+    // current one pre-selected via defaultServerIds.
+    supabase
+      .from("servers")
+      .select("id, name, slug")
+      .order("name", { ascending: true })
+      .returns<Array<{ id: string; name: string; slug: string }>>(),
+  ]);
 
   // Re-order beats to match the pivot's position order — `.in()` on
   // `id` doesn't preserve order, so we do it in JS via a Map.
@@ -106,6 +120,7 @@ export default async function ServerPage({ params }: PageProps) {
       likesCount={likesCountRes.count ?? 0}
       userId={userRes.data.user?.id ?? ""}
       library={libraryRes.data ?? []}
+      allServers={allServersRes.data ?? []}
     />
   );
 }
