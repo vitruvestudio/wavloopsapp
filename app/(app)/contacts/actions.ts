@@ -418,3 +418,29 @@ export async function importContactsAction(
   revalidatePath("/dashboard", "page");
   return { imported: upserted.length, skipped, error: null };
 }
+
+/* ================================================================
+   deleteContactAction — remove a contact + all its pivots cascade.
+   ================================================================
+   The contacts → server_contacts / listens / likes FKs all have
+   ON DELETE CASCADE, so a single DELETE wipes the contact's
+   membership rows and their engagement history along with it.
+
+   RLS via `contacts_owner_all` ensures the requester can only
+   delete contacts they own.
+*/
+export interface DeleteContactResult {
+  error: string | null;
+}
+
+export async function deleteContactAction(
+  id: string,
+): Promise<DeleteContactResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("contacts").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/contacts", "page");
+  revalidatePath("/dashboard", "page");
+  return { error: null };
+}

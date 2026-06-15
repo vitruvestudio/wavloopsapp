@@ -32,6 +32,17 @@ import { Tag } from "@/components/ui/Tag";
 import type { ContactRowVM, ServerStub } from "./page";
 import { AddContactModal } from "./AddContactModal";
 import { ImportCsvModal } from "./ImportCsvModal";
+import { deleteContactAction } from "./actions";
+import type { ContactRow as ContactRowT } from "@/lib/supabase/database.types";
+
+/** Menu item shape, mirrors BeatRowAction. */
+interface ContactRowAction {
+  label: string;
+  icon: IconName;
+  onClick: () => void;
+  /** Renders in danger colour + requires a second click to confirm. */
+  danger?: boolean;
+}
 
 type SortKey = "engagement" | "az";
 
@@ -47,6 +58,48 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
   const [sort, setSort] = React.useState<SortKey>("engagement");
   const [addOpen, setAddOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
+  /** Contact currently being edited via the row action menu — null
+   *  when no edit modal is open. Stored as VM (what the page knows
+   *  about) and converted to ContactRow shape at render time. */
+  const [editingContact, setEditingContact] =
+    React.useState<ContactRowVM | null>(null);
+
+  /** Build the action menu for one contact row. */
+  const actionsFor = React.useCallback(
+    (c: ContactRowVM): ContactRowAction[] => [
+      {
+        icon: "chevron-right",
+        label: "Open",
+        onClick: () => router.push(`/contacts/${c.id}`),
+      },
+      {
+        icon: "edit",
+        label: "Edit info",
+        onClick: () => setEditingContact(c),
+      },
+      {
+        icon: "mail",
+        label: "Email",
+        onClick: () => {
+          window.location.href = `mailto:${c.email}`;
+        },
+      },
+      {
+        icon: "trash",
+        label: "Delete",
+        danger: true,
+        onClick: async () => {
+          const res = await deleteContactAction(c.id);
+          if (res.error) {
+            alert(`Couldn't delete: ${res.error}`);
+            return;
+          }
+          router.refresh();
+        },
+      },
+    ],
+    [router],
+  );
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
@@ -173,6 +226,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
                 key={c.id}
                 contact={c}
                 onClick={() => router.push(`/contacts/${c.id}`)}
+                actions={actionsFor(c)}
               />
             ))}
           </div>
@@ -191,8 +245,34 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
           onClose={() => setImportOpen(false)}
         />
       )}
+      {editingContact && (
+        <AddContactModal
+          allServers={allServers}
+          existing={vmToContactRow(editingContact)}
+          existingServerIds={editingContact.servers.map((s) => s.id)}
+          onClose={() => setEditingContact(null)}
+        />
+      )}
     </>
   );
+}
+
+/** Convert a ContactRowVM (display shape) back to the ContactRow
+ *  shape AddContactModal expects in edit mode. The fields the modal
+ *  doesn't read (owner_id, last_active_at) get harmless defaults. */
+function vmToContactRow(vm: ContactRowVM): ContactRowT {
+  return {
+    id: vm.id,
+    owner_id: "",
+    email: vm.email,
+    name: vm.name,
+    phone: vm.phone,
+    socials: vm.socials,
+    avatar_url: vm.avatarUrl,
+    roles: vm.roles,
+    first_seen_at: vm.firstSeenAt,
+    last_active_at: vm.firstSeenAt,
+  };
 }
 
 /* ============================================================
@@ -445,9 +525,11 @@ function SortSegmented({
 function ContactRow({
   contact,
   onClick,
+  actions,
 }: {
   contact: ContactRowVM;
   onClick: () => void;
+  actions?: ContactRowAction[];
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
@@ -468,11 +550,12 @@ function ContactRow({
         background: hovered ? "var(--bg-2)" : "transparent",
       }}
     >
-      {/* Desktop layout — 5-col grid */}
+      {/* Desktop layout — 6-col grid (extra slot at the end for the ⋯ menu) */}
       <div
         className="hidden lg:grid items-center"
         style={{
-          gridTemplateColumns: "minmax(0,2fr) minmax(0,1.4fr) minmax(0,2fr) minmax(120px,1fr) 32px",
+          gridTemplateColumns:
+            "minmax(0,2fr) minmax(0,1.4fr) minmax(0,2fr) minmax(120px,1fr) 32px 32px",
           gap: 14,
           padding: "14px 22px",
         }}
@@ -529,6 +612,7 @@ function ContactRow({
         </span>
         <ServerTagList servers={contact.servers} />
         <EngagementCluster plays={contact.plays} likes={contact.likes} />
+        <ContactActionMenu actions={actions} />
         <Icon
           name="chevron-right"
           size={16}
@@ -588,6 +672,7 @@ function ContactRow({
               </div>
             )}
           </div>
+          <ContactActionMenu actions={actions} />
           <Icon
             name="chevron-right"
             size={16}
@@ -599,6 +684,137 @@ function ContactRow({
           <EngagementCluster plays={contact.plays} likes={contact.likes} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ContactActionMenu — ⋯ button + click-outside / Escape popover.
+   Mirrors BeatActionMenu's shape so the table reads as a sibling
+   of the Library beat list.
+   ============================================================ */
+
+function ContactActionMenu({
+  actions,
+}: {
+  actions?: ContactRowAction[];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [pendingConfirm, setPendingConfirm] = React.useState<string | null>(
+    null,
+  );
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onPtr = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setPendingConfirm(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setPendingConfirm(null);
+      }
+    };
+    document.addEventListener("pointerdown", onPtr);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPtr);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative" }}
+      className="shrink-0"
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!actions || actions.length === 0) return;
+          setOpen((o) => !o);
+        }}
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center text-fg-4 hover:text-fg-1 transition-colors"
+        style={{ width: 32, height: 32, borderRadius: "var(--r-sm)" }}
+      >
+        <Icon name="more" size={18} />
+      </button>
+
+      {open && actions && actions.length > 0 && (
+        <div
+          role="menu"
+          className="absolute bg-bg-2 border border-border-2"
+          style={{
+            top: "calc(100% + 4px)",
+            right: 0,
+            width: 200,
+            borderRadius: "var(--r-md)",
+            boxShadow: "var(--shadow-pop)",
+            padding: 6,
+            zIndex: 30,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {actions.map((action) => {
+            const awaitingConfirm = pendingConfirm === action.label;
+            const isDanger = Boolean(action.danger);
+            return (
+              <button
+                key={action.label}
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isDanger && !awaitingConfirm) {
+                    setPendingConfirm(action.label);
+                    return;
+                  }
+                  action.onClick();
+                  setOpen(false);
+                  setPendingConfirm(null);
+                }}
+                className="flex w-full items-center cursor-pointer transition-colors duration-fast border-0"
+                style={{
+                  height: 36,
+                  padding: "0 10px",
+                  gap: 10,
+                  borderRadius: "var(--r-sm)",
+                  background: "transparent",
+                  color: isDanger ? "var(--danger)" : "var(--fg-2)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14,
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDanger
+                    ? "var(--danger-surface)"
+                    : "var(--bg-3)";
+                  if (!isDanger)
+                    e.currentTarget.style.color = "var(--fg-1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = isDanger
+                    ? "var(--danger)"
+                    : "var(--fg-2)";
+                }}
+              >
+                <Icon name={action.icon} size={16} />
+                {awaitingConfirm ? "Click to confirm" : action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
