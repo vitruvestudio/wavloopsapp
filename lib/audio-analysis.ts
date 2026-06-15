@@ -109,8 +109,34 @@ function loadScript(src: string): Promise<void> {
  *  loose `any` types, so we keep just what we need. */
 interface EssentiaApi {
   arrayToVector(input: Float32Array): EssentiaVector;
-  PercivalBpmEstimator(signal: EssentiaVector): { bpm: number };
-  KeyExtractor(audio: EssentiaVector): {
+  /** Newer + more accurate than PercivalBpmEstimator. Returns a
+   *  confidence score (0..5.32 in essentia's normalised range) so we
+   *  can fall back to the filename when essentia is unsure. */
+  RhythmExtractor2013(
+    signal: EssentiaVector,
+    maxTempo?: number,
+    method?: string,
+    minTempo?: number,
+  ): {
+    bpm: number;
+    ticks: EssentiaVector;
+    confidence: number;
+    estimates: EssentiaVector;
+    bpmIntervals: EssentiaVector;
+  };
+  KeyExtractor(
+    audio: EssentiaVector,
+    averageDetuningCorrection?: boolean,
+    frameSize?: number,
+    hopSize?: number,
+    hpcpSize?: number,
+    maxFrequency?: number,
+    maximumSpectralPeaks?: number,
+    minFrequency?: number,
+    pcpThreshold?: number,
+    profileType?: string,
+    sampleRate?: number,
+  ): {
     key: string;
     scale: string;
     strength: number;
@@ -146,6 +172,44 @@ function formatKey(rawKey: string, scale: string): string | null {
   return `${normalised} ${scaleStr}`;
 }
 
+/** Parse a BPM hint out of the filename — a lot of producers stamp it
+ *  in there themselves ("Sasa Geuka 94BPM Wavloops.wav"). Lower priority
+ *  than essentia when essentia is confident; higher priority when it
+ *  isn't. Returns null when nothing plausible is found. */
+function parseBpmFromFilename(filename: string): number | null {
+  // Match "94BPM", "94 bpm", "@94", "94 BPM" etc. — 60-220 range.
+  const re = /(?:^|[^0-9])(\d{2,3})\s*bpm/i;
+  const m = filename.match(re);
+  if (m) {
+    const n = Number(m[1]);
+    if (n >= 60 && n <= 220) return n;
+  }
+  return null;
+}
+
+/**
+ * Slice a fixed analysis window out of the audio buffer. Trimming the
+ * first 5s (silence / fade-in / DJ tag) and capping at ~60s of meat
+ * gives essentia a cleaner, more representative chunk to work on —
+ * faster AND more accurate than throwing the whole track at it.
+ */
+function pickAnalysisWindow(buffer: Float32Array, sampleRate: number) {
+  const startSec = 5;
+  const maxLenSec = 60;
+  const start = Math.min(
+    buffer.length,
+    Math.floor(startSec * sampleRate),
+  );
+  const end = Math.min(
+    buffer.length,
+    start + Math.floor(maxLenSec * sampleRate),
+  );
+  // If the file is shorter than 5s the slice would be empty — just
+  // return the whole buffer in that case.
+  if (end - start < sampleRate * 5) return buffer;
+  return buffer.subarray(start, end);
+}
+
 export async function analyzeAudio(
   file: File,
 ): Promise<AudioAnalysisResult> {
@@ -166,7 +230,7 @@ export async function analyzeAudio(
   let bpm = 0;
   let key: string | null = null;
   let loudnessLufs: number | null = null;
-  let monoVector: EssentiaVector | null = null;
+  let analysisVector: EssentiaVector | null = null;
   let leftVector: EssentiaVector | null = null;
   let rightVector: EssentiaVector | null = null;
 
@@ -182,24 +246,92 @@ export async function analyzeAudio(
 
     const essentia = await getEssentia();
 
-    // Separate vectors per algorithm — essentia.js consumes them.
-    monoVector = essentia.arrayToVector(leftData);
+    // Use a trimmed analysis window for BPM + Key (faster, more
+    // accurate). Loudness still runs on the full track so the LUFS
+    // reading reflects the actual master.
+    const analysisWindow = pickAnalysisWindow(leftData, sampleRate);
+    analysisVector = essentia.arrayToVector(analysisWindow);
 
+    /* ---------- BPM ---------- */
+    let bpmConfidence = 0;
     try {
-      const bpmResult = essentia.PercivalBpmEstimator(monoVector);
+      const bpmResult = essentia.RhythmExtractor2013(
+        analysisVector,
+        220, // maxTempo
+        "multifeature",
+        40, // minTempo
+      );
       bpm = Math.round(bpmResult.bpm);
+      bpmConfidence = bpmResult.confidence;
+      try {
+        bpmResult.ticks.delete();
+      } catch {
+        /* */
+      }
+      try {
+        bpmResult.estimates.delete();
+      } catch {
+        /* */
+      }
+      try {
+        bpmResult.bpmIntervals.delete();
+      } catch {
+        /* */
+      }
     } catch (e) {
       console.warn("[audio-analysis] BPM extractor failed", e);
     }
 
+    // If essentia isn't confident (confidence < 2.0 in its 0..5.32
+    // range — anything under 2 means "low to none") and the filename
+    // carries an explicit "94BPM"-style hint, trust the filename.
+    const fnameBpm = parseBpmFromFilename(file.name);
+    if (fnameBpm != null && (bpm === 0 || bpmConfidence < 2)) {
+      bpm = fnameBpm;
+    }
+
+    /* ---------- Key (try two profiles, keep the strongest) ---------- */
     try {
-      const keyResult = essentia.KeyExtractor(monoVector);
-      key = formatKey(keyResult.key, keyResult.scale);
+      const candidates: Array<{
+        key: string;
+        scale: string;
+        strength: number;
+      }> = [];
+
+      for (const profile of ["edma", "temperley"]) {
+        try {
+          const r = essentia.KeyExtractor(
+            analysisVector,
+            true, // averageDetuningCorrection
+            4096, // frameSize
+            4096, // hopSize
+            12, // hpcpSize
+            3500, // maxFrequency
+            60, // maximumSpectralPeaks
+            25, // minFrequency
+            0.2, // pcpThreshold
+            profile,
+            sampleRate,
+          );
+          if (r?.key) candidates.push(r);
+        } catch {
+          /* this profile errored — try the next */
+        }
+      }
+
+      // Pick the candidate with the highest strength.
+      const best = candidates.reduce<
+        { key: string; scale: string; strength: number } | null
+      >((acc, cur) => {
+        if (!acc || cur.strength > acc.strength) return cur;
+        return acc;
+      }, null);
+      if (best) key = formatKey(best.key, best.scale);
     } catch (e) {
       console.warn("[audio-analysis] Key extractor failed", e);
     }
 
-    // LoudnessEBUR128 wants stereo L + R.
+    /* ---------- Loudness (LoudnessEBUR128 — needs stereo) ---------- */
     leftVector = essentia.arrayToVector(leftData);
     rightVector = essentia.arrayToVector(rightData);
 
@@ -223,7 +355,7 @@ export async function analyzeAudio(
     }
   } finally {
     try {
-      monoVector?.delete();
+      analysisVector?.delete();
     } catch {
       /* */
     }
