@@ -110,8 +110,55 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
         }}
       >
 
-        {/* Visibility chip — above the title, accent-blue Tag (same
-            DS variant as a beat's COMP / LOOP chip). */}
+        {/* @handle — sits right under the avatar so the artist sees
+            who's pitching the pack before anything else. */}
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#fff",
+            letterSpacing: 0,
+          }}
+        >
+          {handleAt}
+        </div>
+
+        {/* Certifications — also under the avatar, sandwich-style
+            credibility signal. Only rendered when the producer has
+            any in their profile. */}
+        {data.producer_certifications.length > 0 && (
+          <div
+            className="flex items-center justify-center flex-wrap"
+            style={{ gap: 6 }}
+          >
+            {data.producer_certifications.map((c) => (
+              <span
+                key={c}
+                className="inline-flex items-center"
+                style={{
+                  height: 24,
+                  padding: "0 10px",
+                  gap: 4,
+                  borderRadius: "var(--r-sm)",
+                  background: "oklch(0.55 0.18 80 / 0.16)",
+                  border: "1px solid oklch(0.6 0.18 80 / 0.45)",
+                  color: "oklch(0.92 0.14 90)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Visibility chip — accent-blue Tag (same DS variant as a
+            beat's COMP / LOOP chip). */}
         <Tag
           variant="accent"
           icon={data.visibility === "public" ? "globe" : "lock"}
@@ -173,11 +220,11 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
           </p>
         )}
 
-        {/* ── Producer block — handle + socials + certs + placements
-              All optional: each subsection renders only when there's
-              data for it, so a minimal-profile producer's gate page
-              still looks intentional. */}
-        <ProducerBlock data={data} handleAt={handleAt} />
+        {/* ── Producer extras — socials + placements. Handle +
+              certifications moved up under the avatar; this block
+              keeps only the "reach + receipts" content that sits
+              naturally before the form. */}
+        <ProducerBlock data={data} />
 
         {/* Form or success card */}
         {submitted ? (
@@ -275,40 +322,26 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
 }
 
 /* ============================================================
-   ProducerBlock — @handle, socials, certifications, placements
-   carousel. Renders below the server meta + description; each
-   sub-block is conditional on its data.
+   ProducerBlock — socials + placements carousel. Handle + certs
+   moved out (rendered above, right under the avatar) so this block
+   keeps only the "extras" that sit naturally before the form.
    ============================================================ */
 
-function ProducerBlock({
-  data,
-  handleAt,
-}: {
-  data: ArtistGateData;
-  handleAt: string;
-}) {
+function ProducerBlock({ data }: { data: ArtistGateData }) {
   const socialEntries = Object.entries(data.producer_socials ?? {}).filter(
     ([k, v]) => v && PLATFORM_ICON[k],
   );
-
+  if (
+    socialEntries.length === 0 &&
+    data.producer_placements.length === 0
+  ) {
+    return null;
+  }
   return (
     <div
       className="flex flex-col items-center w-full"
       style={{ gap: 14 }}
     >
-      {/* @handle — prominent producer handle, link-like styling */}
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 14,
-          fontWeight: 600,
-          color: "#fff",
-          letterSpacing: 0,
-        }}
-      >
-        {handleAt}
-      </div>
-
       {/* Socials */}
       {socialEntries.length > 0 && (
         <div className="flex items-center" style={{ gap: 10 }}>
@@ -338,39 +371,7 @@ function ProducerBlock({
         </div>
       )}
 
-      {/* Certifications */}
-      {data.producer_certifications.length > 0 && (
-        <div
-          className="flex items-center justify-center flex-wrap"
-          style={{ gap: 6 }}
-        >
-          {data.producer_certifications.map((c) => (
-            <span
-              key={c}
-              className="inline-flex items-center"
-              style={{
-                height: 24,
-                padding: "0 10px",
-                gap: 4,
-                borderRadius: "var(--r-sm)",
-                background: "oklch(0.55 0.18 80 / 0.16)", // gold-ish
-                border: "1px solid oklch(0.6 0.18 80 / 0.45)",
-                color: "oklch(0.92 0.14 90)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              {c}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Placements carousel — horizontal scroll snap. Shows up to
-          all placements; the scroll container handles overflow. */}
+      {/* Placements carousel — horizontal scroll snap. */}
       {data.producer_placements.length > 0 && (
         <PlacementsCarousel
           placements={data.producer_placements}
