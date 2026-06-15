@@ -34,6 +34,7 @@ import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { Tag } from "@/components/ui/Tag";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { ArtistGateData } from "./page";
 
@@ -103,12 +104,22 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
         }}
       >
 
-        {/* Title */}
+        {/* Visibility chip — above the title, accent-blue Tag (same
+            DS variant as a beat's COMP / LOOP chip). */}
+        <Tag
+          variant="accent"
+          icon={data.visibility === "public" ? "globe" : "lock"}
+        >
+          {data.visibility}
+        </Tag>
+
+        {/* Title — small enough that "Atlanta-Night" fits on one
+            line even on narrow phones. */}
         <h1
           style={{
             fontFamily: "var(--font-display)",
             fontWeight: 800,
-            fontSize: "clamp(34px, 7vw, 44px)",
+            fontSize: "clamp(26px, 6.5vw, 40px)",
             lineHeight: 1.05,
             letterSpacing: "-0.02em",
             textAlign: "center",
@@ -118,9 +129,7 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
           {data.name}
         </h1>
 
-        {/* Meta strip — visibility · beats · mood. Dark-themed chips
-            that live on the dark page (the app's VisBadge is sized
-            for light surfaces, so we render inline here). */}
+        {/* Remaining meta — beats count + mood tags below the title. */}
         <GateMeta data={data} />
 
         {/* Sub */}
@@ -275,9 +284,10 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
 }
 
 /* ============================================================
-   GateMeta — dark-themed chip strip with visibility + beat count +
-   mood/style tags. The app's VisBadge / Tag primitives are styled
-   for light surfaces, so we render bespoke chips here.
+   GateMeta — beats count + mood chips, rendered under the title.
+   Visibility moved above the title (rendered there directly) so
+   it doesn't share the chip strip and can read as the "what kind
+   of pack is this" headline tag.
    ============================================================ */
 
 function GateMeta({ data }: { data: ArtistGateData }) {
@@ -285,50 +295,28 @@ function GateMeta({ data }: { data: ArtistGateData }) {
     .split(/[·,]/)
     .map((s) => s.trim())
     .filter(Boolean);
-  const chipStyle: React.CSSProperties = {
-    height: 26,
-    padding: "0 11px",
-    gap: 6,
-    borderRadius: "var(--r-pill)",
+  // Use the DS Tag with a darker shade override — same shape as the
+  // app's Tag variant="solid" but tuned for a dark surface.
+  const darkSolid: React.CSSProperties = {
+    height: 24,
+    padding: "0 10px",
+    gap: 5,
+    borderRadius: "var(--r-sm)",
     background: "oklch(1 0 0 / 0.08)",
-    border: "1px solid oklch(1 0 0 / 0.12)",
+    border: "1px solid transparent",
     color: "oklch(0.88 0.02 270)",
     fontFamily: "var(--font-mono)",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 600,
-    letterSpacing: "0.08em",
+    letterSpacing: "0.1em",
     textTransform: "uppercase" as const,
   };
   return (
     <div
       className="flex items-center justify-center flex-wrap"
-      style={{ gap: 8 }}
+      style={{ gap: 6 }}
     >
-      <span
-        className="inline-flex items-center"
-        style={{
-          ...chipStyle,
-          background:
-            data.visibility === "public"
-              ? "oklch(0.55 0.16 145 / 0.18)"
-              : "oklch(1 0 0 / 0.08)",
-          color:
-            data.visibility === "public"
-              ? "oklch(0.8 0.18 145)"
-              : "oklch(0.88 0.02 270)",
-          border:
-            data.visibility === "public"
-              ? "1px solid oklch(0.6 0.16 145 / 0.4)"
-              : "1px solid oklch(1 0 0 / 0.12)",
-        }}
-      >
-        <Icon
-          name={data.visibility === "public" ? "globe" : "lock"}
-          size={11}
-        />
-        {data.visibility}
-      </span>
-      <span className="inline-flex items-center" style={chipStyle}>
+      <span className="inline-flex items-center" style={darkSolid}>
         <Icon name="library" size={11} />
         {data.beats_count} {data.beats_count === 1 ? "beat" : "beats"}
       </span>
@@ -336,7 +324,7 @@ function GateMeta({ data }: { data: ArtistGateData }) {
         <span
           key={m}
           className="inline-flex items-center"
-          style={chipStyle}
+          style={darkSolid}
         >
           {m}
         </span>
