@@ -28,19 +28,21 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
-import type { AggregatedContact } from "./page";
+import type { ContactRowVM, ServerStub } from "./page";
+import { AddContactModal } from "./AddContactModal";
 
 type SortKey = "engagement" | "az";
 
 interface ContactsPageProps {
-  contacts: AggregatedContact[];
-  allServers: Array<{ id: string; name: string; slug: string }>;
+  contacts: ContactRowVM[];
+  allServers: ServerStub[];
 }
 
 export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
   const [search, setSearch] = React.useState("");
   const [serverFilter, setServerFilter] = React.useState<string | "all">("all");
   const [sort, setSort] = React.useState<SortKey>("engagement");
+  const [addOpen, setAddOpen] = React.useState(false);
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
@@ -99,7 +101,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
             <Button
               icon="plus"
               size="sm"
-              onClick={() => stub("Add contact")}
+              onClick={() => setAddOpen(true)}
               className="!h-[36px]"
             >
               <span className="hidden sm:inline">Add contact</span>
@@ -164,7 +166,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
 
             {filteredSorted.map((c) => (
               <ContactRow
-                key={c.email}
+                key={c.id}
                 contact={c}
                 onClick={() => stub(`Open ${c.email}`)}
               />
@@ -172,6 +174,13 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
           </div>
         )}
       </div>
+
+      {addOpen && (
+        <AddContactModal
+          allServers={allServers}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -427,7 +436,7 @@ function ContactRow({
   contact,
   onClick,
 }: {
-  contact: AggregatedContact;
+  contact: ContactRowVM;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = React.useState(false);
@@ -534,7 +543,7 @@ function ContactRow({
 function ServerTagList({
   servers,
 }: {
-  servers: AggregatedContact["servers"];
+  servers: ContactRowVM["servers"];
 }) {
   // Show up to 2 names then collapse the rest into a "+N" chip so
   // the row stays single-line on tight widths.

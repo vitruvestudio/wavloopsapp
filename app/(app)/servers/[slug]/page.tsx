@@ -48,12 +48,20 @@ export default async function ServerPage({ params }: PageProps) {
         .select("beat_id, position")
         .eq("server_id", server.id)
         .order("position", { ascending: true }),
+      // Contacts attached to THIS server, via the server_contacts
+      // pivot (post-migration #7 contacts are owner-scoped, not
+      // server-scoped). Each row is a contact + its membership
+      // metadata; we flatten in JS below.
       supabase
-        .from("contacts")
-        .select("*")
+        .from("server_contacts")
+        .select(
+          "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, first_seen_at, last_active_at)",
+        )
         .eq("server_id", server.id)
-        .order("first_seen_at", { ascending: false })
-        .returns<ContactRow[]>(),
+        .order("granted_at", { ascending: false })
+        .returns<
+          Array<{ granted_at: string; contacts: ContactRow | null }>
+        >(),
       supabase
         .from("likes")
         .select("*", { count: "exact", head: true })
@@ -86,11 +94,15 @@ export default async function ServerPage({ params }: PageProps) {
       .filter((b): b is BeatWithStatsRow => Boolean(b));
   }
 
+  const contacts: ContactRow[] = (contactsRes.data ?? [])
+    .map((r) => r.contacts)
+    .filter((c): c is ContactRow => c !== null);
+
   return (
     <ServerDetailPage
       server={server}
       beats={orderedBeats}
-      contacts={contactsRes.data ?? []}
+      contacts={contacts}
       likesCount={likesCountRes.count ?? 0}
       userId={userRes.data.user?.id ?? ""}
       library={libraryRes.data ?? []}

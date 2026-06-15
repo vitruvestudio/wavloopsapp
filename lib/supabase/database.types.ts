@@ -95,15 +95,24 @@ export interface ServerBeatRow {
   added_at: string;
 }
 
+/** Post-migration #7: contacts are top-level (owner-scoped, the
+ *  producer's address book). The server_contacts pivot says which
+ *  server(s) each contact has access to. */
 export interface ContactRow {
   id: string;
-  server_id: string;
+  owner_id: string;
   email: string;
   name: string | null;
   phone: string | null;
   socials: Record<string, string>;
   first_seen_at: string;
   last_active_at: string;
+}
+
+export interface ServerContactRow {
+  server_id: string;
+  contact_id: string;
+  granted_at: string;
 }
 
 export interface ListenRow {
