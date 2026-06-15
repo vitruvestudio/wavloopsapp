@@ -39,10 +39,18 @@
 
 import * as React from "react";
 import { CoverArt } from "@/components/ui/CoverArt";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { fmtAgo, fmtDuration } from "@/lib/fmt";
 import type { BeatWithStatsRow } from "@/lib/supabase/database.types";
+
+export interface BeatRowAction {
+  label: string;
+  icon: IconName;
+  onClick: () => void;
+  /** Render in danger colour + require a 2-click confirm. */
+  danger?: boolean;
+}
 
 interface BeatRowProps {
   beat: BeatWithStatsRow;
@@ -65,6 +73,9 @@ interface BeatRowProps {
   checkbox?: boolean;
   checked?: boolean;
   onCheck?: () => void;
+  /** Action menu items shown when the ⋯ button is clicked. When
+   *  omitted, the ⋯ button is hidden. */
+  actions?: BeatRowAction[];
 }
 
 export function BeatRow({
@@ -80,6 +91,7 @@ export function BeatRow({
   checkbox,
   checked,
   onCheck,
+  actions,
 }: BeatRowProps) {
   const [hovered, setHovered] = React.useState(false);
 
@@ -290,16 +302,137 @@ export function BeatRow({
         </div>
       )}
 
-      {/* Action menu (V1: stub — wires up in J5 with beat detail page) */}
+      {/* Action menu — popover anchored to the ⋯ button, opens to the
+          left so it doesn't overflow the row's right edge. */}
+      <BeatActionMenu actions={actions} />
+    </div>
+  );
+}
+
+/* ============================================================
+   BeatActionMenu — ⋯ button + click-outside / Escape popover.
+   Renders nothing when `actions` is empty so the row still aligns
+   correctly (the spacer slot is kept).
+   ============================================================ */
+
+function BeatActionMenu({ actions }: { actions?: BeatRowAction[] }) {
+  const [open, setOpen] = React.useState(false);
+  const [pendingConfirm, setPendingConfirm] = React.useState<string | null>(
+    null,
+  );
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onPtr = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setPendingConfirm(null);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setPendingConfirm(null);
+      }
+    };
+    document.addEventListener("pointerdown", onPtr);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPtr);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ position: "relative" }}
+      className="shrink-0"
+    >
       <button
         type="button"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!actions || actions.length === 0) return;
+          setOpen((o) => !o);
+        }}
         aria-label="More actions"
-        className="inline-flex items-center justify-center shrink-0 text-fg-4 hover:text-fg-1 transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center text-fg-4 hover:text-fg-1 transition-colors"
         style={{ width: 32, height: 32, borderRadius: "var(--r-sm)" }}
       >
         <Icon name="more" size={18} />
       </button>
+
+      {open && actions && actions.length > 0 && (
+        <div
+          role="menu"
+          className="absolute bg-bg-2 border border-border-2"
+          style={{
+            top: "calc(100% + 4px)",
+            right: 0,
+            width: 200,
+            borderRadius: "var(--r-md)",
+            boxShadow: "var(--shadow-pop)",
+            padding: 6,
+            zIndex: 30,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {actions.map((action) => {
+            const awaitingConfirm =
+              pendingConfirm === action.label;
+            const isDanger = Boolean(action.danger);
+            return (
+              <button
+                key={action.label}
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isDanger && !awaitingConfirm) {
+                    setPendingConfirm(action.label);
+                    return;
+                  }
+                  action.onClick();
+                  setOpen(false);
+                  setPendingConfirm(null);
+                }}
+                className="flex w-full items-center cursor-pointer transition-colors duration-fast border-0"
+                style={{
+                  height: 36,
+                  padding: "0 10px",
+                  gap: 10,
+                  borderRadius: "var(--r-sm)",
+                  background: "transparent",
+                  color: isDanger ? "var(--danger)" : "var(--fg-2)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14,
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = isDanger
+                    ? "var(--danger-surface)"
+                    : "var(--bg-3)";
+                  if (!isDanger)
+                    e.currentTarget.style.color = "var(--fg-1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = isDanger
+                    ? "var(--danger)"
+                    : "var(--fg-2)";
+                }}
+              >
+                <Icon name={action.icon} size={16} />
+                {awaitingConfirm ? "Click to confirm" : action.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

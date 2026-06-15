@@ -29,7 +29,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BeatRow } from "@/components/app/BeatRow";
+import { deleteBeatAction } from "@/app/(app)/beats/[id]/actions";
+import {
+  BeatRow,
+  type BeatRowAction,
+} from "@/components/app/BeatRow";
 import { usePlayer } from "@/components/app/PlayerContext";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -94,6 +98,56 @@ export function LibraryFilters({
   const openBeat = React.useCallback(
     (beat: BeatWithStatsRow) => router.push(`/beats/${beat.id}`),
     [router],
+  );
+
+  const downloadBeat = React.useCallback(
+    async (beat: BeatWithStatsRow) => {
+      if (!beat.audio_url) return;
+      const { data } = await supabase.storage
+        .from("beat-audio")
+        .createSignedUrl(beat.audio_url, 300);
+      if (!data) return;
+      const a = document.createElement("a");
+      a.href = data.signedUrl;
+      a.download = `${beat.title}.${beat.audio_url.split(".").pop() ?? "wav"}`;
+      a.click();
+    },
+    [supabase],
+  );
+
+  const deleteBeat = React.useCallback(
+    async (beat: BeatWithStatsRow) => {
+      const result = await deleteBeatAction(beat.id);
+      if (result?.error) {
+        console.warn("[library] delete failed", result.error);
+        return;
+      }
+      router.refresh();
+    },
+    [router],
+  );
+
+  const actionsFor = React.useCallback(
+    (beat: BeatWithStatsRow): BeatRowAction[] => [
+      { icon: "chevron-right", label: "Open", onClick: () => openBeat(beat) },
+      {
+        icon: "settings",
+        label: "Edit info",
+        onClick: () => router.push(`/beats/${beat.id}?tab=edit`),
+      },
+      {
+        icon: "external",
+        label: "Download",
+        onClick: () => void downloadBeat(beat),
+      },
+      {
+        icon: "trash",
+        label: "Delete",
+        onClick: () => void deleteBeat(beat),
+        danger: true,
+      },
+    ],
+    [openBeat, downloadBeat, deleteBeat, router],
   );
 
   const playBeat = React.useCallback(
@@ -361,6 +415,7 @@ export function LibraryFilters({
           onOpen={openBeat}
           isCurrent={isCurrent}
           isPlaying={isPlayingNow}
+          actions={actionsFor}
         />
       ) : (
         <BeatGrid
@@ -1121,6 +1176,7 @@ function BeatList({
   onOpen,
   isCurrent,
   isPlaying,
+  actions,
 }: {
   beats: BeatWithStatsRow[];
   now: Date;
@@ -1129,6 +1185,7 @@ function BeatList({
   onOpen: (b: BeatWithStatsRow) => void;
   isCurrent: (id: string) => boolean;
   isPlaying: (id: string) => boolean;
+  actions: (b: BeatWithStatsRow) => BeatRowAction[];
 }) {
   if (beats.length === 0) {
     return (
@@ -1207,6 +1264,7 @@ function BeatList({
             onOpen={() => onOpen(b)}
             isCurrent={isCurrent(b.id)}
             playing={isPlaying(b.id)}
+            actions={actions(b)}
           />
         ))}
       </div>
