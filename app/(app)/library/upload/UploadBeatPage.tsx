@@ -48,6 +48,7 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { PlayButton } from "@/components/ui/PlayButton";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -618,11 +619,13 @@ function ArtworkBlock({
   playing: boolean;
 }) {
   const [hovered, setHovered] = React.useState(false);
-  const showOverlay = hovered || isCurrent;
+  // Show the play button when the producer hovers OR when this beat is
+  // the one currently driving the dock — same logic as Spotify's grid.
+  const showButton = hovered || isCurrent;
 
   return (
     <div
-      className="relative cursor-pointer overflow-hidden"
+      className="relative cursor-pointer overflow-hidden group"
       style={{
         aspectRatio: "1 / 1",
         borderRadius: "var(--r-lg)",
@@ -650,21 +653,35 @@ function ArtworkBlock({
         <CoverArt seed={seed} fill radius={0} />
       )}
 
-      {/* Hover / playing overlay — dark scrim + big play/pause icon */}
+      {/* Subtle darken so the floating play button reads well against
+          any cover. Fades in on hover / current beat. */}
       <div
         aria-hidden
-        className="absolute inset-0 flex items-center justify-center transition-opacity duration-fast"
+        className="absolute inset-0 transition-opacity duration-fast"
         style={{
-          background: "oklch(0 0 0 / 0.45)",
-          opacity: showOverlay ? 1 : 0,
+          background:
+            "linear-gradient(180deg, oklch(0 0 0 / 0.12), oklch(0 0 0 / 0.32))",
+          opacity: showButton ? 1 : 0,
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Floating PlayButton — accent circle, lives at the bottom-left
+          of the cover (Spotify-style). Visual only — the wrapper handles
+          the click via event bubbling, so we still get one trigger per
+          tap. */}
+      <div
+        aria-hidden
+        className="absolute transition-all duration-fast"
+        style={{
+          left: 16,
+          bottom: 16,
+          opacity: showButton ? 1 : 0,
+          transform: showButton ? "translateY(0)" : "translateY(8px)",
           pointerEvents: "none",
         }}
       >
-        <Icon
-          name={isCurrent && playing ? "pause" : "play"}
-          size={56}
-          style={{ color: "#fff" }}
-        />
+        <PlayButton size={52} playing={isCurrent && playing} />
       </div>
 
       {/* REMOVE / CHANGE pills — bottom-right, stop propagation so

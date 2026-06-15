@@ -116,27 +116,44 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Read `current` via a ref so toggle doesn't have to rebuild every
+  // render — the click handler stays stable. Same with `playing`.
+  const currentRef = React.useRef<Beat | null>(null);
+  React.useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
+
   const toggle = React.useCallback((beat: Beat) => {
     const audio = audioRef.current;
-    setCurrent((prev) => {
-      if (prev && prev.id === beat.id) {
-        // Same beat — flip play/pause without resetting position.
-        if (audio?.paused) {
-          audio.play().catch(() => {});
-        } else {
-          audio?.pause();
-        }
-        return prev;
+    if (!audio) return;
+
+    // Top-level play() / pause() — preserves the user-gesture context
+    // for browser autoplay policies. (When called inside setState's
+    // updater the gesture chain is technically intact in React 19, but
+    // browsers occasionally heuristically reject it — top-level is the
+    // safe form.)
+    const prev = currentRef.current;
+    if (prev && prev.id === beat.id) {
+      if (audio.paused || audio.ended) {
+        audio.play().catch((e) => {
+          console.warn("[player] play failed", e);
+        });
+      } else {
+        audio.pause();
       }
-      // Different beat — bind src then auto-play.
-      setProgress(0);
-      if (audio && beat.audioUrl) {
-        audio.src = beat.audioUrl;
-        audio.load();
-        audio.play().catch(() => {});
-      }
-      return beat;
-    });
+      return;
+    }
+
+    // Different beat — switch source and start over.
+    setProgress(0);
+    setCurrent(beat);
+    if (beat.audioUrl) {
+      audio.src = beat.audioUrl;
+      audio.currentTime = 0;
+      audio.play().catch((e) => {
+        console.warn("[player] play failed on new beat", e);
+      });
+    }
   }, []);
 
   const pause = React.useCallback(() => {
