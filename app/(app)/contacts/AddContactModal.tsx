@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import { addContactAction } from "./actions";
+import { addContactAction, fetchOgImageAction } from "./actions";
 import type { ServerStub } from "./page";
 import { parseSocialLink, platformLabel } from "@/lib/socials";
 
@@ -84,34 +84,52 @@ export function AddContactModal({
   /* ─── Auto-fill from a pasted social link ─────────────────────── */
   const [quickFillInput, setQuickFillInput] = React.useState("");
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [avatarFetching, setAvatarFetching] = React.useState(false);
   /** What we detected from the last paste — drives the inline hint
    *  AND tells us which social field to overwrite when re-parsing. */
-  const lastDetected = React.useRef<ReturnType<
+  const [lastDetected, setLastDetected] = React.useState<ReturnType<
     typeof parseSocialLink
   > | null>(null);
+  /** Monotonic id for the latest avatar-fetch request — a stale
+   *  response (producer pasted a new link before the old fetch
+   *  finished) gets dropped instead of overwriting the new avatar. */
+  const fetchSeqRef = React.useRef(0);
 
-  const applyQuickFill = React.useCallback(
-    (raw: string) => {
-      setQuickFillInput(raw);
-      const parsed = parseSocialLink(raw);
-      lastDetected.current = parsed;
-      if (!parsed) {
-        return;
-      }
-      // 1. Store the canonical URL in the right social slot.
-      setSocials((cur) => ({ ...cur, [parsed.platform]: parsed.url }));
-      // 2. Push the avatar URL into the live-preview Avatar.
-      setAvatarUrl(parsed.avatarUrl);
-      // 3. If the producer hasn't typed a name yet, seed it from
-      //    the handle so the preview card stops saying "New contact".
-      setName((cur) =>
-        cur.trim().length === 0 && parsed.platform !== "website"
-          ? parsed.handle
-          : cur,
-      );
-    },
-    [],
-  );
+  const applyQuickFill = React.useCallback((raw: string) => {
+    setQuickFillInput(raw);
+    const parsed = parseSocialLink(raw);
+    setLastDetected(parsed);
+    if (!parsed) {
+      setAvatarFetching(false);
+      return;
+    }
+    // 1. Store the canonical URL in the right social slot.
+    setSocials((cur) => ({ ...cur, [parsed.platform]: parsed.url }));
+    // 2. If the producer hasn't typed a name yet, seed it from
+    //    the handle so the preview card stops saying "New contact".
+    setName((cur) =>
+      cur.trim().length === 0 && parsed.platform !== "website"
+        ? parsed.handle
+        : cur,
+    );
+    // 3. Server-side scrape og:image from the social URL. unavatar.io
+    //    needs a paid plan for Instagram now, so we go direct to the
+    //    page and parse the OG tag ourselves.
+    fetchSeqRef.current += 1;
+    const seq = fetchSeqRef.current;
+    setAvatarFetching(true);
+    setAvatarUrl(null);
+    fetchOgImageAction(parsed.url)
+      .then((res) => {
+        if (seq !== fetchSeqRef.current) return; // stale
+        setAvatarUrl(res.url);
+        setAvatarFetching(false);
+      })
+      .catch(() => {
+        if (seq !== fetchSeqRef.current) return;
+        setAvatarFetching(false);
+      });
+  }, []);
 
   // Lock body scroll while open.
   React.useEffect(() => {
@@ -298,15 +316,23 @@ export function AddContactModal({
                 className="flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4 min-w-0"
                 style={{ fontFamily: "var(--font-body)", fontSize: 14 }}
               />
-              {lastDetected.current && (
+              {lastDetected && !avatarFetching && (
                 <Icon
                   name="check"
                   size={14}
                   style={{ color: "var(--accent-text)" }}
                 />
               )}
+              {avatarFetching && (
+                <span
+                  className="t-mono-s"
+                  style={{ color: "var(--fg-3)" }}
+                >
+                  …
+                </span>
+              )}
             </div>
-            {lastDetected.current && (
+            {lastDetected && (
               <div
                 className="t-mono-s"
                 style={{
@@ -314,11 +340,29 @@ export function AddContactModal({
                   marginTop: 6,
                 }}
               >
-                DETECTED · {platformLabel(lastDetected.current.platform)} ·{" "}
-                {lastDetected.current.handle}
+                DETECTED · {platformLabel(lastDetected.platform)} ·{" "}
+                {lastDetected.handle}
+                {avatarFetching && (
+                  <span style={{ color: "var(--fg-4)" }}>
+                    {" "}
+                    · FETCHING PHOTO…
+                  </span>
+                )}
+                {!avatarFetching && avatarUrl && (
+                  <span style={{ color: "var(--fg-4)" }}>
+                    {" "}
+                    · PHOTO LOADED
+                  </span>
+                )}
+                {!avatarFetching && !avatarUrl && (
+                  <span style={{ color: "var(--fg-4)" }}>
+                    {" "}
+                    · NO PHOTO FOUND
+                  </span>
+                )}
               </div>
             )}
-            {quickFillInput.trim() && !lastDetected.current && (
+            {quickFillInput.trim() && !lastDetected && (
               <div
                 className="t-mono-s"
                 style={{ color: "var(--fg-4)", marginTop: 6 }}
