@@ -44,16 +44,24 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { fmtAgo, fmtDuration } from "@/lib/fmt";
+import { PLATFORM_ICON } from "@/lib/socials";
 import type {
   BeatRow as BeatRowT,
   BeatWithStatsRow,
   ContactRow,
 } from "@/lib/supabase/database.types";
+import { AddContactModal } from "../AddContactModal";
+import type { ServerStub } from "../page";
 import type { ContactStats, HistoryEntry } from "./page";
 
 interface ContactDetailPageProps {
   contact: ContactRow;
+  /** Servers this contact currently has access to (pivot rows). */
   servers: Array<{ id: string; name: string; slug: string }>;
+  /** ALL the producer's servers — populates the Edit modal's
+   *  "Add to servers" chip group so the producer can attach or
+   *  detach. */
+  allServers: ServerStub[];
   stats: ContactStats;
   liked: BeatRowT[];
   history: HistoryEntry[];
@@ -62,12 +70,14 @@ interface ContactDetailPageProps {
 export function ContactDetailPage({
   contact,
   servers,
+  allServers,
   stats,
   liked,
   history,
 }: ContactDetailPageProps) {
   const router = useRouter();
   const now = React.useMemo(() => new Date(), []);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   const handle = contact.name?.trim()
     ? `@${contact.name.trim()}`
@@ -75,6 +85,10 @@ export function ContactDetailPage({
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
+
+  const socialEntries = Object.entries(contact.socials).filter(
+    ([k, v]) => v && PLATFORM_ICON[k],
+  );
 
   return (
     <>
@@ -84,6 +98,15 @@ export function ContactDetailPage({
         onBack={() => router.push("/contacts")}
         right={
           <div className="flex items-center" style={{ gap: 8 }}>
+            <Button
+              variant="ghost"
+              icon="edit"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              className="!h-[36px]"
+            >
+              Edit
+            </Button>
             <a href={`mailto:${contact.email}`} className="inline-flex">
               <Button
                 variant="ghost"
@@ -194,6 +217,36 @@ export function ContactDetailPage({
                 ))}
               </div>
             )}
+            {socialEntries.length > 0 && (
+              <div
+                className="flex items-center flex-wrap"
+                style={{ gap: 8, marginTop: 12 }}
+              >
+                {socialEntries.map(([platform, url]) => (
+                  <a
+                    key={platform}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open ${platform} profile`}
+                    className="inline-flex items-center justify-center transition-colors duration-fast"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "var(--r-md)",
+                      background: "var(--bg-1)",
+                      border: "1px solid var(--border-1)",
+                      color: "var(--fg-2)",
+                    }}
+                  >
+                    <Icon
+                      name={PLATFORM_ICON[platform] as IconName}
+                      size={15}
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -266,6 +319,15 @@ export function ContactDetailPage({
           </div>
         </div>
       </div>
+
+      {editOpen && (
+        <AddContactModal
+          allServers={allServers}
+          existing={contact}
+          existingServerIds={servers.map((s) => s.id)}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
     </>
   );
 }

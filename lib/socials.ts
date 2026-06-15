@@ -155,6 +155,20 @@ export function parseSocialLink(raw: string): ParsedSocialLink | null {
   };
 }
 
+/** Icon name (from the registry) for each platform — used wherever a
+ *  contact's socials are listed (table rows, detail page, modal preview).
+ *  Platforms without a dedicated SVG yet use the closest stand-in
+ *  glyph. */
+export const PLATFORM_ICON: Record<string, string> = {
+  instagram: "instagram",
+  x: "x-logo",
+  youtube: "youtube",
+  tiktok: "youtube", // closest stand-in until a TikTok glyph ships
+  soundcloud: "library", // closest stand-in until a SoundCloud glyph ships
+  genius: "mic",
+  website: "globe",
+};
+
 /** Pretty label for the "Detected:" hint under the paste field. */
 export function platformLabel(p: SocialPlatform): string {
   switch (p) {

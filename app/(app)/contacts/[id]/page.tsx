@@ -73,7 +73,7 @@ export default async function ContactRoute({ params }: PageProps) {
   const contact = contactRes.data;
   if (!contact) notFound();
 
-  const [likesRes, listensRes] = await Promise.all([
+  const [likesRes, listensRes, allServersRes] = await Promise.all([
     supabase
       .from("likes")
       .select("beat_id, beats!inner(*)")
@@ -86,6 +86,14 @@ export default async function ContactRoute({ params }: PageProps) {
       .eq("contact_id", id)
       .order("listened_at", { ascending: false })
       .returns<BeatJoinRow[]>(),
+    // All the producer's servers — used by the Edit Contact modal's
+    // "Add to servers" chip group so the producer can attach the
+    // contact to (or detach from) any of their servers.
+    supabase
+      .from("servers")
+      .select("id, name, slug")
+      .order("name", { ascending: true })
+      .returns<Array<{ id: string; name: string; slug: string }>>(),
   ]);
 
   // Liked beats — flatten the join.
@@ -141,6 +149,7 @@ export default async function ContactRoute({ params }: PageProps) {
         last_active_at: contact.last_active_at,
       }}
       servers={servers}
+      allServers={allServersRes.data ?? []}
       stats={stats}
       liked={likedBeats}
       history={history}

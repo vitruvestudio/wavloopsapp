@@ -198,3 +198,92 @@ export async function addContactAction(
   revalidatePath("/dashboard", "page");
   return { error: null, contactId: contact.id };
 }
+
+/* ================================================================
+   updateContactAction — edit an existing contact.
+   ================================================================
+   Same payload as add (so the modal can reuse it), plus the contact
+   id. RLS via `contacts_owner_all` gates this to the producer's own
+   rows; server_contacts ownership is enforced by its own policy.
+
+   Beats are NOT touched here — contacts don't carry a beat list,
+   only the server_contacts pivot is replaced.
+*/
+export interface UpdateContactPayload extends AddContactPayload {
+  id: string;
+}
+
+export async function updateContactAction(
+  payload: UpdateContactPayload,
+): Promise<AddContactResult> {
+  const supabase = await createClient();
+
+  const email = payload.email.trim().toLowerCase();
+  if (!EMAIL_REGEX.test(email)) {
+    return { error: "Enter a valid email address.", contactId: null };
+  }
+
+  const cleanSocials: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload.socials)) {
+    const trimmed = v.trim();
+    if (trimmed) cleanSocials[k] = trimmed;
+  }
+  const cleanRoles = payload.roles
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+
+  const { error: updateErr } = await supabase
+    .from("contacts")
+    .update({
+      email,
+      name: payload.name?.trim() || null,
+      phone: payload.phone?.trim() || null,
+      roles: cleanRoles,
+      socials: cleanSocials,
+      avatar_url: payload.avatar_url?.trim() || null,
+      last_active_at: new Date().toISOString(),
+    })
+    .eq("id", payload.id);
+
+  if (updateErr) {
+    return {
+      error: updateErr.message,
+      contactId: null,
+    };
+  }
+
+  // Replace the server_contacts pivot to match the new selection.
+  // DELETE + INSERT is simpler than diffing and the row counts here
+  // are tiny (≤ a few servers per contact at V1 scale).
+  const { error: delErr } = await supabase
+    .from("server_contacts")
+    .delete()
+    .eq("contact_id", payload.id);
+  if (delErr) {
+    return {
+      error: `Contact updated but couldn't refresh servers: ${delErr.message}`,
+      contactId: payload.id,
+    };
+  }
+
+  if (payload.server_ids.length > 0) {
+    const rows = payload.server_ids.map((sid) => ({
+      server_id: sid,
+      contact_id: payload.id,
+    }));
+    const { error: pivotErr } = await supabase
+      .from("server_contacts")
+      .insert(rows);
+    if (pivotErr) {
+      return {
+        error: `Contact updated but couldn't re-attach servers: ${pivotErr.message}`,
+        contactId: payload.id,
+      };
+    }
+  }
+
+  revalidatePath("/contacts", "page");
+  revalidatePath(`/contacts/${payload.id}`, "page");
+  revalidatePath("/dashboard", "page");
+  return { error: null, contactId: payload.id };
+}

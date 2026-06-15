@@ -39,9 +39,14 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { TagInput } from "@/components/ui/TagInput";
 import { CONTACT_ROLE_SUGGEST } from "@/lib/audio";
-import { addContactAction, fetchOgImageAction } from "./actions";
+import {
+  addContactAction,
+  fetchOgImageAction,
+  updateContactAction,
+} from "./actions";
 import type { ServerStub } from "./page";
 import { parseSocialLink, platformLabel } from "@/lib/socials";
+import type { ContactRow } from "@/lib/supabase/database.types";
 
 interface AddContactModalProps {
   allServers: ServerStub[];
@@ -50,6 +55,13 @@ interface AddContactModalProps {
    *  from a server detail page's "Add an artist" button so the
    *  current server is already toggled on. Defaults to []. */
   defaultServerIds?: string[];
+  /** When set, the modal operates in edit mode: pre-fills every
+   *  field from this contact, swaps the title + submit label, and
+   *  calls updateContactAction on submit. */
+  existing?: ContactRow;
+  /** Server ids the contact is currently attached to — used to
+   *  pre-check the Add-to-servers chips in edit mode. */
+  existingServerIds?: string[];
 }
 
 interface SocialPlatform {
@@ -71,22 +83,31 @@ export function AddContactModal({
   allServers,
   onClose,
   defaultServerIds = [],
+  existing,
+  existingServerIds,
 }: AddContactModalProps) {
   const router = useRouter();
+  const mode: "create" | "edit" = existing ? "edit" : "create";
 
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
-  const [phone, setPhone] = React.useState("");
-  const [roles, setRoles] = React.useState<string[]>([]);
-  const [socials, setSocials] = React.useState<Record<string, string>>({});
+  const [name, setName] = React.useState(existing?.name ?? "");
+  const [email, setEmail] = React.useState(existing?.email ?? "");
+  const [phone, setPhone] = React.useState(existing?.phone ?? "");
+  const [roles, setRoles] = React.useState<string[]>(existing?.roles ?? []);
+  const [socials, setSocials] = React.useState<Record<string, string>>(
+    existing?.socials ?? {},
+  );
   const [openSocial, setOpenSocial] = React.useState<string | null>(null);
-  const [serverIds, setServerIds] = React.useState<string[]>(defaultServerIds);
+  const [serverIds, setServerIds] = React.useState<string[]>(
+    existingServerIds ?? defaultServerIds,
+  );
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   /* ─── Auto-fill from a pasted social link ─────────────────────── */
   const [quickFillInput, setQuickFillInput] = React.useState("");
-  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
+    existing?.avatar_url ?? null,
+  );
   const [avatarFetching, setAvatarFetching] = React.useState(false);
   /** What we detected from the last paste — drives the inline hint
    *  AND tells us which social field to overwrite when re-parsing. */
@@ -168,7 +189,7 @@ export function AddContactModal({
     if (!canSubmit) return;
     setError(null);
     startTransition(async () => {
-      const result = await addContactAction({
+      const sharedPayload = {
         name: name.trim() || null,
         email: email.trim(),
         phone: phone.trim() || null,
@@ -176,7 +197,11 @@ export function AddContactModal({
         socials,
         avatar_url: avatarUrl,
         server_ids: serverIds,
-      });
+      };
+      const result =
+        mode === "edit" && existing
+          ? await updateContactAction({ id: existing.id, ...sharedPayload })
+          : await addContactAction(sharedPayload);
       if (result.error) {
         setError(result.error);
         return;
@@ -238,13 +263,15 @@ export function AddContactModal({
           </div>
           <div className="min-w-0 flex-1">
             <div className="t-h2" style={{ fontSize: 18 }}>
-              New contact
+              {mode === "edit" ? "Edit contact" : "New contact"}
             </div>
             <div
               className="t-mono-s truncate"
               style={{ color: "var(--fg-3)", marginTop: 3 }}
             >
-              SAVED TO YOUR ADDRESS BOOK
+              {mode === "edit"
+                ? "UPDATE FIELDS · SAVE WHEN DONE"
+                : "SAVED TO YOUR ADDRESS BOOK"}
             </div>
           </div>
           <IconButton
@@ -552,13 +579,19 @@ export function AddContactModal({
             Cancel
           </Button>
           <Button
-            icon="plus"
+            icon={mode === "edit" ? "check" : "plus"}
             size="sm"
             onClick={submit}
             disabled={!canSubmit}
             className="!h-[36px]"
           >
-            {pending ? "Saving…" : "Create contact"}
+            {mode === "edit"
+              ? pending
+                ? "Saving…"
+                : "Save changes"
+              : pending
+                ? "Saving…"
+                : "Create contact"}
           </Button>
         </div>
       </div>
