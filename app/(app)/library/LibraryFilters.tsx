@@ -33,7 +33,7 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Segmented } from "@/components/ui/Segmented";
 import { Tag } from "@/components/ui/Tag";
-import { fmtDuration } from "@/lib/fmt";
+import { fmtAgo, fmtDuration } from "@/lib/fmt";
 import { KEY_OPTIONS, MOOD_SUGGEST } from "@/lib/audio";
 import type {
   BeatWithStatsRow,
@@ -264,7 +264,11 @@ export function LibraryFilters({
           totalCount={beats.length}
         />
       ) : (
-        <BeatGrid beats={filteredSorted} totalCount={beats.length} />
+        <BeatGrid
+          beats={filteredSorted}
+          totalCount={beats.length}
+          now={now}
+        />
       )}
     </div>
   );
@@ -750,9 +754,11 @@ function BpmRangePicker({
 function BeatGrid({
   beats,
   totalCount,
+  now,
 }: {
   beats: BeatWithStatsRow[];
   totalCount: number;
+  now: Date;
 }) {
   if (beats.length === 0) {
     return (
@@ -775,18 +781,24 @@ function BeatGrid({
     <div
       className="grid"
       style={{
-        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-        gap: 18,
+        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+        gap: 20,
       }}
     >
       {beats.map((b) => (
-        <BeatCard key={b.id} beat={b} />
+        <BeatCard key={b.id} beat={b} now={now} />
       ))}
     </div>
   );
 }
 
-function BeatCard({ beat }: { beat: BeatWithStatsRow }) {
+function BeatCard({
+  beat,
+  now,
+}: {
+  beat: BeatWithStatsRow;
+  now: Date;
+}) {
   const [hovered, setHovered] = React.useState(false);
 
   return (
@@ -810,7 +822,24 @@ function BeatCard({ beat }: { beat: BeatWithStatsRow }) {
           fill
           radius={0}
         />
-        {/* Hover overlay — subtle gradient + play icon */}
+
+        {/* COMP / LOOP type tag — top-left overlay */}
+        {beat.type && (
+          <div
+            className="absolute"
+            style={{ top: 10, left: 10, zIndex: 2 }}
+          >
+            <Tag
+              variant={beat.type === "comp" ? "accent" : "solid"}
+              icon={beat.type === "comp" ? "waves" : "repeat"}
+            >
+              {beat.type === "comp" ? "COMP" : "LOOP"}
+            </Tag>
+          </div>
+        )}
+
+        {/* Hover overlay — subtle gradient + accent floating play
+            button at the bottom-left. */}
         <div
           aria-hidden
           className="absolute inset-0 transition-opacity duration-fast"
@@ -842,37 +871,97 @@ function BeatCard({ beat }: { beat: BeatWithStatsRow }) {
         </div>
       </div>
 
-      {/* Meta — title + type tag + BPM/KEY/duration */}
-      <div className="min-w-0">
+      {/* Meta stack */}
+      <div className="min-w-0 flex flex-col" style={{ gap: 4 }}>
+        {/* Row 1 — title + producer credit inline */}
         <div
-          className="t-title truncate"
-          style={{ fontSize: 14, marginBottom: 5 }}
+          className="flex items-baseline min-w-0"
+          style={{ gap: 8 }}
         >
-          {beat.title}
-        </div>
-        <div
-          className="flex items-center flex-wrap"
-          style={{ gap: 6 }}
-        >
-          {beat.type === "comp" && (
-            <Tag variant="accent" icon="waves">
-              COMP
-            </Tag>
-          )}
-          {beat.type === "loop" && (
-            <Tag variant="solid" icon="repeat">
-              LOOP
-            </Tag>
-          )}
           <span
-            className="t-mono-s"
-            style={{ color: "var(--fg-3)" }}
+            className="t-title truncate min-w-0"
+            style={{ fontSize: 14 }}
           >
-            {beat.bpm ?? "—"} · {beat.key ?? "—"} ·{" "}
-            {beat.duration_seconds != null
-              ? fmtDuration(beat.duration_seconds)
-              : "—"}
+            {beat.title}
           </span>
+          {beat.co_producers.length > 0 && (
+            <span
+              className="t-mono-s shrink-0 truncate"
+              style={{
+                color: "var(--fg-3)",
+                maxWidth: 120,
+              }}
+            >
+              {beat.co_producers.join(" · ")}
+            </span>
+          )}
+        </div>
+
+        {/* Row 2 — BPM · KEY · LENGTH */}
+        <div
+          className="t-mono-s"
+          style={{ color: "var(--fg-3)" }}
+        >
+          {[
+            beat.bpm != null ? `${beat.bpm} BPM` : null,
+            beat.key,
+            beat.duration_seconds != null
+              ? fmtDuration(beat.duration_seconds)
+              : null,
+          ]
+            .filter((s): s is string => Boolean(s))
+            .join(" · ")}
+        </div>
+
+        {/* Row 3 — engagement (plays · likes) + servers count */}
+        <div
+          className="flex items-center justify-between"
+          style={{ gap: 10 }}
+        >
+          <div
+            className="flex items-center"
+            style={{ gap: 12 }}
+          >
+            <span
+              className="t-mono-s inline-flex items-center"
+              style={{ gap: 5, color: "var(--fg-3)" }}
+            >
+              <Icon name="play" size={11} />
+              {beat.plays_count}
+            </span>
+            <span
+              className="t-mono-s inline-flex items-center"
+              style={{ gap: 5, color: "var(--fg-3)" }}
+            >
+              <Icon name="heart" size={11} />
+              {beat.likes_count}
+            </span>
+          </div>
+          {beat.in_servers_count > 0 ? (
+            <span
+              className="t-mono-s inline-flex items-center shrink-0"
+              style={{ gap: 5, color: "var(--fg-3)" }}
+            >
+              <Icon name="server" size={11} />
+              {beat.in_servers_count} SERVER
+              {beat.in_servers_count > 1 ? "S" : ""}
+            </span>
+          ) : (
+            <span
+              className="t-mono-s shrink-0"
+              style={{ color: "var(--fg-4)" }}
+            >
+              —
+            </span>
+          )}
+        </div>
+
+        {/* Row 4 — added (relative time) */}
+        <div
+          className="t-mono-s"
+          style={{ color: "var(--fg-4)" }}
+        >
+          ADDED {fmtAgo(beat.created_at, now)}
         </div>
       </div>
     </div>
