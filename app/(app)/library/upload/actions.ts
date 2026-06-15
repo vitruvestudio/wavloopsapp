@@ -34,6 +34,9 @@ export interface SaveBeatPayload {
   bpm: number | null;
   key: string | null;
   autotune_key: string | null;
+  /** Integrated loudness in LUFS (EBU R 128), auto-detected. NULL if
+   *  extraction failed. The column lives on `beats` (migration #5). */
+  loudness_lufs: number | null;
   duration_seconds: number | null;
   mood: string[];
   artist_types: string[];
@@ -97,6 +100,7 @@ export async function saveBeatAction(
       bpm: payload.bpm,
       key: payload.key,
       autotune_key: payload.autotune_key,
+      loudness_lufs: payload.loudness_lufs,
       duration_seconds: payload.duration_seconds,
       mood: payload.mood,
       artist_types: payload.artist_types,

@@ -97,7 +97,7 @@ export function UploadBeatPage({
   const [type, setType] = React.useState<BeatType>("comp");
   const [bpm, setBpm] = React.useState<string>("");
   const [key, setKey] = React.useState<string>("");
-  const [autotuneKey, setAutotuneKey] = React.useState<string>("");
+  const [loudnessLufs, setLoudnessLufs] = React.useState<number | null>(null);
   const [durationSeconds, setDurationSeconds] = React.useState<number | null>(
     null,
   );
@@ -199,13 +199,20 @@ export function UploadBeatPage({
 
   React.useEffect(() => {
     if (analysis.status !== "done") return;
-    const { bpm: detectedBpm, key: detectedKey } = analysis.result;
+    const {
+      bpm: detectedBpm,
+      key: detectedKey,
+      loudnessLufs: detectedLufs,
+    } = analysis.result;
     if (detectedBpm > 0) {
       setBpm((prev) => prev || String(detectedBpm));
     }
     if (detectedKey) {
       setKey((prev) => prev || detectedKey);
-      setAutotuneKey((prev) => prev || detectedKey);
+    }
+    if (detectedLufs != null) {
+      // Loudness is read-only; replace whatever was there.
+      setLoudnessLufs(detectedLufs);
     }
   }, [analysis]);
 
@@ -231,7 +238,8 @@ export function UploadBeatPage({
         type,
         bpm: bpm ? Number(bpm) : null,
         key: key || null,
-        autotune_key: autotuneKey || null,
+        autotune_key: null,
+        loudness_lufs: loudnessLufs,
         duration_seconds: durationSeconds,
         mood,
         artist_types: artistTypes,
@@ -346,8 +354,7 @@ export function UploadBeatPage({
                 setBpm={setBpm}
                 keyValue={key}
                 setKey={setKey}
-                autotuneKey={autotuneKey}
-                setAutotuneKey={setAutotuneKey}
+                loudnessLufs={loudnessLufs}
                 durationSeconds={durationSeconds}
                 analyzing={analyzing}
               />
@@ -578,8 +585,7 @@ function AutoDetectedPanel({
   setBpm,
   keyValue,
   setKey,
-  autotuneKey,
-  setAutotuneKey,
+  loudnessLufs,
   durationSeconds,
   analyzing,
 }: {
@@ -587,8 +593,7 @@ function AutoDetectedPanel({
   setBpm: (v: string) => void;
   keyValue: string;
   setKey: (v: string) => void;
-  autotuneKey: string;
-  setAutotuneKey: (v: string) => void;
+  loudnessLufs: number | null;
   durationSeconds: number | null;
   analyzing: boolean;
 }) {
@@ -599,7 +604,7 @@ function AutoDetectedPanel({
         style={{ marginBottom: 12, gap: 6, color: "var(--accent-text)" }}
       >
         <Icon name="zap" size={12} />
-        {analyzing ? "ANALYZING TEMPO + KEY…" : "AUTO-DETECTED"}
+        {analyzing ? "ANALYZING TEMPO + KEY + LOUDNESS…" : "AUTO-DETECTED"}
       </div>
       <div
         className="grid grid-cols-2 xl:grid-cols-4"
@@ -620,16 +625,11 @@ function AutoDetectedPanel({
           analyzing={analyzing}
         />
         <LengthCell durationSeconds={durationSeconds} />
-        <KeyCell
-          label="AUTOTUNE KEY"
-          value={autotuneKey}
-          onChange={setAutotuneKey}
-          analyzing={analyzing}
-        />
+        <LoudnessCell loudnessLufs={loudnessLufs} analyzing={analyzing} />
       </div>
       <div className="t-body-s" style={{ marginTop: 10 }}>
-        Tempo &amp; key are detected automatically — adjust if needed.
-        Autotune key is suggested to match the beat for vocalists.
+        Tempo, key and loudness are detected automatically — adjust tempo
+        or key if needed. Loudness is read-only.
       </div>
     </div>
   );
@@ -779,6 +779,61 @@ function LengthCell({ durationSeconds }: { durationSeconds: number | null }) {
     <CellShell label="LENGTH">
       <div className="t-mono-lg" style={{ color: "var(--fg-1)" }}>
         {fmtDuration(durationSeconds)}
+      </div>
+    </CellShell>
+  );
+}
+
+/* ============================================================
+   LoudnessCell — integrated LUFS, read-only.
+   ============================================================ */
+
+function loudnessTag(lufs: number): {
+  label: string;
+  color: string;
+} {
+  // Thresholds tuned for trap/hip-hop/R&B in 2026. Streaming targets
+  // sit around -14 LUFS (Spotify) → -16 LUFS (Apple). Modern trap
+  // masters push to -7 to -9 LUFS.
+  if (lufs > -9) return { label: "LOUD", color: "var(--warn)" };
+  if (lufs > -15) return { label: "MASTERED", color: "var(--ok)" };
+  return { label: "DEMO", color: "var(--fg-3)" };
+}
+
+function LoudnessCell({
+  loudnessLufs,
+  analyzing,
+}: {
+  loudnessLufs: number | null;
+  analyzing: boolean;
+}) {
+  const tag = loudnessLufs != null ? loudnessTag(loudnessLufs) : null;
+
+  return (
+    <CellShell label="LOUDNESS" analyzing={analyzing}>
+      <div className="flex items-baseline" style={{ gap: 6 }}>
+        <span
+          className="t-mono-lg"
+          style={{
+            color: loudnessLufs == null ? "var(--fg-4)" : "var(--fg-1)",
+          }}
+        >
+          {loudnessLufs == null ? "—" : loudnessLufs.toFixed(1)}
+        </span>
+        <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+          LUFS
+        </span>
+        {tag && (
+          <span
+            className="t-mono-s"
+            style={{
+              marginLeft: 4,
+              color: tag.color,
+            }}
+          >
+            · {tag.label}
+          </span>
+        )}
       </div>
     </CellShell>
   );

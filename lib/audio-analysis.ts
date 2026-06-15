@@ -28,6 +28,9 @@ export interface AudioAnalysisResult {
   bpm: number;
   /** Normalised "C MAJ" / "EB MIN" / null. Maps to KEY_OPTIONS. */
   key: string | null;
+  /** Integrated loudness in LUFS (EBU R 128). Range ~ -70..0. NULL
+   *  if extraction failed or audio was silence. */
+  loudnessLufs: number | null;
 }
 
 let essentiaPromise: Promise<unknown> | null = null;
@@ -112,6 +115,16 @@ interface EssentiaApi {
     scale: string;
     strength: number;
   };
+  LoudnessEBUR128(
+    signal_l: EssentiaVector,
+    signal_r: EssentiaVector,
+    hopSize?: number,
+    sampleRate?: number,
+    startAtZero?: boolean,
+  ): {
+    integratedLoudness: number;
+    loudnessRange: number;
+  };
 }
 
 interface EssentiaVector {
@@ -152,34 +165,77 @@ export async function analyzeAudio(
 
   let bpm = 0;
   let key: string | null = null;
-  let audioVector: EssentiaVector | null = null;
+  let loudnessLufs: number | null = null;
+  let monoVector: EssentiaVector | null = null;
+  let leftVector: EssentiaVector | null = null;
+  let rightVector: EssentiaVector | null = null;
 
   try {
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const monoData = audioBuffer.getChannelData(0);
+    const leftData = audioBuffer.getChannelData(0);
+    const rightData =
+      audioBuffer.numberOfChannels > 1
+        ? audioBuffer.getChannelData(1)
+        : leftData;
+    const sampleRate = audioBuffer.sampleRate;
 
     const essentia = await getEssentia();
-    audioVector = essentia.arrayToVector(monoData);
+
+    // Separate vectors per algorithm — essentia.js consumes them.
+    monoVector = essentia.arrayToVector(leftData);
 
     try {
-      const bpmResult = essentia.PercivalBpmEstimator(audioVector);
+      const bpmResult = essentia.PercivalBpmEstimator(monoVector);
       bpm = Math.round(bpmResult.bpm);
     } catch (e) {
       console.warn("[audio-analysis] BPM extractor failed", e);
     }
 
     try {
-      const keyResult = essentia.KeyExtractor(audioVector);
+      const keyResult = essentia.KeyExtractor(monoVector);
       key = formatKey(keyResult.key, keyResult.scale);
     } catch (e) {
       console.warn("[audio-analysis] Key extractor failed", e);
     }
+
+    // LoudnessEBUR128 wants stereo L + R.
+    leftVector = essentia.arrayToVector(leftData);
+    rightVector = essentia.arrayToVector(rightData);
+
+    try {
+      const loud = essentia.LoudnessEBUR128(
+        leftVector,
+        rightVector,
+        0.1,
+        sampleRate,
+        false,
+      );
+      const raw = loud.integratedLoudness;
+      // Sanity-check the result. Anything outside real-music range
+      // (≈ -70 LUFS digital silence … 0 LUFS full-scale) is treated as
+      // a failed extraction.
+      if (Number.isFinite(raw) && raw > -70 && raw <= 0) {
+        loudnessLufs = Math.round(raw * 10) / 10;
+      }
+    } catch (e) {
+      console.warn("[audio-analysis] Loudness extractor failed", e);
+    }
   } finally {
     try {
-      audioVector?.delete();
+      monoVector?.delete();
     } catch {
-      /* essentia vector already gc'd */
+      /* */
+    }
+    try {
+      leftVector?.delete();
+    } catch {
+      /* */
+    }
+    try {
+      rightVector?.delete();
+    } catch {
+      /* */
     }
     try {
       await audioContext.close();
@@ -188,7 +244,7 @@ export async function analyzeAudio(
     }
   }
 
-  return { bpm, key };
+  return { bpm, key, loudnessLufs };
 }
 
 /* ============================================================

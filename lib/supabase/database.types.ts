@@ -72,6 +72,9 @@ export interface BeatRow {
   artist_types: string[];
   autotune_key: string | null;
   artwork_url: string | null;
+  /* migration #5 — integrated loudness in LUFS, auto-detected via
+     essentia.js LoudnessEBUR128. NULL if analysis failed. */
+  loudness_lufs: number | null;
   /* */
   created_at: string;
   updated_at: string;
