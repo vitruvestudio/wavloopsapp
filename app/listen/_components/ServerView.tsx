@@ -21,8 +21,28 @@ import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
+
+/** Generate a soft pastel 2-stop gradient from a seed string. The
+ *  hues drift apart by 50-130° so the sweep has visible variation
+ *  without going jarring. High lightness + medium chroma keeps the
+ *  result Spotify-airy: dark text reads cleanly on top, the banner
+ *  feels lifted from the artwork rather than slapped on.
+ *  Phase 3 will swap this for real palette extraction off the
+ *  cover image bytes — for Phase 1 the deterministic hash already
+ *  gives every server a stable, distinct mood. */
+function bannerGradient(seed: string): string {
+  const h1 = hashSeed(seed) % 360;
+  const h2 = (h1 + 60 + (hashSeed(seed + "~b") % 70)) % 360;
+  return [
+    "linear-gradient(115deg,",
+    ` oklch(0.86 0.09 ${h1}) 0%,`,
+    ` oklch(0.82 0.11 ${(h1 + h2) / 2}) 55%,`,
+    ` oklch(0.83 0.12 ${h2}) 100%)`,
+  ].join("");
+}
 
 type Filter = "all" | "new" | "liked";
 
@@ -90,28 +110,31 @@ export function ServerView({ producer, server }: ServerViewProps) {
 
   return (
     <main className="flex-1 min-w-0">
-      {/* ── Banner ──────────────────────────────────────────── */}
+      {/* ── Banner — soft pastel gradient derived from the server
+              slug. Dark text on a light, airy surface (Spotify /
+              Apple Music style) so the banner feels lifted from
+              the artwork rather than slapped on. ───────────────── */}
       <section
         className="relative overflow-hidden"
         style={{
-          padding: "26px 30px 32px",
-          background:
-            "linear-gradient(120deg, oklch(0.55 0.14 250) 0%, oklch(0.7 0.16 25) 100%)",
-          color: "#fff",
+          padding: "30px 36px 36px",
+          background: bannerGradient(server.slug),
+          color: "var(--fg-1)",
         }}
       >
         <div
           className="relative flex items-center"
-          style={{ gap: 26, zIndex: 1 }}
+          style={{ gap: 28, zIndex: 1 }}
         >
           {/* 4-cover mosaic */}
           <div
             className="relative shrink-0 overflow-hidden"
             style={{
-              width: 168,
-              height: 168,
+              width: 180,
+              height: 180,
               borderRadius: "var(--r-md)",
-              boxShadow: "var(--shadow-md)",
+              boxShadow:
+                "0 10px 30px -10px oklch(0 0 0 / 0.35), 0 2px 6px oklch(0 0 0 / 0.18)",
             }}
           >
             <div
@@ -137,25 +160,24 @@ export function ServerView({ producer, server }: ServerViewProps) {
             <div
               className="t-mono-s"
               style={{
-                color: "oklch(0.75 0.12 270)",
+                color: "var(--accent-text)",
                 letterSpacing: "0.12em",
-                marginBottom: 8,
+                marginBottom: 10,
               }}
             >
               SERVER ·{" "}
-              {styleTags
-                .map((t) => t.toUpperCase())
-                .join(" · ")}
+              {styleTags.map((t) => t.toUpperCase()).join(" · ")}
             </div>
             <h1
               style={{
                 fontFamily: "var(--font-display)",
                 fontWeight: 800,
-                fontSize: "clamp(34px, 5vw, 52px)",
-                lineHeight: 1.05,
-                letterSpacing: "-0.02em",
+                fontSize: "clamp(34px, 5vw, 54px)",
+                lineHeight: 1.04,
+                letterSpacing: "-0.025em",
+                color: "oklch(0.18 0.02 270)",
                 margin: 0,
-                marginBottom: 14,
+                marginBottom: 16,
               }}
             >
               {server.name}
@@ -174,18 +196,18 @@ export function ServerView({ producer, server }: ServerViewProps) {
               <span
                 style={{
                   fontFamily: "var(--font-body)",
-                  fontSize: 13,
-                  color: "#fff",
+                  fontSize: 13.5,
+                  color: "oklch(0.25 0.02 270)",
                 }}
               >
                 {producer.name} ·{" "}
-                <span style={{ color: "oklch(0.85 0 0 / 0.7)" }}>
+                <span style={{ color: "oklch(0.4 0.02 270)" }}>
                   @{producer.handle}
                 </span>
               </span>
               <span
                 className="t-mono-s"
-                style={{ color: "oklch(0.85 0 0 / 0.6)" }}
+                style={{ color: "oklch(0.45 0.02 270)" }}
               >
                 · {server.beats.length} BEATS
               </span>
@@ -206,9 +228,9 @@ export function ServerView({ producer, server }: ServerViewProps) {
                         width: 30,
                         height: 30,
                         borderRadius: "50%",
-                        background: "oklch(1 0 0 / 0.16)",
-                        border: "1px solid oklch(1 0 0 / 0.22)",
-                        color: "#fff",
+                        background: "oklch(1 0 0 / 0.55)",
+                        border: "1px solid oklch(1 0 0 / 0.7)",
+                        color: "oklch(0.25 0.02 270)",
                       }}
                     >
                       <Icon
@@ -238,7 +260,8 @@ export function ServerView({ producer, server }: ServerViewProps) {
               border: "none",
               background: "var(--accent)",
               color: "#fff",
-              boxShadow: "var(--shadow-lg)",
+              boxShadow:
+                "0 14px 30px -10px oklch(0 0 0 / 0.4), 0 6px 12px oklch(0 0 0 / 0.2)",
             }}
           >
             <Icon
