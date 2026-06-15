@@ -230,10 +230,10 @@ function SearchBeats({
     <div
       className="flex items-center bg-bg-inset border border-border-1 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)] w-full sm:w-auto sm:flex-none"
       style={{
-        height: 36,
+        height: 38,
         padding: "0 14px",
         gap: 9,
-        borderRadius: "var(--r-pill)",
+        borderRadius: "var(--r-md)",
         // Constrained on desktop so the search input doesn't stretch
         // edge-to-edge — segmented sits right next to it instead of
         // being pushed to the far right of a 1440 container.
