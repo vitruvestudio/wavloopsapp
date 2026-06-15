@@ -86,12 +86,11 @@ export function ArtistSidebar({
         style={{
           width: 280,
           height: "100vh",
-          // Match the page body exactly so the rail isn't a darker
-          // panel slapped on top — the vertical separator alone
-          // defines the boundary. Theo's design.
-          background: "var(--bg-0)",
-          // Hairline vertical divider against the main column.
-          borderRight: "1px solid oklch(1 0 0 / 0.06)",
+          // Match the producer-side Sidebar exactly: bg-1 surface
+          // + the DS border-1 divider, same token cascade as the
+          // producer rail so a theme tweak there carries here.
+          background: "var(--bg-1)",
+          borderRight: "1px solid var(--border-1)",
         }}
       >
       {/* Logo — the Logo primitive already composes the logomark +
@@ -107,7 +106,7 @@ export function ArtistSidebar({
       <div
         style={{
           padding: "0 18px 16px",
-          borderBottom: "1px solid oklch(1 0 0 / 0.06)",
+          borderBottom: "1px solid var(--border-1)",
         }}
       >
         <div
@@ -142,7 +141,7 @@ export function ArtistSidebar({
       <div
         style={{
           padding: "14px 14px 14px",
-          borderBottom: "1px solid oklch(1 0 0 / 0.06)",
+          borderBottom: "1px solid var(--border-1)",
         }}
       >
         <Link
@@ -247,9 +246,7 @@ function ProducerGroup({
       style={{
         paddingTop: 6,
         paddingBottom: 6,
-        borderBottom: isLast
-          ? "none"
-          : "1px solid oklch(1 0 0 / 0.06)",
+        borderBottom: isLast ? "none" : "1px solid var(--border-1)",
       }}
     >
       <button
