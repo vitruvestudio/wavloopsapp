@@ -644,6 +644,7 @@ function ContactRowItem({
     >
       <Avatar
         name={contact.name ?? contact.email}
+        src={contact.avatar_url}
         size={38}
       />
       <div className="min-w-0 flex-1">

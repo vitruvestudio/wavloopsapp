@@ -97,7 +97,9 @@ export interface ServerBeatRow {
 
 /** Post-migration #7: contacts are top-level (owner-scoped, the
  *  producer's address book). The server_contacts pivot says which
- *  server(s) each contact has access to. */
+ *  server(s) each contact has access to.
+ *  Migration #8: avatar_url — populated by the "paste a social link"
+ *  auto-fill in the Add Contact modal (usually an unavatar.io URL). */
 export interface ContactRow {
   id: string;
   owner_id: string;
@@ -105,6 +107,7 @@ export interface ContactRow {
   name: string | null;
   phone: string | null;
   socials: Record<string, string>;
+  avatar_url: string | null;
   first_seen_at: string;
   last_active_at: string;
 }

@@ -55,7 +55,7 @@ export default async function ServerPage({ params }: PageProps) {
       supabase
         .from("server_contacts")
         .select(
-          "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, first_seen_at, last_active_at)",
+          "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at)",
         )
         .eq("server_id", server.id)
         .order("granted_at", { ascending: false })

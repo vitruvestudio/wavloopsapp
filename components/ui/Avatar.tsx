@@ -9,11 +9,12 @@
  *   - `label` (e.g. "TM") overrides the auto-computed initials; if no
  *     label and no name → falls back to "WL"
  *   - 1px border-2 hairline (so it sits cleanly on any surface)
- *   - Optional `src` swaps the gradient for an actual image
+ *   - Optional `src` swaps the gradient for an actual image — rendered
+ *     via plain <img> rather than next/image so arbitrary external URLs
+ *     (e.g. unavatar.io for contact social photos) work without having
+ *     to enumerate every CDN in next.config remotePatterns.
  *   - Optional `ring` adds an accent ring (artist gate use)
  */
-
-import Image from "next/image";
 
 interface AvatarProps {
   name: string;
@@ -72,22 +73,28 @@ export function Avatar({
         fontSize: size * 0.34,
         letterSpacing: "0.02em",
         color: "#fff",
-        background: src
-          ? "transparent"
-          : `linear-gradient(140deg, oklch(0.45 0.12 ${hue}), oklch(0.28 0.07 ${(hue + 50) % 360}))`,
+        // Gradient is ALWAYS the background — when src loads, the img
+        // overlays it. When src 404s (unavatar.io for an unknown
+        // handle), the img hides itself via onError and we fall back
+        // to the gradient + initials.
+        background: `linear-gradient(140deg, oklch(0.45 0.12 ${hue}), oklch(0.28 0.07 ${(hue + 50) % 360}))`,
         border: "1px solid var(--border-2)",
       }}
     >
-      {src ? (
-        <Image
+      <span aria-hidden>{initials}</span>
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={src}
           alt={name}
           width={size}
           height={size}
-          className="block h-full w-full object-cover"
+          className="absolute inset-0 block h-full w-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
         />
-      ) : (
-        initials
       )}
     </span>
   );

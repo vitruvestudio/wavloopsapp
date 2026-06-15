@@ -468,7 +468,11 @@ function ContactRow({
         }}
       >
         <div className="flex items-center min-w-0" style={{ gap: 12 }}>
-          <Avatar name={contact.name ?? contact.email} size={36} />
+          <Avatar
+            name={contact.name ?? contact.email}
+            src={contact.avatarUrl}
+            size={36}
+          />
           <span
             className="truncate"
             style={{
@@ -502,7 +506,11 @@ function ContactRow({
         style={{ gap: 10, padding: "14px 16px" }}
       >
         <div className="flex items-center min-w-0" style={{ gap: 12 }}>
-          <Avatar name={contact.name ?? contact.email} size={34} />
+          <Avatar
+            name={contact.name ?? contact.email}
+            src={contact.avatarUrl}
+            size={34}
+          />
           <div className="min-w-0 flex-1">
             <div
               className="truncate"

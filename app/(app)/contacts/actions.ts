@@ -19,6 +19,9 @@ export interface AddContactPayload {
   /** { instagram: "@kayde", x: "@kayde", … } — only non-empty
    *  values are persisted. */
   socials: Record<string, string>;
+  /** Public avatar URL (usually from unavatar.io). Persisted as-is;
+   *  the contact list <img src> renders it directly. */
+  avatar_url: string | null;
   /** Server ids to attach the contact to. Empty = address-book-only. */
   server_ids: string[];
 }
@@ -74,6 +77,7 @@ export async function addContactAction(
         name: payload.name?.trim() || null,
         phone: payload.phone?.trim() || null,
         socials: cleanSocials,
+        avatar_url: payload.avatar_url?.trim() || null,
         last_active_at: new Date().toISOString(),
       },
       { onConflict: "owner_id,email" },

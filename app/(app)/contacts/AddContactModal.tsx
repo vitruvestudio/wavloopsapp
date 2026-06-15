@@ -39,6 +39,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { addContactAction } from "./actions";
 import type { ServerStub } from "./page";
+import { parseSocialLink, platformLabel } from "@/lib/socials";
 
 interface AddContactModalProps {
   allServers: ServerStub[];
@@ -80,6 +81,38 @@ export function AddContactModal({
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
+  /* ─── Auto-fill from a pasted social link ─────────────────────── */
+  const [quickFillInput, setQuickFillInput] = React.useState("");
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  /** What we detected from the last paste — drives the inline hint
+   *  AND tells us which social field to overwrite when re-parsing. */
+  const lastDetected = React.useRef<ReturnType<
+    typeof parseSocialLink
+  > | null>(null);
+
+  const applyQuickFill = React.useCallback(
+    (raw: string) => {
+      setQuickFillInput(raw);
+      const parsed = parseSocialLink(raw);
+      lastDetected.current = parsed;
+      if (!parsed) {
+        return;
+      }
+      // 1. Store the canonical URL in the right social slot.
+      setSocials((cur) => ({ ...cur, [parsed.platform]: parsed.url }));
+      // 2. Push the avatar URL into the live-preview Avatar.
+      setAvatarUrl(parsed.avatarUrl);
+      // 3. If the producer hasn't typed a name yet, seed it from
+      //    the handle so the preview card stops saying "New contact".
+      setName((cur) =>
+        cur.trim().length === 0 && parsed.platform !== "website"
+          ? parsed.handle
+          : cur,
+      );
+    },
+    [],
+  );
+
   // Lock body scroll while open.
   React.useEffect(() => {
     const prev = document.body.style.overflow;
@@ -119,6 +152,7 @@ export function AddContactModal({
         email: email.trim(),
         phone: phone.trim() || null,
         socials,
+        avatar_url: avatarUrl,
         server_ids: serverIds,
       });
       if (result.error) {
@@ -212,10 +246,10 @@ export function AddContactModal({
               gap: 12,
               padding: "14px",
               borderRadius: "var(--r-md)",
-              marginBottom: 22,
+              marginBottom: 18,
             }}
           >
-            <Avatar name={previewName} size={42} />
+            <Avatar name={previewName} src={avatarUrl} size={42} />
             <div className="min-w-0 flex-1">
               <div
                 className="truncate"
@@ -240,6 +274,58 @@ export function AddContactModal({
                 {previewEmail}
               </div>
             </div>
+          </div>
+
+          {/* Quick-fill: paste a social link → auto-fill avatar + name + social slot */}
+          <div style={{ marginBottom: 18 }}>
+            <div className="t-mono-s" style={{ marginBottom: 8 }}>
+              PASTE A SOCIAL LINK · AUTO-FILL
+            </div>
+            <div
+              className="flex items-center bg-bg-inset border border-border-2 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)]"
+              style={{
+                height: 42,
+                padding: "0 14px",
+                gap: 10,
+                borderRadius: "var(--r-md)",
+              }}
+            >
+              <Icon name="link" size={15} className="text-fg-3" />
+              <input
+                value={quickFillInput}
+                onChange={(e) => applyQuickFill(e.target.value)}
+                placeholder="instagram.com/kayde, youtube.com/@kayde…"
+                className="flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4 min-w-0"
+                style={{ fontFamily: "var(--font-body)", fontSize: 14 }}
+              />
+              {lastDetected.current && (
+                <Icon
+                  name="check"
+                  size={14}
+                  style={{ color: "var(--accent-text)" }}
+                />
+              )}
+            </div>
+            {lastDetected.current && (
+              <div
+                className="t-mono-s"
+                style={{
+                  color: "var(--accent-text)",
+                  marginTop: 6,
+                }}
+              >
+                DETECTED · {platformLabel(lastDetected.current.platform)} ·{" "}
+                {lastDetected.current.handle}
+              </div>
+            )}
+            {quickFillInput.trim() && !lastDetected.current && (
+              <div
+                className="t-mono-s"
+                style={{ color: "var(--fg-4)", marginTop: 6 }}
+              >
+                NOT A RECOGNISED LINK · FILL THE FIELDS MANUALLY
+              </div>
+            )}
           </div>
 
           {error && (
