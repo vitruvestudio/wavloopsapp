@@ -78,7 +78,10 @@ export function Avatar({
         // handle), the img hides itself via onError and we fall back
         // to the gradient + initials.
         background: `linear-gradient(140deg, oklch(0.45 0.12 ${hue}), oklch(0.28 0.07 ${(hue + 50) % 360}))`,
-        border: "1px solid var(--border-2)",
+        // Hairline border on the gradient case so the avatar reads
+        // as an element. When an actual photo is shown we drop the
+        // border — it otherwise rings the photo with a dark line.
+        border: src ? "none" : "1px solid var(--border-2)",
       }}
     >
       <span aria-hidden>{initials}</span>

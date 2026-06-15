@@ -26,7 +26,7 @@ import * as React from "react";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import type { ContactRowVM, ServerStub } from "./page";
 import { AddContactModal } from "./AddContactModal";
@@ -471,19 +471,40 @@ function ContactRow({
           <Avatar
             name={contact.name ?? contact.email}
             src={contact.avatarUrl}
-            size={36}
+            size={38}
           />
-          <span
-            className="truncate"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 14.5,
-              fontWeight: 600,
-              color: "var(--fg-1)",
-            }}
-          >
-            {contact.email}
-          </span>
+          <div className="min-w-0 flex-1">
+            {/* Primary label — name if set, else fall back to email
+                so the row is never blank. */}
+            <div
+              className="truncate"
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: "var(--fg-1)",
+              }}
+            >
+              {contact.name ?? contact.email}
+            </div>
+            {/* Secondary line — email (when name was the primary)
+                + clickable social icons inline, mirrors the BeatRow
+                title + mood-tags two-row pattern. */}
+            <div
+              className="flex items-center min-w-0"
+              style={{ gap: 8, marginTop: 3 }}
+            >
+              {contact.name && (
+                <span
+                  className="t-mono-s truncate"
+                  style={{ color: "var(--fg-3)" }}
+                >
+                  {contact.email}
+                </span>
+              )}
+              <SocialIconRow socials={contact.socials} />
+            </div>
+          </div>
         </div>
         <span
           className="t-mono-s truncate"
@@ -509,7 +530,7 @@ function ContactRow({
           <Avatar
             name={contact.name ?? contact.email}
             src={contact.avatarUrl}
-            size={34}
+            size={36}
           />
           <div className="min-w-0 flex-1">
             <div
@@ -521,17 +542,30 @@ function ContactRow({
                 color: "var(--fg-1)",
               }}
             >
-              {contact.email}
+              {contact.name ?? contact.email}
             </div>
             <div
-              className="t-mono-s truncate"
-              style={{
-                color: contact.phone ? "var(--fg-3)" : "var(--fg-4)",
-                marginTop: 3,
-              }}
+              className="flex items-center min-w-0"
+              style={{ gap: 8, marginTop: 3 }}
             >
-              {contact.phone ?? "NO PHONE"}
+              {contact.name && (
+                <span
+                  className="t-mono-s truncate"
+                  style={{ color: "var(--fg-3)" }}
+                >
+                  {contact.email}
+                </span>
+              )}
+              <SocialIconRow socials={contact.socials} />
             </div>
+            {contact.phone && (
+              <div
+                className="t-mono-s truncate"
+                style={{ color: "var(--fg-3)", marginTop: 3 }}
+              >
+                {contact.phone}
+              </div>
+            )}
           </div>
           <Icon
             name="chevron-right"
@@ -545,6 +579,51 @@ function ContactRow({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   SocialIconRow — small clickable icons for each saved platform
+   ============================================================ */
+
+const PLATFORM_ICON: Record<string, IconName> = {
+  instagram: "instagram",
+  x: "x-logo",
+  youtube: "youtube",
+  tiktok: "youtube", // closest stand-in until a TikTok icon ships
+  soundcloud: "library", // closest stand-in until a SoundCloud icon ships
+  genius: "mic",
+  website: "globe",
+};
+
+function SocialIconRow({ socials }: { socials: Record<string, string> }) {
+  const entries = Object.entries(socials).filter(
+    ([k, v]) => v && PLATFORM_ICON[k],
+  );
+  if (entries.length === 0) return null;
+  return (
+    <span className="inline-flex items-center" style={{ gap: 8 }}>
+      {entries.map(([platform, url]) => (
+        <a
+          key={platform}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Open ${platform} profile`}
+          className="inline-flex items-center justify-center transition-colors duration-fast"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: "var(--r-sm)",
+            background: "var(--bg-2)",
+            color: "var(--fg-2)",
+          }}
+        >
+          <Icon name={PLATFORM_ICON[platform]} size={12} />
+        </a>
+      ))}
+    </span>
   );
 }
 
