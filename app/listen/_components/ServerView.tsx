@@ -125,13 +125,13 @@ export function ServerView({ producer, server }: ServerViewProps) {
               fading INTO the page bg at the bottom (no hard line).
               The gradient lives on an absolute layer behind the
               content so the mask only affects the colour cloud,
-              not the title / artwork / play button. ──────────── */}
+              not the title / artwork / play button.
+
+              Mobile: stack mosaic, title block, play button
+              vertically. Desktop: horizontal row. ──────────────── */}
       <section
-        className="relative overflow-hidden"
-        style={{
-          padding: "32px 36px 80px",
-          color: "#fff",
-        }}
+        className="relative overflow-hidden px-[18px] pb-[60px] pt-[24px] lg:px-[36px] lg:pb-[80px] lg:pt-[32px]"
+        style={{ color: "#fff" }}
       >
         {/* Background mesh — masked to fade out at the bottom. */}
         <div
@@ -146,15 +146,14 @@ export function ServerView({ producer, server }: ServerViewProps) {
         />
 
         <div
-          className="relative flex items-center"
-          style={{ gap: 28, zIndex: 1 }}
+          className="relative flex flex-col items-center text-center lg:flex-row lg:items-center lg:text-left"
+          style={{ gap: 22, zIndex: 1 }}
         >
-          {/* 4-cover mosaic */}
+          {/* 4-cover mosaic — slightly smaller on mobile so the
+              stacked title still fits above the fold. */}
           <div
-            className="relative shrink-0 overflow-hidden"
+            className="relative shrink-0 overflow-hidden w-[150px] h-[150px] lg:w-[180px] lg:h-[180px]"
             style={{
-              width: 180,
-              height: 180,
               borderRadius: "var(--r-md)",
               boxShadow:
                 "0 10px 30px -10px oklch(0 0 0 / 0.35), 0 2px 6px oklch(0 0 0 / 0.18)",
@@ -195,22 +194,23 @@ export function ServerView({ producer, server }: ServerViewProps) {
               style={{
                 fontFamily: "var(--font-display)",
                 fontWeight: 800,
-                fontSize: "clamp(34px, 5vw, 54px)",
+                fontSize: "clamp(28px, 6vw, 54px)",
                 lineHeight: 1.04,
                 letterSpacing: "-0.025em",
                 color: "#fff",
                 margin: 0,
-                marginBottom: 16,
+                marginBottom: 14,
                 textShadow: "0 2px 14px oklch(0 0 0 / 0.3)",
               }}
             >
               {server.name}
             </h1>
 
-            {/* Producer mini-card — white text on the dark mesh. */}
+            {/* Producer mini-card — white text on the dark mesh.
+                Centred on mobile, left-aligned on lg+. */}
             <div
-              className="flex items-center flex-wrap"
-              style={{ gap: 14 }}
+              className="flex items-center flex-wrap justify-center lg:justify-start"
+              style={{ gap: 12 }}
             >
               <Avatar
                 name={producer.name}
@@ -268,7 +268,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
             </div>
           </div>
 
-          {/* Big play all */}
+          {/* Big play all — slightly smaller on mobile. */}
           <button
             type="button"
             aria-label={`Play all ${server.name}`}
@@ -276,10 +276,8 @@ export function ServerView({ producer, server }: ServerViewProps) {
               const first = visible[0];
               if (first) togglePlay(first.id);
             }}
-            className="shrink-0 inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105"
+            className="shrink-0 inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105 w-[56px] h-[56px] lg:w-[64px] lg:h-[64px]"
             style={{
-              width: 64,
-              height: 64,
               borderRadius: "50%",
               border: "none",
               background: "var(--accent)",
@@ -297,12 +295,15 @@ export function ServerView({ producer, server }: ServerViewProps) {
         </div>
       </section>
 
-      {/* ── Toolbar ────────────────────────────────────────── */}
+      {/* ── Toolbar — filter chips + sort. Mobile: filters scroll
+              horizontally if they overflow, sort moves below. */}
       <div
-        className="flex items-center justify-between"
-        style={{ padding: "20px 30px 12px" }}
+        className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-0 px-[18px] pt-[18px] pb-[10px] lg:px-[30px] lg:pt-[20px] lg:pb-[12px]"
       >
-        <div className="flex items-center" style={{ gap: 8 }}>
+        <div
+          className="flex items-center overflow-x-auto"
+          style={{ gap: 8, scrollbarWidth: "none" }}
+        >
           <FilterChip
             label="All"
             count={counts.all}
@@ -326,7 +327,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
         </div>
         <button
           type="button"
-          className="inline-flex items-center cursor-pointer"
+          className="inline-flex items-center self-start lg:self-auto cursor-pointer"
           style={{
             gap: 8,
             padding: "0 12px",
@@ -340,6 +341,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
             fontWeight: 600,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
+            whiteSpace: "nowrap",
           }}
         >
           <Icon name="clock" size={12} />
@@ -349,7 +351,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
       </div>
 
       {/* ── Beat list ──────────────────────────────────────── */}
-      <div style={{ padding: "0 22px 32px" }}>
+      <div className="px-[12px] lg:px-[22px]" style={{ paddingBottom: 32 }}>
         {visible.length === 0 ? (
           <div
             className="text-center t-body"

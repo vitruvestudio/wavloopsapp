@@ -12,20 +12,46 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
 import { ARTIST } from "../_mock";
 
-export function ArtistTopbar() {
+interface ArtistTopbarProps {
+  /** Called when the mobile hamburger is tapped. */
+  onOpenDrawer?: () => void;
+}
+
+export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
   return (
     <header
-      className="sticky top-0 z-20 flex items-center justify-end border-b border-border-1"
+      className="sticky top-0 z-20 flex items-center border-b border-border-1"
       style={{
-        gap: 14,
-        padding: "12px 26px",
-        minHeight: 64,
+        gap: 10,
+        padding: "12px 18px",
+        minHeight: 60,
         background:
           "color-mix(in oklch, var(--bg-0) 82%, transparent)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
       }}
     >
+      {/* Hamburger — opens the sidebar drawer on mobile only. */}
+      <button
+        type="button"
+        aria-label="Open menu"
+        onClick={onOpenDrawer}
+        className="lg:hidden inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: "var(--r-md)",
+          border: "none",
+          background: "transparent",
+          color: "var(--fg-2)",
+        }}
+      >
+        <Icon name="menu" size={18} />
+      </button>
+
+      {/* Spacer pushes the right cluster to the edge. */}
+      <div className="flex-1" />
+
       {/* Theme toggle (stub — wires to next-themes later) */}
       <button
         type="button"
@@ -82,13 +108,14 @@ export function ArtistTopbar() {
         )}
       </button>
 
-      {/* Account chip */}
+      {/* Account chip — handle text hides on mobile to save space.
+          Avatar always visible. */}
       <button
         type="button"
         className="inline-flex items-center cursor-pointer transition-colors duration-fast"
         style={{
-          gap: 10,
-          padding: "4px 8px 4px 12px",
+          gap: 8,
+          padding: "4px 4px 4px 4px",
           height: 38,
           borderRadius: 999,
           border: "1px solid var(--border-1)",
@@ -97,8 +124,8 @@ export function ArtistTopbar() {
         }}
       >
         <span
-          className="t-mono-s"
-          style={{ color: "var(--fg-2)" }}
+          className="t-mono-s hidden sm:inline"
+          style={{ color: "var(--fg-2)", padding: "0 8px" }}
         >
           @{ARTIST.handle.toUpperCase()}
         </span>

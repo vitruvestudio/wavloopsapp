@@ -31,22 +31,64 @@ import {
   type MockServer,
 } from "../_mock";
 
-export function ArtistSidebar() {
+interface ArtistSidebarProps {
+  /** Mobile drawer state — ignored at lg+ where the sidebar is
+   *  always visible as a sticky rail. */
+  drawerOpen?: boolean;
+  onCloseDrawer?: () => void;
+}
+
+export function ArtistSidebar({
+  drawerOpen,
+  onCloseDrawer,
+}: ArtistSidebarProps) {
   const [search, setSearch] = React.useState("");
   const pathname = usePathname();
   const likedCount = likedBeats().length;
 
+  // Close the drawer on Escape (mobile only).
+  React.useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseDrawer?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen, onCloseDrawer]);
+
   return (
-    <aside
-      className="hidden lg:flex flex-col shrink-0 border-r border-border-1"
-      style={{
-        width: 280,
-        height: "100vh",
-        position: "sticky",
-        top: 0,
-        background: "var(--bg-0)",
-      }}
-    >
+    <>
+      {/* Mobile backdrop — only rendered when the drawer is open
+          and covers the rest of the page. */}
+      {drawerOpen && (
+        <div
+          aria-hidden
+          onClick={onCloseDrawer}
+          className="lg:hidden fixed inset-0"
+          style={{
+            zIndex: 49,
+            background: "oklch(0 0 0 / 0.55)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        />
+      )}
+      <aside
+        className={[
+          "flex flex-col shrink-0 border-r border-border-1",
+          // Mobile: fixed slide-in drawer.
+          "fixed top-0 left-0 z-50 transition-transform duration-300",
+          drawerOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop: sticky rail, always visible (override the
+          // mobile translate-x via lg: prefix).
+          "lg:sticky lg:translate-x-0",
+        ].join(" ")}
+        style={{
+          width: 280,
+          height: "100vh",
+          background: "var(--bg-0)",
+        }}
+      >
       {/* Logo */}
       <div
         className="flex items-center shrink-0"
