@@ -564,10 +564,15 @@ function ViewToggle({
             aria-selected={active}
             aria-label={it.label}
             onClick={() => onChange(it.value)}
-            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast border-0 w-[26px] h-[26px] sm:w-[30px] sm:h-[30px]"
+            className="inline-flex items-center justify-center cursor-pointer transition-all duration-fast border-0 w-[26px] h-[26px] sm:w-[30px] sm:h-[30px]"
             style={{
               borderRadius: "var(--r-sm)",
-              background: active ? "var(--bg-3)" : "transparent",
+              // Match Segmented: bg-0 + soft shadow for the elevated
+              // "active card" feel.
+              background: active ? "var(--bg-0)" : "transparent",
+              boxShadow: active
+                ? "0 1px 3px oklch(0 0 0 / 0.08), 0 1px 1px oklch(0 0 0 / 0.04)"
+                : "none",
               color: active ? "var(--fg-1)" : "var(--fg-3)",
             }}
           >

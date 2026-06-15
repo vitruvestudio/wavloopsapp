@@ -62,12 +62,19 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.value)}
-            className="cursor-pointer border-0 transition-colors duration-fast"
+            className="cursor-pointer border-0 transition-all duration-fast"
             style={{
               height: h,
               padding: pad,
               borderRadius: "var(--r-sm)",
-              background: active ? "var(--bg-3)" : "transparent",
+              // Active pill: bg-0 + subtle shadow → reads as an
+              // elevated "card" lifted off the bg-inset container.
+              // Works in both light and dark modes because bg-0 is
+              // always one step lighter than bg-inset.
+              background: active ? "var(--bg-0)" : "transparent",
+              boxShadow: active
+                ? "0 1px 3px oklch(0 0 0 / 0.08), 0 1px 1px oklch(0 0 0 / 0.04)"
+                : "none",
               color: active ? "var(--fg-1)" : "var(--fg-3)",
               fontFamily: "var(--font-body)",
               fontWeight: active ? 600 : 500,
