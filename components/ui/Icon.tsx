@@ -86,7 +86,10 @@ export type IconName =
   /* settings placements */
   | "spotify"
   /* billing */
-  | "card";
+  | "card"
+  /* artist panel */
+  | "message"
+  | "eye-off";
 
 interface IconProps {
   name: IconName;
@@ -585,6 +588,24 @@ export function Icon({
         <svg {...common} {...lineProps}>
           <rect x="3" y="5.5" width="18" height="13" rx="2" />
           <path d="M3 10h18" />
+        </svg>
+      );
+
+    case "message":
+      /* Speech bubble — outline comment icon. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M4 4h16a2 2 0 012 2v10a2 2 0 01-2 2h-8.5L7 21v-3H4a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        </svg>
+      );
+    case "eye-off":
+      /* Eye with a diagonal slash — "mark as unread / hide". */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M3 3l18 18" />
+          <path d="M10.6 6.1A10.6 10.6 0 0112 6c6.5 0 10 6 10 6a17.2 17.2 0 01-3.2 4.1" />
+          <path d="M6.6 6.6A17.4 17.4 0 002 12s3.5 6 10 6c1.6 0 3-.4 4.3-1" />
+          <path d="M14.1 14.1A3 3 0 019.9 9.9" />
         </svg>
       );
 
