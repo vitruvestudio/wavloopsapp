@@ -23,6 +23,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -39,6 +40,7 @@ interface ContactsPageProps {
 }
 
 export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
+  const router = useRouter();
   const [search, setSearch] = React.useState("");
   const [serverFilter, setServerFilter] = React.useState<string | "all">("all");
   const [sort, setSort] = React.useState<SortKey>("engagement");
@@ -168,7 +170,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
               <ContactRow
                 key={c.id}
                 contact={c}
-                onClick={() => stub(`Open ${c.email}`)}
+                onClick={() => router.push(`/contacts/${c.id}`)}
               />
             ))}
           </div>

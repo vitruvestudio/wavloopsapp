@@ -79,7 +79,10 @@ export type IconName =
   | "copy"
   | "share"
   | "edit"
-  | "mail";
+  | "mail"
+  /* contact detail */
+  | "clock"
+  | "phone";
 
 interface IconProps {
   name: IconName;
@@ -546,6 +549,21 @@ export function Icon({
         <svg {...common} {...lineProps}>
           <rect x="3" y="5.5" width="18" height="13" rx="2" />
           <path d="M3.5 7l8.5 6.5L20.5 7" />
+        </svg>
+      );
+
+    /* -------------------- contact detail -------------------- */
+    case "clock":
+      return (
+        <svg {...common} {...lineProps}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3.5 2" />
+        </svg>
+      );
+    case "phone":
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M5 4h3l2 5-2.5 1.5a11 11 0 005 5L14 13l5 2v3a2 2 0 01-2 2A14 14 0 013 6a2 2 0 012-2z" />
         </svg>
       );
 
