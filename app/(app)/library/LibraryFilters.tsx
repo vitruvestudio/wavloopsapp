@@ -450,11 +450,11 @@ function SortChip({
           aria-expanded={open}
           className="t-mono-s inline-flex items-center cursor-pointer transition-colors duration-fast"
           style={{
-            height: 30,
-            padding: "0 11px",
-            gap: 6,
+            height: 32,
+            padding: "0 14px",
+            gap: 8,
             borderRadius: "var(--r-pill)",
-            border: "1px solid var(--accent)",
+            border: "none",
             background: "var(--accent-surface)",
             color: "var(--accent-text)",
           }}
@@ -462,7 +462,7 @@ function SortChip({
           {current.label}
           <Icon
             name="chevron-down"
-            size={11}
+            size={12}
             style={{ color: "var(--accent-text)" }}
           />
         </button>
