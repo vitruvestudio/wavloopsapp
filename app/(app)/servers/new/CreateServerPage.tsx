@@ -11,7 +11,7 @@
  * Splitting them would force every visual tweak to be made twice.
  *
  * Slug stability: in edit mode the slug is never regenerated, even
- * on rename — shared artist URLs (wavloops.io/s/<slug>) stay valid.
+ * on rename — shared artist URLs (wavloops.co/s/<slug>) stay valid.
  *
  *   ┌─ PageHeader: ◂ Create a server ── [ Cancel ] [ Create server ] ┐
  *   │

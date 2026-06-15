@@ -130,19 +130,28 @@ export function ServerDetailPage({
     });
   };
 
-  // Public artist-side URL (J6's `/s/<slug>` will live at wavloops.io).
-  const artistUrl = `wavloops.io/s/${server.slug}`;
+  // What we DISPLAY in the link box: the brand URL the artist will
+  // eventually receive. Production domain is wavloops.co.
+  const artistUrlDisplay = `wavloops.co/s/${server.slug}`;
+  // What we COPY and what the open/preview button OPENS: the URL
+  // for the current environment, so dev clicks land on
+  // localhost:3000/s/<slug> rather than 404-ing on wavloops.co.
+  // Falls back to the production URL during SSR.
+  const artistUrlOpenable =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/s/${server.slug}`
+      : `https://wavloops.co/s/${server.slug}`;
 
   const copyLink = React.useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(`https://${artistUrl}`);
+      await navigator.clipboard.writeText(artistUrlOpenable);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       // navigator.clipboard can throw on insecure contexts — fall back
       // to a no-op rather than crashing the page.
     }
-  }, [artistUrl]);
+  }, [artistUrlOpenable]);
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
@@ -230,12 +239,38 @@ export function ServerDetailPage({
         }
         right={
           <div className="flex items-center" style={{ gap: 8 }}>
-            <LinkBox url={artistUrl} onCopy={copyLink} copied={copied} />
+            <LinkBox
+              url={artistUrlDisplay}
+              openUrl={artistUrlOpenable}
+              onCopy={copyLink}
+              copied={copied}
+            />
             <IconButton
               name="share"
               size={36}
               iconSize={18}
-              onClick={() => stub("Share")}
+              onClick={async () => {
+                // Native share when available (mobile mostly);
+                // otherwise just copy the link as a sensible fallback.
+                if (
+                  typeof navigator !== "undefined" &&
+                  "share" in navigator
+                ) {
+                  try {
+                    await (navigator as Navigator & {
+                      share: (d: ShareData) => Promise<void>;
+                    }).share({
+                      title: server.name,
+                      text: `Listen to ${server.name} on Wavloops`,
+                      url: artistUrlOpenable,
+                    });
+                  } catch {
+                    /* user cancelled */
+                  }
+                } else {
+                  copyLink();
+                }
+              }}
               label="Share"
             />
             <IconButton
@@ -334,10 +369,13 @@ export function ServerDetailPage({
       </div>
 
       {/* Floating preview-link pill — desktop only; on mobile the
-          PlayerDock occupies the bottom-right corner. */}
-      <button
-        type="button"
-        onClick={() => stub("Preview artist link")}
+          PlayerDock occupies the bottom-right corner. Opens the
+          gate page in a new tab so the producer can sanity-check
+          what the artist actually sees. */}
+      <a
+        href={artistUrlOpenable}
+        target="_blank"
+        rel="noopener noreferrer"
         className="fixed hidden lg:inline-flex items-center cursor-pointer"
         style={{
           right: 30,
@@ -354,11 +392,12 @@ export function ServerDetailPage({
           borderRadius: "var(--r-pill)",
           border: "none",
           boxShadow: "var(--shadow-lg)",
+          textDecoration: "none",
         }}
       >
         <Icon name="external" size={14} />
         Preview Artist Link
-      </button>
+      </a>
 
       {addBeatsOpen && (
         <AddBeatsModal
@@ -400,15 +439,22 @@ export function ServerDetailPage({
 }
 
 /* ============================================================
-   LinkBox — wavloops.io/s/<slug> + COPY pill
+   LinkBox — wavloops.co/s/<slug> + COPY pill.
+   The displayed URL is clickable and opens the gate page in a new
+   tab (using the current-environment URL so dev clicks land on
+   localhost rather than 404-ing on wavloops.co).
    ============================================================ */
 
 function LinkBox({
   url,
+  openUrl,
   onCopy,
   copied,
 }: {
+  /** What we show to the producer (brand URL). */
   url: string;
+  /** What clicking the URL actually opens (env-aware). */
+  openUrl: string;
   onCopy: () => void;
   copied: boolean;
 }) {
@@ -425,17 +471,23 @@ function LinkBox({
       }}
     >
       <Icon name="link" size={14} style={{ color: "var(--fg-3)" }} />
-      <span
+      <a
+        href={openUrl}
+        target="_blank"
+        rel="noopener noreferrer"
         className="t-mono-s"
         style={{
           color: "var(--fg-2)",
           textTransform: "uppercase",
           letterSpacing: "0.04em",
           whiteSpace: "nowrap",
+          textDecoration: "none",
+          cursor: "pointer",
         }}
+        title="Open the gate page in a new tab"
       >
         {url}
-      </span>
+      </a>
       <button
         type="button"
         onClick={onCopy}
