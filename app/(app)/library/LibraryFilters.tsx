@@ -29,12 +29,14 @@
 
 import * as React from "react";
 import { BeatRow } from "@/components/app/BeatRow";
+import { usePlayer } from "@/components/app/PlayerContext";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Segmented } from "@/components/ui/Segmented";
 import { Tag } from "@/components/ui/Tag";
 import { fmtAgo, fmtDuration } from "@/lib/fmt";
 import { KEY_OPTIONS, MOOD_SUGGEST } from "@/lib/audio";
+import { createClient } from "@/lib/supabase/client";
 import type {
   BeatWithStatsRow,
   ServerRow,
@@ -76,6 +78,53 @@ export function LibraryFilters({
   const [serverId, setServerId] = React.useState<string | null>(null);
   const [sort, setSort] = React.useState<SortKey>("recent");
   const [view, setView] = React.useState<ViewMode>("list");
+
+  /* ============================================================
+     Playback — fetch a signed URL for the beat-audio bucket
+     (private, RLS-gated) and hand it to the global PlayerDock.
+     Same beat re-clicked just toggles play/pause; new beat
+     swaps the source and auto-plays.
+     ============================================================ */
+
+  const player = usePlayer();
+  const supabase = React.useMemo(() => createClient(), []);
+
+  const playBeat = React.useCallback(
+    async (beat: BeatWithStatsRow) => {
+      // Same beat clicked → toggle play/pause without re-fetching.
+      if (player.current?.id === beat.id) {
+        player.toggle(player.current);
+        return;
+      }
+      if (!beat.audio_url) {
+        console.warn("[library] beat has no audio_url");
+        return;
+      }
+      const { data, error } = await supabase.storage
+        .from("beat-audio")
+        .createSignedUrl(beat.audio_url, 3600);
+      if (error || !data) {
+        console.warn("[library] failed to sign audio URL", error);
+        return;
+      }
+      player.toggle({
+        id: beat.id,
+        title: beat.title,
+        bpm: beat.bpm ?? 0,
+        key: beat.key ?? "",
+        dur: fmtDuration(beat.duration_seconds),
+        img: beat.artwork_url,
+        wave: beat.wave_seed,
+        mood: beat.mood,
+        audioUrl: data.signedUrl,
+      });
+    },
+    [player, supabase],
+  );
+
+  const isCurrent = (beatId: string) => player.current?.id === beatId;
+  const isPlayingNow = (beatId: string) =>
+    isCurrent(beatId) && player.playing;
 
   /** Pool of unique moods present in the producer's library +
    *  defaults from MOOD_SUGGEST — gives the chip something to show
@@ -262,12 +311,18 @@ export function LibraryFilters({
           beats={filteredSorted}
           now={now}
           totalCount={beats.length}
+          onPlay={playBeat}
+          isCurrent={isCurrent}
+          isPlaying={isPlayingNow}
         />
       ) : (
         <BeatGrid
           beats={filteredSorted}
           totalCount={beats.length}
           now={now}
+          onPlay={playBeat}
+          isCurrent={isCurrent}
+          isPlaying={isPlayingNow}
         />
       )}
     </div>
@@ -755,10 +810,16 @@ function BeatGrid({
   beats,
   totalCount,
   now,
+  onPlay,
+  isCurrent,
+  isPlaying,
 }: {
   beats: BeatWithStatsRow[];
   totalCount: number;
   now: Date;
+  onPlay: (b: BeatWithStatsRow) => void;
+  isCurrent: (id: string) => boolean;
+  isPlaying: (id: string) => boolean;
 }) {
   if (beats.length === 0) {
     return (
@@ -786,7 +847,14 @@ function BeatGrid({
       }}
     >
       {beats.map((b) => (
-        <BeatCard key={b.id} beat={b} now={now} />
+        <BeatCard
+          key={b.id}
+          beat={b}
+          now={now}
+          onPlay={() => onPlay(b)}
+          current={isCurrent(b.id)}
+          playing={isPlaying(b.id)}
+        />
       ))}
     </div>
   );
@@ -795,16 +863,24 @@ function BeatGrid({
 function BeatCard({
   beat,
   now,
+  onPlay,
+  current,
+  playing,
 }: {
   beat: BeatWithStatsRow;
   now: Date;
+  onPlay: () => void;
+  current: boolean;
+  playing: boolean;
 }) {
   const [hovered, setHovered] = React.useState(false);
+  const showOverlay = hovered || current;
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={onPlay}
       className="cursor-pointer"
     >
       {/* Square cover */}
@@ -838,15 +914,15 @@ function BeatCard({
           </div>
         )}
 
-        {/* Hover overlay — subtle gradient + accent floating play
-            button at the bottom-left. */}
+        {/* Hover / current overlay — subtle gradient + accent floating
+            play (or pause) button at the bottom-left. */}
         <div
           aria-hidden
           className="absolute inset-0 transition-opacity duration-fast"
           style={{
             background:
               "linear-gradient(180deg, oklch(0 0 0 / 0.05), oklch(0 0 0 / 0.32))",
-            opacity: hovered ? 1 : 0,
+            opacity: showOverlay ? 1 : 0,
             pointerEvents: "none",
           }}
         />
@@ -862,12 +938,12 @@ function BeatCard({
             background: "var(--accent)",
             color: "var(--accent-fg)",
             boxShadow: "0 6px 20px -6px var(--accent-glow)",
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? "translateY(0)" : "translateY(6px)",
+            opacity: showOverlay ? 1 : 0,
+            transform: showOverlay ? "translateY(0)" : "translateY(6px)",
             pointerEvents: "none",
           }}
         >
-          <Icon name="play" size={17} />
+          <Icon name={playing ? "pause" : "play"} size={17} />
         </div>
       </div>
 
@@ -976,10 +1052,16 @@ function BeatList({
   beats,
   now,
   totalCount,
+  onPlay,
+  isCurrent,
+  isPlaying,
 }: {
   beats: BeatWithStatsRow[];
   now: Date;
   totalCount: number;
+  onPlay: (b: BeatWithStatsRow) => void;
+  isCurrent: (id: string) => boolean;
+  isPlaying: (id: string) => boolean;
 }) {
   if (beats.length === 0) {
     return (
@@ -1050,7 +1132,14 @@ function BeatList({
 
       <div className="flex flex-col" style={{ gap: 2 }}>
         {beats.map((b) => (
-          <BeatRow key={b.id} beat={b} now={now} />
+          <BeatRow
+            key={b.id}
+            beat={b}
+            now={now}
+            onPlay={() => onPlay(b)}
+            isCurrent={isCurrent(b.id)}
+            playing={isPlaying(b.id)}
+          />
         ))}
       </div>
     </div>
