@@ -71,7 +71,10 @@ export type IconName =
   /* upload — auto-detect indicator */
   | "zap"
   /* info / tooltip */
-  | "info";
+  | "info"
+  /* library view toggle */
+  | "view-list"
+  | "view-grid";
 
 interface IconProps {
   name: IconName;
@@ -475,6 +478,32 @@ export function Icon({
             fill="currentColor"
             stroke="none"
           />
+        </svg>
+      );
+
+    /* -------------------- library view toggle -------------------- */
+    case "view-list":
+      /* Three rows, each = bullet dot + horizontal line — reads as
+         "list with leading thumbnails", matching what the library
+         renders. */
+      return (
+        <svg {...common} fill="currentColor">
+          <circle cx="5" cy="6.5" r="1.4" />
+          <rect x="9" y="5.5" width="12" height="2" rx="1" />
+          <circle cx="5" cy="12" r="1.4" />
+          <rect x="9" y="11" width="12" height="2" rx="1" />
+          <circle cx="5" cy="17.5" r="1.4" />
+          <rect x="9" y="16.5" width="12" height="2" rx="1" />
+        </svg>
+      );
+    case "view-grid":
+      /* 2×2 squares — classic grid affordance. */
+      return (
+        <svg {...common} fill="currentColor">
+          <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.2" />
+          <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.2" />
+          <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.2" />
+          <rect x="13" y="13" width="7.5" height="7.5" rx="1.2" />
         </svg>
       );
 

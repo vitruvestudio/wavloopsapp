@@ -29,8 +29,11 @@
 
 import * as React from "react";
 import { BeatRow } from "@/components/app/BeatRow";
-import { Icon } from "@/components/ui/Icon";
+import { CoverArt } from "@/components/ui/CoverArt";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Segmented } from "@/components/ui/Segmented";
+import { Tag } from "@/components/ui/Tag";
+import { fmtDuration } from "@/lib/fmt";
 import { KEY_OPTIONS, MOOD_SUGGEST } from "@/lib/audio";
 import type {
   BeatWithStatsRow,
@@ -48,6 +51,8 @@ interface LibraryFiltersProps {
 type TypeFilter = "all" | "comp" | "loop";
 
 type SortKey = "recent" | "oldest" | "az";
+
+type ViewMode = "list" | "grid";
 
 const SORT_OPTIONS: ReadonlyArray<{ value: SortKey; label: string }> = [
   { value: "recent", label: "RECENT" },
@@ -70,6 +75,7 @@ export function LibraryFilters({
   const [musicKey, setMusicKey] = React.useState<string | null>(null);
   const [serverId, setServerId] = React.useState<string | null>(null);
   const [sort, setSort] = React.useState<SortKey>("recent");
+  const [view, setView] = React.useState<ViewMode>("list");
 
   /** Pool of unique moods present in the producer's library +
    *  defaults from MOOD_SUGGEST — gives the chip something to show
@@ -243,14 +249,23 @@ export function LibraryFilters({
           )}
         </FilterChip>
 
-        {/* Spacer pushes SORT to the right edge of the chip row */}
-        <div className="ml-auto" />
-
-        <SortChip value={sort} onChange={setSort} />
+        {/* Spacer pushes view toggle + SORT to the right edge */}
+        <div className="ml-auto flex items-center" style={{ gap: 14 }}>
+          <ViewToggle value={view} onChange={setView} />
+          <SortChip value={sort} onChange={setSort} />
+        </div>
       </div>
 
-      {/* Filtered BeatList */}
-      <BeatList beats={filteredSorted} now={now} totalCount={beats.length} />
+      {/* Filtered BeatList — list or grid */}
+      {view === "list" ? (
+        <BeatList
+          beats={filteredSorted}
+          now={now}
+          totalCount={beats.length}
+        />
+      ) : (
+        <BeatGrid beats={filteredSorted} totalCount={beats.length} />
+      )}
     </div>
   );
 }
@@ -398,6 +413,60 @@ function FilterChip({
           {children(() => setOpen(false))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ViewToggle — small segmented for list / grid
+   ============================================================ */
+
+function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (next: ViewMode) => void;
+}) {
+  const items: Array<{ value: ViewMode; icon: IconName; label: string }> = [
+    { value: "list", icon: "view-list", label: "List view" },
+    { value: "grid", icon: "view-grid", label: "Grid view" },
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label="Library view"
+      className="inline-flex items-center bg-bg-inset border border-border-1"
+      style={{
+        padding: 3,
+        gap: 0,
+        borderRadius: "var(--r-md)",
+      }}
+    >
+      {items.map((it) => {
+        const active = it.value === value;
+        return (
+          <button
+            key={it.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-label={it.label}
+            onClick={() => onChange(it.value)}
+            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast border-0"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "var(--r-sm)",
+              background: active ? "var(--bg-3)" : "transparent",
+              color: active ? "var(--fg-1)" : "var(--fg-3)",
+            }}
+          >
+            <Icon name={it.icon} size={15} />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -670,6 +739,142 @@ function BpmRangePicker({
       >
         APPLY
       </button>
+    </div>
+  );
+}
+
+/* ============================================================
+   BeatGrid — card grid for ViewMode="grid"
+   ============================================================ */
+
+function BeatGrid({
+  beats,
+  totalCount,
+}: {
+  beats: BeatWithStatsRow[];
+  totalCount: number;
+}) {
+  if (beats.length === 0) {
+    return (
+      <div
+        className="t-body"
+        style={{
+          padding: "32px 12px",
+          textAlign: "center",
+          color: "var(--fg-3)",
+        }}
+      >
+        {totalCount === 0
+          ? "No beats yet."
+          : "No beats match these filters."}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="grid"
+      style={{
+        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+        gap: 18,
+      }}
+    >
+      {beats.map((b) => (
+        <BeatCard key={b.id} beat={b} />
+      ))}
+    </div>
+  );
+}
+
+function BeatCard({ beat }: { beat: BeatWithStatsRow }) {
+  const [hovered, setHovered] = React.useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="cursor-pointer"
+    >
+      {/* Square cover */}
+      <div
+        className="relative overflow-hidden"
+        style={{
+          aspectRatio: "1 / 1",
+          borderRadius: "var(--r-md)",
+          marginBottom: 10,
+        }}
+      >
+        <CoverArt
+          seed={beat.wave_seed || beat.id}
+          src={beat.artwork_url ?? undefined}
+          fill
+          radius={0}
+        />
+        {/* Hover overlay — subtle gradient + play icon */}
+        <div
+          aria-hidden
+          className="absolute inset-0 transition-opacity duration-fast"
+          style={{
+            background:
+              "linear-gradient(180deg, oklch(0 0 0 / 0.05), oklch(0 0 0 / 0.32))",
+            opacity: hovered ? 1 : 0,
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          aria-hidden
+          className="absolute flex items-center justify-center transition-all duration-fast"
+          style={{
+            left: 12,
+            bottom: 12,
+            width: 42,
+            height: 42,
+            borderRadius: "50%",
+            background: "var(--accent)",
+            color: "var(--accent-fg)",
+            boxShadow: "0 6px 20px -6px var(--accent-glow)",
+            opacity: hovered ? 1 : 0,
+            transform: hovered ? "translateY(0)" : "translateY(6px)",
+            pointerEvents: "none",
+          }}
+        >
+          <Icon name="play" size={17} />
+        </div>
+      </div>
+
+      {/* Meta — title + type tag + BPM/KEY/duration */}
+      <div className="min-w-0">
+        <div
+          className="t-title truncate"
+          style={{ fontSize: 14, marginBottom: 5 }}
+        >
+          {beat.title}
+        </div>
+        <div
+          className="flex items-center flex-wrap"
+          style={{ gap: 6 }}
+        >
+          {beat.type === "comp" && (
+            <Tag variant="accent" icon="waves">
+              COMP
+            </Tag>
+          )}
+          {beat.type === "loop" && (
+            <Tag variant="solid" icon="repeat">
+              LOOP
+            </Tag>
+          )}
+          <span
+            className="t-mono-s"
+            style={{ color: "var(--fg-3)" }}
+          >
+            {beat.bpm ?? "—"} · {beat.key ?? "—"} ·{" "}
+            {beat.duration_seconds != null
+              ? fmtDuration(beat.duration_seconds)
+              : "—"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
