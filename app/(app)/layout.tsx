@@ -5,13 +5,23 @@
  *
  *   ┌──────────────── outer flex column ────────────────┐
  *   │  ┌── inner flex row (flex-1 min-h-0 overflow-hidden)──┐
- *   │  │   Sidebar │ TopBar + content + per-page header     │
+ *   │  │   Sidebar │ TopBar (full-width) ──────────────┐    │
+ *   │  │           │ ┌──── constrained 1440px ────┐    │    │
+ *   │  │           │ │  PageHeader + page content   │    │    │
+ *   │  │           │ └──────────────────────────────┘    │    │
  *   │  └──────────────────────────────────────────────────┘
  *   │  PlayerDock — full-bleed across sidebar + content    │
  *   └──────────────────────────────────────────────────────┘
  *
- * The PlayerDock spans the FULL viewport width (not just the content
- * column) — it's a screen-level fixture, not a content-level one.
+ * Content width strategy: TopBar stretches edge-to-edge of the content
+ * column for the "frosted toolbar" feel. Page content is constrained
+ * to 1440px max and centred (`mx-auto`) so cards / grids / lists feel
+ * intentional on ultra-wide displays instead of "filling space".
+ * Matches the visual language of Linear, Spotify (web), Stripe
+ * Dashboard, Splice — premium SaaS layout convention.
+ *
+ * The PlayerDock spans the FULL viewport width (not the constrained
+ * content) — it's a screen-level fixture, not a content-level one.
  *
  * Responsive:
  *   - < lg : Sidebar slides over the content as a 280px overlay
@@ -76,7 +86,16 @@ export default function AppLayout({
 
           <div className="flex min-w-0 flex-1 flex-col">
             <TopBar onMenuClick={() => setMobileOpen(true)} />
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            <main className="flex-1 overflow-y-auto">
+              {/* Constrained 1440px column — centres page content on ultra-
+                  wide displays. The PageHeader inside `children` is sticky
+                  relative to <main>, so its frosted-glass background tracks
+                  this column's width too (intentional — the "editorial"
+                  feel). */}
+              <div className="mx-auto w-full" style={{ maxWidth: 1440 }}>
+                {children}
+              </div>
+            </main>
           </div>
         </div>
 
