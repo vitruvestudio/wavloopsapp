@@ -25,23 +25,27 @@ import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
 
-/** Generate a soft pastel 2-stop gradient from a seed string. The
- *  hues drift apart by 50-130° so the sweep has visible variation
- *  without going jarring. High lightness + medium chroma keeps the
- *  result Spotify-airy: dark text reads cleanly on top, the banner
- *  feels lifted from the artwork rather than slapped on.
+/** Generate a soft mesh gradient — multiple radial-gradient
+ *  "blobs" layered on top of a near-white base, so the surface
+ *  reads as an organic colour cloud rather than a linear sweep.
+ *  Each blob position is pinned (constants picked to give a
+ *  Spotify/Apple Music vibe) but the four hues are deterministic
+ *  from the seed so every server has its own stable signature
+ *  without straight lines between bands.
  *  Phase 3 will swap this for real palette extraction off the
- *  cover image bytes — for Phase 1 the deterministic hash already
- *  gives every server a stable, distinct mood. */
+ *  cover image bytes. */
 function bannerGradient(seed: string): string {
   const h1 = hashSeed(seed) % 360;
   const h2 = (h1 + 60 + (hashSeed(seed + "~b") % 70)) % 360;
+  const h3 = (h2 + 40 + (hashSeed(seed + "~c") % 60)) % 360;
+  const h4 = (h1 + 130 + (hashSeed(seed + "~d") % 70)) % 360;
   return [
-    "linear-gradient(115deg,",
-    ` oklch(0.86 0.09 ${h1}) 0%,`,
-    ` oklch(0.82 0.11 ${(h1 + h2) / 2}) 55%,`,
-    ` oklch(0.83 0.12 ${h2}) 100%)`,
-  ].join("");
+    `radial-gradient(at 15% 25%, oklch(0.88 0.14 ${h1}) 0%, transparent 55%)`,
+    `radial-gradient(at 85% 20%, oklch(0.85 0.15 ${h2}) 0%, transparent 60%)`,
+    `radial-gradient(at 70% 95%, oklch(0.86 0.13 ${h3}) 0%, transparent 60%)`,
+    `radial-gradient(at 20% 90%, oklch(0.88 0.11 ${h4}) 0%, transparent 60%)`,
+    `oklch(0.93 0.04 ${h1})`,
+  ].join(", ");
 }
 
 type Filter = "all" | "new" | "liked";
