@@ -189,12 +189,14 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
 }
 
 function QuickAddButton({ collapsed }: { collapsed: boolean }) {
-  // Collapsed only matters on desktop. On mobile we always show the full pill.
+  // V1: Quick add is a direct link to "Create a server" — the primary
+  // creation action. When we add more creation surfaces (upload beat,
+  // invite artist) we'll swap this for a dropdown menu.
   return (
     <>
       {/* Mobile + desktop expanded: full pill */}
-      <button
-        type="button"
+      <Link
+        href="/servers/new"
         className={[
           "flex w-full items-center rounded-md border-none bg-accent text-accent-fg",
           "transition-colors duration-fast hover:bg-accent-hover",
@@ -214,13 +216,13 @@ function QuickAddButton({ collapsed }: { collapsed: boolean }) {
         Quick add
         <span className="flex-1" />
         <Icon name="chevron-down" size={15} />
-      </button>
+      </Link>
 
       {/* Desktop collapsed only: circular icon */}
       {collapsed && (
-        <button
-          type="button"
-          title="Quick add"
+        <Link
+          href="/servers/new"
+          title="Create a server"
           className="mx-auto hidden items-center justify-center rounded-pill border-none bg-accent text-accent-fg transition-colors duration-fast hover:bg-accent-hover lg:flex"
           style={{
             width: 48,
@@ -229,7 +231,7 @@ function QuickAddButton({ collapsed }: { collapsed: boolean }) {
           }}
         >
           <Icon name="plus" size={22} />
-        </button>
+        </Link>
       )}
     </>
   );

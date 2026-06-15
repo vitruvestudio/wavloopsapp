@@ -58,6 +58,13 @@ interface BeatRowProps {
   onPlay?: () => void;
   isCurrent?: boolean;
   playing?: boolean;
+  /* Selection mode — when `checkbox` is true the row becomes a
+   *  selectable item: a 22×22 checkbox replaces the play overlay,
+   *  and both the row and the cover click fire `onCheck` instead of
+   *  `onOpen` / `onPlay`. Used by Create / Edit Server. */
+  checkbox?: boolean;
+  checked?: boolean;
+  onCheck?: () => void;
 }
 
 export function BeatRow({
@@ -70,16 +77,21 @@ export function BeatRow({
   onPlay,
   isCurrent,
   playing,
+  checkbox,
+  checked,
+  onCheck,
 }: BeatRowProps) {
   const [hovered, setHovered] = React.useState(false);
 
   const handleRowClick = () => {
-    onOpen?.();
+    if (checkbox) onCheck?.();
+    else onOpen?.();
   };
 
   const handleCoverClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onPlay?.();
+    if (checkbox) onCheck?.();
+    else onPlay?.();
   };
 
   return (
@@ -100,13 +112,39 @@ export function BeatRow({
         gap: 14,
         padding: "10px 12px",
         borderRadius: "var(--r-md)",
-        background: isCurrent
-          ? "var(--accent-surface)"
-          : hovered
-            ? "var(--bg-2)"
-            : "transparent",
+        background:
+          checked
+            ? "var(--accent-surface)"
+            : isCurrent
+              ? "var(--accent-surface)"
+              : hovered
+                ? "var(--bg-2)"
+                : "transparent",
       }}
     >
+      {/* Checkbox — selection mode only */}
+      {checkbox && (
+        <button
+          type="button"
+          aria-label={checked ? "Unselect beat" : "Select beat"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheck?.();
+          }}
+          className="flex items-center justify-center shrink-0 cursor-pointer transition-all duration-fast"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: `1.5px solid ${checked ? "var(--accent)" : "var(--border-strong)"}`,
+            background: checked ? "var(--accent)" : "transparent",
+            color: "var(--accent-fg)",
+          }}
+        >
+          {checked && <Icon name="check" size={14} />}
+        </button>
+      )}
+
       {/* Cover thumbnail — generative gradient, hover/current → play overlay */}
       <div
         onClick={handleCoverClick}
