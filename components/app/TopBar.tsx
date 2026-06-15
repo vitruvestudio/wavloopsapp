@@ -24,26 +24,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 
-const THEME_KEY = "wl-srv-theme";
-
-function useTheme() {
-  const [theme, setTheme] = React.useState<"dark" | "light">("dark");
-  React.useEffect(() => {
-    const stored =
-      (localStorage.getItem(THEME_KEY) as "dark" | "light" | null) ?? "dark";
-    setTheme(stored);
-    document.documentElement.setAttribute("data-theme", stored);
-  }, []);
-  const toggle = React.useCallback(() => {
-    setTheme((t) => {
-      const next = t === "dark" ? "light" : "dark";
-      localStorage.setItem(THEME_KEY, next);
-      document.documentElement.setAttribute("data-theme", next);
-      return next;
-    });
-  }, []);
-  return { theme, toggle };
-}
+import { useTheme } from "@/lib/use-theme";
 
 interface TopBarProps {
   /** Opens the mobile sidebar overlay (< lg only — hamburger hidden on lg+). */

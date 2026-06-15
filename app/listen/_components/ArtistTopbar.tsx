@@ -10,6 +10,7 @@
 import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
+import { useTheme } from "@/lib/use-theme";
 import { ARTIST } from "../_mock";
 
 interface ArtistTopbarProps {
@@ -18,6 +19,7 @@ interface ArtistTopbarProps {
 }
 
 export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
+  const { theme, toggle } = useTheme();
   return (
     <header
       className="sticky top-0 z-20 flex items-center border-b border-border-1"
@@ -52,10 +54,12 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
       {/* Spacer pushes the right cluster to the edge. */}
       <div className="flex-1" />
 
-      {/* Theme toggle (stub — wires to next-themes later) */}
+      {/* Theme toggle — shared with the producer side, persisted
+          in localStorage["wl-srv-theme"]. */}
       <button
         type="button"
-        aria-label="Switch theme"
+        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        onClick={toggle}
         className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
         style={{
           width: 36,
@@ -66,7 +70,7 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
           color: "var(--fg-2)",
         }}
       >
-        <Icon name="moon" size={17} />
+        <Icon name={theme === "dark" ? "sun" : "moon"} size={17} />
       </button>
 
       {/* Notification bell + badge */}
