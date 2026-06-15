@@ -34,10 +34,21 @@ import { Icon } from "@/components/ui/Icon";
 import { VisBadge } from "@/components/ui/VisBadge";
 import type { ServerRow } from "@/lib/supabase/database.types";
 
+/**
+ * One mosaic slice — either a real beat cover (`src` set) or a
+ * fallback generative gradient seeded by the wave_seed.
+ */
+export interface BeatCover {
+  seed: string;
+  src: string | null;
+}
+
 interface ServerCardProps {
   server: ServerRow;
-  /** Wave seeds of beats in this server, ordered. Used for the mosaic. */
-  beatSeeds?: string[];
+  /** Covers of beats in this server, in order. The first 4 are used
+   *  for the cover mosaic. When omitted, a single generative tile
+   *  seeded by the server slug is used. */
+  beatCovers?: BeatCover[];
   stats: {
     beats: number;
     contacts: number;
@@ -45,15 +56,21 @@ interface ServerCardProps {
   };
 }
 
-export function ServerCard({ server, beatSeeds, stats }: ServerCardProps) {
+export function ServerCard({
+  server,
+  beatCovers,
+  stats,
+}: ServerCardProps) {
   const [hovered, setHovered] = React.useState(false);
 
-  // Pick seeds for the cover mosaic. Always at least 1 slice.
-  const seeds = React.useMemo(() => {
-    const beats = (beatSeeds ?? []).slice(0, 4);
-    if (beats.length === 0) return [server.slug];
-    return beats;
-  }, [beatSeeds, server.slug]);
+  // Pick the mosaic tiles. Always at least 1 (the server's own slug).
+  const covers = React.useMemo<BeatCover[]>(() => {
+    const list = (beatCovers ?? []).slice(0, 4);
+    if (list.length === 0) {
+      return [{ seed: server.slug, src: null }];
+    }
+    return list;
+  }, [beatCovers, server.slug]);
 
   // Overlay hue — use server.accent_hue if set, else hash slug.
   const overlayHue = server.accent_hue ?? null;
@@ -93,18 +110,35 @@ export function ServerCard({ server, beatSeeds, stats }: ServerCardProps) {
             }}
           />
         ) : (
-          seeds.map((s, i) => (
+          covers.map((c, i) => (
             <div key={i} className="relative flex-1">
-              <CoverArt
-                fill
-                seed={s}
-                hue={
-                  // First slice picks up the server's accent if set so the
-                  // whole card reads "this server colour"; subsequent
-                  // slices keep their per-beat hue for visual variety.
-                  i === 0 && overlayHue != null ? overlayHue : undefined
-                }
-              />
+              {c.src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.src}
+                  alt=""
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <CoverArt
+                  fill
+                  seed={c.seed}
+                  hue={
+                    // First slice picks up the server's accent if set so
+                    // the whole card reads "this server colour";
+                    // subsequent slices keep their per-beat hue for
+                    // visual variety.
+                    i === 0 && overlayHue != null ? overlayHue : undefined
+                  }
+                />
+              )}
             </div>
           ))
         )}

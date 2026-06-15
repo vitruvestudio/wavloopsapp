@@ -181,13 +181,18 @@ export function CreateServerPage({
     ],
   );
 
-  /** Seeds for the cover mosaic — the wave_seed of each selected beat
-   *  in the order the producer ticked them. */
-  const selectedBeatSeeds = React.useMemo(
+  /** Covers for the mosaic — actual beat artwork URL when set, else
+   *  a generative gradient seeded by the beat's wave_seed. Ordered by
+   *  the producer's pick order. */
+  const selectedBeatCovers = React.useMemo(
     () =>
       beatIds
-        .map((id) => beats.find((b) => b.id === id)?.wave_seed)
-        .filter((s): s is string => Boolean(s)),
+        .map((id) => {
+          const b = beats.find((x) => x.id === id);
+          if (!b) return null;
+          return { seed: b.wave_seed, src: b.artwork_url };
+        })
+        .filter((c): c is { seed: string; src: string | null } => c !== null),
     [beatIds, beats],
   );
 
@@ -571,7 +576,7 @@ export function CreateServerPage({
                 contacts: 0,
                 plays: 0,
               }}
-              beatSeeds={selectedBeatSeeds}
+              beatCovers={selectedBeatCovers}
             />
 
             <p className="t-body-s" style={{ marginTop: 14 }}>
