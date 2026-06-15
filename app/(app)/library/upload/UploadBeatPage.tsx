@@ -285,13 +285,27 @@ export function UploadBeatPage({
         )}
 
         {/* file is non-null whenever we reach this branch — the mount
-            effect redirects to /library otherwise. */}
+            effect redirects to /library otherwise.
+
+            Grid: stacked on mobile, asymmetric on lg+ (left column is
+            ~340px wide — exactly the artwork's footprint — and the
+            form takes the rest of the constrained 1440px column).
+            The left column is `position: sticky` at lg+ so when the
+            form on the right scrolls past the page header, the artwork
+            + audio file + waveform stay in view — matches the proto
+            screen 3 anchored-pack pattern. */}
         {file == null ? null : (
-          <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 32 }}>
+          <div
+            className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)]"
+            style={{ gap: 32 }}
+          >
             {/* ============================================================
-                LEFT — artwork + audio file + waveform
+                LEFT — artwork + audio file + waveform (sticky on lg+)
                ============================================================ */}
-            <div className="flex flex-col" style={{ gap: 16 }}>
+            <div
+              className="flex flex-col lg:sticky lg:self-start"
+              style={{ gap: 16, top: 92 }}
+            >
               <ArtworkBlock seed={beatIdRef.current} />
 
               <AudioFileRow
@@ -382,6 +396,7 @@ export function UploadBeatPage({
                   max={3}
                   suggestions={MOOD_SUGGEST as string[]}
                   placeholder="Add a mood and press Enter…"
+                  accent
                 />
               </div>
 
@@ -395,6 +410,7 @@ export function UploadBeatPage({
                   max={3}
                   suggestions={ARTIST_TYPE_SUGGEST as string[]}
                   placeholder="e.g. Drake, Travis Scott…"
+                  accent
                 />
               </div>
 
@@ -570,14 +586,12 @@ function AutoDetectedPanel({
         className="t-mono-s inline-flex items-center"
         style={{ marginBottom: 12, gap: 6, color: "var(--accent-text)" }}
       >
+        <Icon name="zap" size={12} />
         AUTO-DETECTED
       </div>
       <div
-        className="grid"
-        style={{
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 12,
-        }}
+        className="grid grid-cols-2 xl:grid-cols-4"
+        style={{ gap: 10 }}
       >
         <NumberCell
           label="TEMPO"
@@ -586,25 +600,8 @@ function AutoDetectedPanel({
           placeholder="—"
           suffix="BPM"
         />
-        <KeyCell
-          label="KEY"
-          value={keyValue}
-          onChange={setKey}
-        />
-        <div
-          className="rounded-md border border-border-1 bg-bg-1"
-          style={{ padding: "12px 14px" }}
-        >
-          <div className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-            LENGTH
-          </div>
-          <div
-            className="t-mono-lg"
-            style={{ marginTop: 6, color: "var(--fg-1)" }}
-          >
-            {fmtDuration(durationSeconds)}
-          </div>
-        </div>
+        <KeyCell label="KEY" value={keyValue} onChange={setKey} />
+        <LengthCell durationSeconds={durationSeconds} />
         <KeyCell
           label="AUTOTUNE KEY"
           value={autotuneKey}
@@ -615,6 +612,42 @@ function AutoDetectedPanel({
         Tempo &amp; key are detected automatically — adjust if needed.
         Autotune key is suggested to match the beat for vocalists.
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Cell primitives — bg-2 elevated, border-2, with `zap` indicator
+   ============================================================ */
+
+function CellShell({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="border border-border-2 bg-bg-2"
+      style={{
+        padding: "12px 14px",
+        borderRadius: "var(--r-md)",
+        boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <div
+        className="t-mono-s inline-flex items-center"
+        style={{ gap: 5, color: "var(--fg-4)" }}
+      >
+        {label}
+        <Icon
+          name="zap"
+          size={11}
+          style={{ color: "var(--accent-text)" }}
+        />
+      </div>
+      <div style={{ marginTop: 6 }}>{children}</div>
     </div>
   );
 }
@@ -633,36 +666,23 @@ function NumberCell({
   suffix?: string;
 }) {
   return (
-    <div
-      className="rounded-md border border-border-1 bg-bg-1"
-      style={{ padding: "12px 14px" }}
-    >
-      <div className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-        {label}
-      </div>
-      <div
-        className="flex items-baseline"
-        style={{ marginTop: 6, gap: 6 }}
-      >
+    <CellShell label={label}>
+      <div className="flex items-baseline" style={{ gap: 6 }}>
         <input
           inputMode="numeric"
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={placeholder}
-          className="bg-transparent outline-none text-fg-1 placeholder:text-fg-4 t-mono-lg"
-          style={{
-            width: 80,
-            border: "none",
-            padding: 0,
-          }}
+          className="bg-transparent outline-none text-fg-1 placeholder:text-fg-4 t-mono-lg min-w-0 flex-1"
+          style={{ border: "none", padding: 0 }}
         />
         {suffix && (
-          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+          <span className="t-mono-s shrink-0" style={{ color: "var(--fg-3)" }}>
             {suffix}
           </span>
         )}
       </div>
-    </div>
+    </CellShell>
   );
 }
 
@@ -676,21 +696,12 @@ function KeyCell({
   onChange: (v: string) => void;
 }) {
   return (
-    <div
-      className="rounded-md border border-border-1 bg-bg-1"
-      style={{ padding: "12px 14px" }}
-    >
-      <div className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-        {label}
-      </div>
-      <div
-        className="flex items-center"
-        style={{ marginTop: 6, gap: 6 }}
-      >
+    <CellShell label={label}>
+      <div className="flex items-center" style={{ gap: 6 }}>
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent outline-none t-mono-lg cursor-pointer"
+          className="bg-transparent outline-none t-mono-lg cursor-pointer min-w-0 flex-1"
           style={{
             color: value ? "var(--fg-1)" : "var(--fg-4)",
             border: "none",
@@ -714,7 +725,17 @@ function KeyCell({
           style={{ color: "var(--fg-3)" }}
         />
       </div>
-    </div>
+    </CellShell>
+  );
+}
+
+function LengthCell({ durationSeconds }: { durationSeconds: number | null }) {
+  return (
+    <CellShell label="LENGTH">
+      <div className="t-mono-lg" style={{ color: "var(--fg-1)" }}>
+        {fmtDuration(durationSeconds)}
+      </div>
+    </CellShell>
   );
 }
 

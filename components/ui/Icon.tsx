@@ -67,7 +67,9 @@ export type IconName =
   | "waves"
   | "repeat"
   | "drag"
-  | "more";
+  | "more"
+  /* upload — auto-detect indicator */
+  | "zap";
 
 interface IconProps {
   name: IconName;
@@ -445,6 +447,16 @@ export function Icon({
           <circle cx="6" cy="12" r="1.5" />
           <circle cx="12" cy="12" r="1.5" />
           <circle cx="18" cy="12" r="1.5" />
+        </svg>
+      );
+
+    /* -------------------- upload / auto-detect -------------------- */
+    case "zap":
+      /* Lightning bolt — auto-detected indicator next to TEMPO / KEY /
+         LENGTH / AUTOTUNE KEY labels on the Upload page. */
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z" />
         </svg>
       );
 
