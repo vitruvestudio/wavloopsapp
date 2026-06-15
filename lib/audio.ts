@@ -101,3 +101,20 @@ export const COPRODUCER_SUGGEST: ReadonlyArray<string> = [
   "Nik D",
   "Pyrex",
 ];
+
+/** Suggestions for a contact's professional role. Used by the Add
+ *  Contact modal's TYPE field. Distinct from ARTIST_TYPE_SUGGEST
+ *  (celebrity targets a SERVER is for) — these describe what the
+ *  CONTACT does for a living. */
+export const CONTACT_ROLE_SUGGEST: ReadonlyArray<string> = [
+  "Producer",
+  "Beatmaker",
+  "Artist",
+  "Rapper",
+  "Singer",
+  "Songwriter",
+  "Engineer",
+  "A&R",
+  "Manager",
+  "Label",
+];

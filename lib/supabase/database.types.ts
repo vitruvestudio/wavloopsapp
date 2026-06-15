@@ -99,7 +99,11 @@ export interface ServerBeatRow {
  *  producer's address book). The server_contacts pivot says which
  *  server(s) each contact has access to.
  *  Migration #8: avatar_url — populated by the "paste a social link"
- *  auto-fill in the Add Contact modal (usually an unavatar.io URL). */
+ *  auto-fill in the Add Contact modal.
+ *  Migration #9: roles — Producer / Beatmaker / Artist / Rapper /
+ *  etc. — what this contact's professional role is (distinct from
+ *  servers.artist_types, which describes a server's TARGET artist,
+ *  not the producer themselves). */
 export interface ContactRow {
   id: string;
   owner_id: string;
@@ -108,6 +112,7 @@ export interface ContactRow {
   phone: string | null;
   socials: Record<string, string>;
   avatar_url: string | null;
+  roles: string[];
   first_seen_at: string;
   last_active_at: string;
 }

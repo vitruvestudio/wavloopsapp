@@ -92,6 +92,9 @@ export interface AddContactPayload {
   name: string | null;
   email: string;
   phone: string | null;
+  /** Professional roles — "Producer", "Beatmaker", "Artist", etc.
+   *  Free-form so producers can add custom labels via TagInput. */
+  roles: string[];
   /** { instagram: "@kayde", x: "@kayde", … } — only non-empty
    *  values are persisted. */
   socials: Record<string, string>;
@@ -144,6 +147,10 @@ export async function addContactAction(
 
   // UPSERT — re-saving the same (owner_id, email) refreshes the
   // optional fields. Conflict resolution targets the unique index.
+  const cleanRoles = payload.roles
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+
   const { data: contact, error } = await supabase
     .from("contacts")
     .upsert(
@@ -152,6 +159,7 @@ export async function addContactAction(
         email,
         name: payload.name?.trim() || null,
         phone: payload.phone?.trim() || null,
+        roles: cleanRoles,
         socials: cleanSocials,
         avatar_url: payload.avatar_url?.trim() || null,
         last_active_at: new Date().toISOString(),

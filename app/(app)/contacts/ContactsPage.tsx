@@ -474,22 +474,27 @@ function ContactRow({
             size={38}
           />
           <div className="min-w-0 flex-1">
-            {/* Primary label — name if set, else fall back to email
-                so the row is never blank. */}
+            {/* Primary line — name (or email fallback) + role tags inline. */}
             <div
-              className="truncate"
-              style={{
-                fontFamily: "var(--font-body)",
-                fontSize: 14.5,
-                fontWeight: 600,
-                color: "var(--fg-1)",
-              }}
+              className="flex items-center min-w-0"
+              style={{ gap: 8 }}
             >
-              {contact.name ?? contact.email}
+              <span
+                className="truncate"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                {contact.name ?? contact.email}
+              </span>
+              <RoleTags roles={contact.roles} />
             </div>
-            {/* Secondary line — email (when name was the primary)
-                + clickable social icons inline, mirrors the BeatRow
-                title + mood-tags two-row pattern. */}
+            {/* Secondary line — email (when name was primary) +
+                clickable social icons, mirrors the BeatRow title +
+                mood-tags two-row pattern. */}
             <div
               className="flex items-center min-w-0"
               style={{ gap: 8, marginTop: 3 }}
@@ -534,15 +539,21 @@ function ContactRow({
           />
           <div className="min-w-0 flex-1">
             <div
-              className="truncate"
-              style={{
-                fontFamily: "var(--font-body)",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--fg-1)",
-              }}
+              className="flex items-center min-w-0"
+              style={{ gap: 8 }}
             >
-              {contact.name ?? contact.email}
+              <span
+                className="truncate"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                {contact.name ?? contact.email}
+              </span>
+              <RoleTags roles={contact.roles} />
             </div>
             <div
               className="flex items-center min-w-0"
@@ -595,6 +606,32 @@ const PLATFORM_ICON: Record<string, IconName> = {
   genius: "mic",
   website: "globe",
 };
+
+/* ============================================================
+   RoleTags — small accent chips for each saved role (Producer,
+   Beatmaker, …). Mirrors how BeatRow renders mood tags.
+   ============================================================ */
+
+function RoleTags({ roles }: { roles: string[] }) {
+  if (roles.length === 0) return null;
+  // Show up to 2 inline; collapse the rest into a "+N" chip so the
+  // name line doesn't get crowded on tight widths.
+  const visible = roles.slice(0, 2);
+  const overflow = roles.length - visible.length;
+  return (
+    <span
+      className="inline-flex items-center shrink-0"
+      style={{ gap: 4 }}
+    >
+      {visible.map((r) => (
+        <Tag key={r} variant="accent">
+          {r}
+        </Tag>
+      ))}
+      {overflow > 0 && <Tag variant="default">+{overflow}</Tag>}
+    </span>
+  );
+}
 
 function SocialIconRow({ socials }: { socials: Record<string, string> }) {
   const entries = Object.entries(socials).filter(

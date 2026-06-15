@@ -37,6 +37,8 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { TagInput } from "@/components/ui/TagInput";
+import { CONTACT_ROLE_SUGGEST } from "@/lib/audio";
 import { addContactAction, fetchOgImageAction } from "./actions";
 import type { ServerStub } from "./page";
 import { parseSocialLink, platformLabel } from "@/lib/socials";
@@ -75,6 +77,7 @@ export function AddContactModal({
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [roles, setRoles] = React.useState<string[]>([]);
   const [socials, setSocials] = React.useState<Record<string, string>>({});
   const [openSocial, setOpenSocial] = React.useState<string | null>(null);
   const [serverIds, setServerIds] = React.useState<string[]>(defaultServerIds);
@@ -169,6 +172,7 @@ export function AddContactModal({
         name: name.trim() || null,
         email: email.trim(),
         phone: phone.trim() || null,
+        roles,
         socials,
         avatar_url: avatarUrl,
         server_ids: serverIds,
@@ -411,6 +415,21 @@ export function AddContactModal({
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 …"
             />
+
+            {/* Roles — who this contact is professionally */}
+            <div>
+              <div className="t-mono-s" style={{ marginBottom: 10 }}>
+                TYPE · OPTIONAL
+              </div>
+              <TagInput
+                value={roles}
+                onChange={setRoles}
+                max={3}
+                suggestions={CONTACT_ROLE_SUGGEST as string[]}
+                placeholder="e.g. Producer, Beatmaker…"
+                accent
+              />
+            </div>
 
             {/* Socials */}
             <div>

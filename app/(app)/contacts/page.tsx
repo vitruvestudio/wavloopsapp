@@ -33,6 +33,7 @@ interface ContactJoinRow {
   phone: string | null;
   socials: Record<string, string>;
   avatar_url: string | null;
+  roles: string[];
   first_seen_at: string;
   last_active_at: string;
   server_contacts: Array<{
@@ -48,6 +49,7 @@ export interface ContactRowVM {
   phone: string | null;
   socials: Record<string, string>;
   avatarUrl: string | null;
+  roles: string[];
   firstSeenAt: string;
   servers: Array<{ id: string; name: string; slug: string }>;
   plays: number;
@@ -68,7 +70,7 @@ export default async function ContactsRoute() {
     supabase
       .from("contacts")
       .select(
-        "id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
+        "id, email, name, phone, socials, avatar_url, roles, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
       )
       .order("last_active_at", { ascending: false })
       .returns<ContactJoinRow[]>(),
@@ -105,6 +107,7 @@ export default async function ContactsRoute() {
       phone: row.phone,
       socials: row.socials,
       avatarUrl: row.avatar_url,
+      roles: row.roles ?? [],
       firstSeenAt: row.first_seen_at,
       servers,
       plays: playsBy.get(row.id) ?? 0,
