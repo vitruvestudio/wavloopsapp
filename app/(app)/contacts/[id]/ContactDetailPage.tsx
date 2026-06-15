@@ -152,23 +152,57 @@ export function ContactDetailPage({
             >
               {handle}
             </h1>
+            {/* Email + phone + roles + socials — all inline on one
+                flex-wrap row. Order matters: identity first, then
+                tagging, then external profiles. */}
             <div
-              className="t-mono-s flex items-center flex-wrap"
-              style={{ gap: 16, color: "var(--fg-3)", marginBottom: 14 }}
+              className="flex items-center flex-wrap"
+              style={{ gap: 12, marginBottom: 14 }}
             >
-              <span className="inline-flex items-center" style={{ gap: 6 }}>
+              <span
+                className="t-mono-s inline-flex items-center"
+                style={{ gap: 6, color: "var(--fg-3)" }}
+              >
                 <Icon name="mail" size={12} />
                 {contact.email.toUpperCase()}
               </span>
               {contact.phone && (
                 <span
-                  className="inline-flex items-center"
-                  style={{ gap: 6 }}
+                  className="t-mono-s inline-flex items-center"
+                  style={{ gap: 6, color: "var(--fg-3)" }}
                 >
                   <Icon name="phone" size={12} />
                   {contact.phone}
                 </span>
               )}
+              {contact.roles.map((r) => (
+                <Tag key={r} variant="accent">
+                  {r}
+                </Tag>
+              ))}
+              {socialEntries.map(([platform, url]) => (
+                <a
+                  key={platform}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open ${platform} profile`}
+                  className="inline-flex items-center justify-center transition-colors duration-fast"
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--bg-1)",
+                    border: "1px solid var(--border-1)",
+                    color: "var(--fg-2)",
+                  }}
+                >
+                  <Icon
+                    name={PLATFORM_ICON[platform] as IconName}
+                    size={13}
+                  />
+                </a>
+              ))}
             </div>
             {(servers.length > 0 || contact.first_seen_at) && (
               <div
@@ -203,48 +237,6 @@ export function ContactDetailPage({
                   {servers.length > 0 ? "·" : ""} FIRST SEEN{" "}
                   {fmtAgo(contact.first_seen_at, now).toUpperCase()}
                 </span>
-              </div>
-            )}
-            {contact.roles.length > 0 && (
-              <div
-                className="flex items-center flex-wrap"
-                style={{ gap: 6, marginTop: 12 }}
-              >
-                {contact.roles.map((r) => (
-                  <Tag key={r} variant="accent">
-                    {r}
-                  </Tag>
-                ))}
-              </div>
-            )}
-            {socialEntries.length > 0 && (
-              <div
-                className="flex items-center flex-wrap"
-                style={{ gap: 8, marginTop: 12 }}
-              >
-                {socialEntries.map(([platform, url]) => (
-                  <a
-                    key={platform}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Open ${platform} profile`}
-                    className="inline-flex items-center justify-center transition-colors duration-fast"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "var(--r-md)",
-                      background: "var(--bg-1)",
-                      border: "1px solid var(--border-1)",
-                      color: "var(--fg-2)",
-                    }}
-                  >
-                    <Icon
-                      name={PLATFORM_ICON[platform] as IconName}
-                      size={15}
-                    />
-                  </a>
-                ))}
               </div>
             )}
           </div>
