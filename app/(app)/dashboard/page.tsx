@@ -19,24 +19,55 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/app/PageHeader";
-import { ServerCard } from "@/components/app/ServerCard";
+import { ServerCard, type BeatCover } from "@/components/app/ServerCard";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/server";
 import type { ServerWithStatsRow } from "@/lib/supabase/database.types";
 
+/** Row shape returned by the `server_beats → beats` join below. The
+ *  `beats` join is single-row (FK on beat_id), so we type it as one
+ *  object — Supabase-js wraps single-FK joins in {…} not [{…}]. */
+interface ServerBeatJoinRow {
+  server_id: string;
+  position: number;
+  beats: { artwork_url: string | null; wave_seed: string } | null;
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const { data: servers } = await supabase
-    .from("servers_with_stats")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<ServerWithStatsRow[]>();
+  // Parallel: the producer's servers (with stats) + the join that
+  // gives us each beat's cover for the mosaic. RLS scopes both to
+  // the producer's own rows, so no explicit owner filter needed.
+  const [serversRes, pivotRes] = await Promise.all([
+    supabase
+      .from("servers_with_stats")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .returns<ServerWithStatsRow[]>(),
+    supabase
+      .from("server_beats")
+      .select("server_id, position, beats!inner(artwork_url, wave_seed)")
+      .order("position", { ascending: true })
+      .returns<ServerBeatJoinRow[]>(),
+  ]);
 
-  const list = servers ?? [];
+  const list = serversRes.data ?? [];
   const activeCount = list.length;
   const artistsReached = list.reduce((sum, s) => sum + s.contacts_count, 0);
+
+  // Group the first 4 beat covers per server, keyed by server_id.
+  // Rows arrive ordered by position so the first hit per server is
+  // also the first slot in the mosaic.
+  const coversByServerId = new Map<string, BeatCover[]>();
+  for (const row of pivotRes.data ?? []) {
+    if (!row.beats) continue;
+    const existing = coversByServerId.get(row.server_id) ?? [];
+    if (existing.length >= 4) continue;
+    existing.push({ seed: row.beats.wave_seed, src: row.beats.artwork_url });
+    coversByServerId.set(row.server_id, existing);
+  }
 
   return (
     <>
@@ -54,7 +85,11 @@ export default async function DashboardPage() {
       />
 
       <div className="px-[18px] py-[24px] lg:px-[30px] lg:pb-[48px] lg:pt-[28px]">
-        {list.length === 0 ? <EmptyState /> : <ServersGrid servers={list} />}
+        {list.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ServersGrid servers={list} coversByServerId={coversByServerId} />
+        )}
       </div>
     </>
   );
@@ -102,7 +137,13 @@ function EmptyState() {
    ServersGrid — responsive 1 / 2 / 3 columns
    ============================================================ */
 
-function ServersGrid({ servers }: { servers: ServerWithStatsRow[] }) {
+function ServersGrid({
+  servers,
+  coversByServerId,
+}: {
+  servers: ServerWithStatsRow[];
+  coversByServerId: Map<string, BeatCover[]>;
+}) {
   return (
     <div
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
@@ -112,6 +153,7 @@ function ServersGrid({ servers }: { servers: ServerWithStatsRow[] }) {
         <ServerCard
           key={s.id}
           server={s}
+          beatCovers={coversByServerId.get(s.id) ?? []}
           stats={{
             beats: s.beats_count,
             contacts: s.contacts_count,
