@@ -89,23 +89,13 @@ export function ArtistSidebar({
           background: "var(--bg-0)",
         }}
       >
-      {/* Logo */}
+      {/* Logo — the Logo primitive already composes the logomark +
+          the WAVLOOPS wordmark, no need to add a second span. */}
       <div
         className="flex items-center shrink-0"
-        style={{ padding: "20px 22px", gap: 10 }}
+        style={{ padding: "20px 22px" }}
       >
         <Logo size={28} />
-        <span
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 800,
-            fontSize: 19,
-            letterSpacing: "-0.01em",
-            color: "var(--fg-1)",
-          }}
-        >
-          WAVLOOPS
-        </span>
       </div>
 
       {/* Search */}
