@@ -28,6 +28,7 @@ import type {
   PlacementRecord,
   ProfileRow,
 } from "@/lib/supabase/database.types";
+import { signOutAction } from "@/app/auth/actions";
 import { updateProfileAction } from "./actions";
 
 type TabKey = "profile" | "account" | "notifications" | "billing";
@@ -35,6 +36,9 @@ type TabKey = "profile" | "account" | "notifications" | "billing";
 interface SettingsPageProps {
   profile: ProfileRow | null;
   userEmail: string;
+  emailConfirmed: boolean;
+  /** Auth identity providers (e.g. ["google"], ["email"]). */
+  providers: string[];
 }
 
 /** Suggestions for the certifications TagInput — mirrors the
@@ -65,7 +69,12 @@ const SOCIAL_FIELDS: Array<{
   { key: "website", label: "Website", icon: "globe", placeholder: "https://…" },
 ];
 
-export function SettingsPage({ profile, userEmail }: SettingsPageProps) {
+export function SettingsPage({
+  profile,
+  userEmail,
+  emailConfirmed,
+  providers,
+}: SettingsPageProps) {
   const [tab, setTab] = React.useState<TabKey>("profile");
 
   return (
@@ -87,20 +96,15 @@ export function SettingsPage({ profile, userEmail }: SettingsPageProps) {
           {tab === "profile" ? (
             <ProfileTab profile={profile} />
           ) : tab === "account" ? (
-            <PlaceholderTab
-              title="Account"
-              body={`You're signed in as ${userEmail}. Password change, email change, and account deletion controls land here next.`}
+            <AccountTab
+              email={userEmail}
+              emailConfirmed={emailConfirmed}
+              providers={providers}
             />
           ) : tab === "notifications" ? (
-            <PlaceholderTab
-              title="Notifications"
-              body="Email + in-app preferences for new artists, plays, and likes. Coming next."
-            />
+            <NotificationsTab />
           ) : (
-            <PlaceholderTab
-              title="Billing & plan"
-              body="Free plan, no payment method on file. Upgrades + invoices arrive when paid tiers ship."
-            />
+            <BillingTab />
           )}
         </div>
       </div>
@@ -123,7 +127,7 @@ function SettingsNav({
     { key: "profile", label: "Profile", icon: "user" },
     { key: "account", label: "Account", icon: "lock" },
     { key: "notifications", label: "Notifications", icon: "bell" },
-    { key: "billing", label: "Billing & plan", icon: "external" },
+    { key: "billing", label: "Billing & plan", icon: "card" },
   ];
   return (
     <nav
@@ -700,22 +704,646 @@ function SectionCard({
 }
 
 /* ============================================================
-   PlaceholderTab — used for Account / Notifications / Billing
-   until they ship.
+   AccountTab — Login & security
    ============================================================ */
 
-function PlaceholderTab({
-  title,
-  body,
+function AccountTab({
+  email,
+  emailConfirmed,
+  providers,
 }: {
+  email: string;
+  emailConfirmed: boolean;
+  providers: string[];
+}) {
+  const stub = (label: string) =>
+    alert(`${label} — wires up in the next step.`);
+  const oauthProvider = providers.find((p) => p !== "email");
+  const providerLabel = oauthProvider
+    ? oauthProvider[0].toUpperCase() + oauthProvider.slice(1)
+    : null;
+
+  return (
+    <div className="flex flex-col" style={{ gap: 18 }}>
+      <SectionCard kicker="ACCOUNT" title="Login & security">
+        <div className="flex flex-col">
+          {/* Email */}
+          <AccountRow
+            icon="mail"
+            title="Email address"
+            subtitle={
+              <span
+                className="inline-flex items-center"
+                style={{ gap: 8 }}
+              >
+                <span>{email}</span>
+                {emailConfirmed && (
+                  <span
+                    className="t-mono-s inline-flex items-center"
+                    style={{ gap: 4, color: "var(--ok)" }}
+                  >
+                    <Icon name="check" size={12} />
+                    CONFIRMED
+                  </span>
+                )}
+              </span>
+            }
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => stub("Change email")}
+                className="!h-[36px]"
+              >
+                Change
+              </Button>
+            }
+          />
+
+          {/* Password — only relevant when the user has the "email" identity */}
+          {providers.includes("email") && (
+            <AccountRow
+              icon="lock"
+              title="Password"
+              subtitle="Reset it any time"
+              action={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => stub("Update password")}
+                  className="!h-[36px]"
+                >
+                  Update
+                </Button>
+              }
+            />
+          )}
+
+          {/* OAuth provider */}
+          {providerLabel && (
+            <AccountRow
+              icon="globe"
+              title={`Connected — ${providerLabel}`}
+              subtitle={email}
+              action={
+                <span
+                  className="t-mono-s inline-flex items-center"
+                  style={{
+                    gap: 5,
+                    padding: "5px 10px",
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--ok-surface)",
+                    color: "var(--ok)",
+                  }}
+                >
+                  LINKED
+                </span>
+              }
+            />
+          )}
+
+          {/* Log out — real signOutAction via a tiny form */}
+          <div
+            className="flex items-center"
+            style={{
+              gap: 14,
+              padding: "16px 0",
+              borderTop: "1px solid var(--border-1)",
+              marginTop: 6,
+            }}
+          >
+            <div
+              className="flex items-center justify-center shrink-0"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "var(--r-sm)",
+                background: "var(--danger-surface)",
+                color: "var(--danger)",
+              }}
+            >
+              <Icon name="log-out" size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: "var(--danger)",
+                }}
+              >
+                Log out
+              </div>
+              <div
+                className="t-body-s"
+                style={{ color: "var(--fg-3)", marginTop: 3 }}
+              >
+                Sign out of WAVLOOPS on this device.
+              </div>
+            </div>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center cursor-pointer transition-colors duration-fast"
+                style={{
+                  gap: 8,
+                  padding: "8px 14px",
+                  height: 36,
+                  borderRadius: "var(--r-md)",
+                  border: "1px solid var(--danger)",
+                  background: "transparent",
+                  color: "var(--danger)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                }}
+              >
+                <Icon name="log-out" size={14} />
+                Log out
+              </button>
+            </form>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function AccountRow({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: IconName;
   title: string;
-  body: string;
+  subtitle: React.ReactNode;
+  action: React.ReactNode;
 }) {
   return (
-    <SectionCard kicker="COMING NEXT" title={title}>
-      <p className="t-body" style={{ color: "var(--fg-3)" }}>
-        {body}
+    <div
+      className="flex items-center"
+      style={{
+        gap: 14,
+        padding: "16px 0",
+        borderBottom: "1px solid var(--border-1)",
+      }}
+    >
+      <div
+        className="flex items-center justify-center shrink-0 text-fg-2"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: "var(--r-sm)",
+          background: "var(--bg-2)",
+        }}
+      >
+        <Icon name={icon} size={16} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 14.5,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {title}
+        </div>
+        <div
+          className="t-body-s"
+          style={{ color: "var(--fg-3)", marginTop: 3 }}
+        >
+          {subtitle}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ============================================================
+   NotificationsTab — email preferences toggles (local state for
+   now; persistence lands when notification emails actually ship)
+   ============================================================ */
+
+const NOTIF_PREFS: Array<{
+  key: string;
+  icon: IconName;
+  title: string;
+  body: string;
+  defaultOn: boolean;
+}> = [
+  {
+    key: "new_artist",
+    icon: "users",
+    title: "New artist entered a server",
+    body: "When someone unlocks one of your links",
+    defaultOn: true,
+  },
+  {
+    key: "beat_liked",
+    icon: "heart",
+    title: "Beat liked",
+    body: "When an artist likes one of your beats",
+    defaultOn: true,
+  },
+  {
+    key: "product_news",
+    icon: "flame",
+    title: "Product news & tips",
+    body: "Occasional updates and producer tips",
+    defaultOn: false,
+  },
+];
+
+function NotificationsTab() {
+  const [prefs, setPrefs] = React.useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NOTIF_PREFS.map((p) => [p.key, p.defaultOn])),
+  );
+  const toggle = (key: string) =>
+    setPrefs((cur) => ({ ...cur, [key]: !cur[key] }));
+
+  return (
+    <SectionCard kicker="NOTIFICATIONS" title="Email preferences">
+      <p
+        className="t-body"
+        style={{ color: "var(--fg-3)", marginBottom: 22 }}
+      >
+        Choose what lands in your inbox.
       </p>
+      <div className="flex flex-col">
+        {NOTIF_PREFS.map((p, i) => (
+          <div
+            key={p.key}
+            className="flex items-center"
+            style={{
+              gap: 14,
+              padding: "14px 0",
+              borderTop:
+                i === 0 ? "none" : "1px solid var(--border-1)",
+            }}
+          >
+            <div
+              className="flex items-center justify-center shrink-0 text-fg-2"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "var(--r-sm)",
+                background: "var(--bg-2)",
+              }}
+            >
+              <Icon name={p.icon} size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                {p.title}
+              </div>
+              <div
+                className="t-body-s"
+                style={{ color: "var(--fg-3)", marginTop: 3 }}
+              >
+                {p.body}
+              </div>
+            </div>
+            <Toggle
+              on={prefs[p.key]}
+              onChange={() => toggle(p.key)}
+              label={p.title}
+            />
+          </div>
+        ))}
+      </div>
     </SectionCard>
+  );
+}
+
+function Toggle({
+  on,
+  onChange,
+  label,
+}: {
+  on: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className="inline-flex items-center cursor-pointer transition-colors duration-fast"
+      style={{
+        width: 44,
+        height: 24,
+        padding: 2,
+        borderRadius: 999,
+        border: "none",
+        background: on ? "var(--accent)" : "var(--bg-3)",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: "block",
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#fff",
+          transform: on ? "translateX(20px)" : "translateX(0)",
+          transition: "transform var(--dur-fast) var(--ease)",
+          boxShadow: "0 1px 2px oklch(0 0 0 / 0.2)",
+        }}
+      />
+    </button>
+  );
+}
+
+/* ============================================================
+   BillingTab — current plan, upgrade options, payment + history
+   ============================================================ */
+
+function BillingTab() {
+  const stub = (label: string) =>
+    alert(`${label} — wires up when paid tiers ship.`);
+  return (
+    <div className="flex flex-col" style={{ gap: 18 }}>
+      <SectionCard kicker="SUBSCRIPTION" title="Your plan">
+        {/* Current plan card */}
+        <div
+          className="flex items-center"
+          style={{
+            gap: 14,
+            padding: "14px 16px",
+            border: "1px solid var(--border-1)",
+            borderRadius: "var(--r-md)",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            className="flex items-center justify-center shrink-0 text-fg-2"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "var(--r-sm)",
+              background: "var(--bg-2)",
+            }}
+          >
+            <Icon name="library" size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div
+              className="inline-flex items-center"
+              style={{ gap: 10 }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                Free plan
+              </span>
+              <span
+                className="t-mono-s"
+                style={{
+                  padding: "3px 9px",
+                  borderRadius: "var(--r-sm)",
+                  background: "var(--accent-surface)",
+                  color: "var(--accent-text)",
+                }}
+              >
+                CURRENT
+              </span>
+            </div>
+            <div
+              className="t-mono-s"
+              style={{ color: "var(--fg-3)", marginTop: 4 }}
+            >
+              3 SERVERS · 50 BEATS · WAVLOOPS BRANDING
+            </div>
+          </div>
+        </div>
+
+        {/* Two upgrade cards side-by-side */}
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2"
+          style={{ gap: 14 }}
+        >
+          <PlanCard
+            kicker="MOST FLEXIBLE"
+            name="Pro — Monthly"
+            price="12€"
+            unit="/ month"
+            features={[
+              "Unlimited servers & beats",
+              "Remove WAVLOOPS branding",
+              "CSV export & analytics",
+            ]}
+            ctaLabel="Choose Pro"
+            onCta={() => stub("Choose Pro")}
+          />
+          <PlanCard
+            kicker="BEST VALUE"
+            name="Lifetime"
+            price="129€"
+            unit="once"
+            features={[
+              "Everything in Pro, forever",
+              "One payment, no renewal",
+              "Priority support",
+            ]}
+            ctaLabel="Choose Lifetime"
+            onCta={() => stub("Choose Lifetime")}
+            accent
+          />
+        </div>
+      </SectionCard>
+
+      <SectionCard kicker="PAYMENT" title="Payment method">
+        <div
+          className="flex items-center"
+          style={{ gap: 14 }}
+        >
+          <div
+            className="flex items-center justify-center shrink-0 text-fg-2"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--r-sm)",
+              background: "var(--bg-2)",
+            }}
+          >
+            <Icon name="card" size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: "var(--fg-1)",
+              }}
+            >
+              No card on file
+            </div>
+            <div
+              className="t-body-s"
+              style={{ color: "var(--fg-3)", marginTop: 3 }}
+            >
+              Add a card to upgrade your plan
+            </div>
+          </div>
+          <Button
+            variant="secondary"
+            icon="plus"
+            size="sm"
+            onClick={() => stub("Add card")}
+            className="!h-[36px]"
+          >
+            Add card
+          </Button>
+        </div>
+      </SectionCard>
+
+      <SectionCard kicker="HISTORY" title="Payment history">
+        <div
+          className="flex flex-col items-center text-center"
+          style={{ padding: "30px 18px", gap: 8 }}
+        >
+          <div
+            className="flex items-center justify-center text-fg-3"
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "var(--r-md)",
+              background: "var(--bg-2)",
+              marginBottom: 4,
+            }}
+          >
+            <Icon name="clock" size={22} />
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--fg-1)",
+            }}
+          >
+            No payments yet
+          </div>
+          <div className="t-body-s" style={{ color: "var(--fg-3)" }}>
+            Your invoices will appear here once you upgrade.
+          </div>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function PlanCard({
+  kicker,
+  name,
+  price,
+  unit,
+  features,
+  ctaLabel,
+  onCta,
+  accent,
+}: {
+  kicker: string;
+  name: string;
+  price: string;
+  unit: string;
+  features: string[];
+  ctaLabel: string;
+  onCta: () => void;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className="flex flex-col"
+      style={{
+        padding: 20,
+        border: `1px solid ${accent ? "var(--accent)" : "var(--border-1)"}`,
+        borderRadius: "var(--r-md)",
+        background: accent ? "var(--accent-surface)" : "var(--bg-0)",
+      }}
+    >
+      <div
+        className="t-mono-s"
+        style={{ color: "var(--accent-text)", marginBottom: 6 }}
+      >
+        {kicker}
+      </div>
+      <div
+        className="t-h2"
+        style={{ fontSize: 19, marginBottom: 10 }}
+      >
+        {name}
+      </div>
+      <div
+        className="inline-flex items-baseline"
+        style={{ gap: 6, marginBottom: 16 }}
+      >
+        <span
+          className="t-h1"
+          style={{
+            fontSize: 32,
+            letterSpacing: "-0.02em",
+            lineHeight: 1,
+          }}
+        >
+          {price}
+        </span>
+        <span
+          className="t-mono-s"
+          style={{ color: "var(--fg-3)" }}
+        >
+          {unit}
+        </span>
+      </div>
+      <ul
+        className="flex flex-col"
+        style={{ gap: 8, marginBottom: 18, listStyle: "none", padding: 0 }}
+      >
+        {features.map((f) => (
+          <li
+            key={f}
+            className="inline-flex items-center t-body-s"
+            style={{ gap: 8, color: "var(--fg-2)" }}
+          >
+            <Icon
+              name="check"
+              size={14}
+              style={{ color: "var(--accent-text)" }}
+            />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <Button
+        variant={accent ? "primary" : "secondary"}
+        size="sm"
+        onClick={onCta}
+        className="!h-[40px] mt-auto"
+      >
+        {ctaLabel}
+      </Button>
+    </div>
   );
 }

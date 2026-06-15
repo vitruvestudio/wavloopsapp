@@ -27,5 +27,18 @@ export default async function SettingsRoute() {
     .eq("user_id", user.id)
     .maybeSingle<ProfileRow>();
 
-  return <SettingsPage profile={profile} userEmail={user.email ?? ""} />;
+  // Identity provider(s) the user signed up with. Supabase exposes
+  // these on the User object — we only need the provider name(s)
+  // for the Account tab's "Connected — Google" / "Email & password"
+  // line, not the full identity_data payload.
+  const providers = (user.identities ?? []).map((i) => i.provider);
+
+  return (
+    <SettingsPage
+      profile={profile}
+      userEmail={user.email ?? ""}
+      emailConfirmed={Boolean(user.email_confirmed_at)}
+      providers={providers}
+    />
+  );
 }
