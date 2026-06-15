@@ -419,13 +419,26 @@ export function CreateServerPage({
                 <HueChips value={accentHue} onChange={setAccentHue} />
               )}
               {artworkMode === "image" && (
-                <ImagePicker
-                  inputRef={artworkInputRef}
-                  previewUrl={artworkPreviewUrl}
-                  onPick={onPickArtwork}
-                  onClickPick={() => artworkInputRef.current?.click()}
-                  onRemove={removeArtwork}
-                />
+                <>
+                  {/* Hidden input lives at this level (not inside the
+                      ImagePicker) so its ref stays stable across the
+                      Artwork mode toggle — otherwise the input
+                      unmounts whenever the producer switches to Auto
+                      / Color and back, and the next click after a
+                      toggle lands on a null ref. */}
+                  <input
+                    ref={artworkInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onPickArtwork}
+                  />
+                  <ImagePicker
+                    previewUrl={artworkPreviewUrl}
+                    onClickPick={() => artworkInputRef.current?.click()}
+                    onRemove={removeArtwork}
+                  />
+                </>
               )}
             </div>
 
@@ -609,15 +622,11 @@ export function CreateServerPage({
    ============================================================ */
 
 function ImagePicker({
-  inputRef,
   previewUrl,
-  onPick,
   onClickPick,
   onRemove,
 }: {
-  inputRef: React.RefObject<HTMLInputElement | null>;
   previewUrl: string | null;
-  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClickPick: () => void;
   onRemove: () => void;
 }) {
@@ -626,13 +635,6 @@ function ImagePicker({
       className="border border-border-1 bg-bg-1"
       style={{ padding: 14, borderRadius: "var(--r-md)" }}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onPick}
-      />
       {previewUrl ? (
         <div className="flex items-center" style={{ gap: 14 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
