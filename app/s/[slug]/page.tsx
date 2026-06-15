@@ -40,6 +40,14 @@ export interface ArtistGateData {
   producer_avatar_url: string | null;
   producer_bio: string | null;
   producer_socials: Record<string, string>;
+  producer_certifications: string[];
+  producer_placements: Array<{
+    id: string;
+    title: string;
+    platform: "Spotify" | "YouTube";
+    icon: string;
+    url?: string;
+  }>;
   beat_covers: Array<{ artwork_url: string | null; wave_seed: string }>;
 }
 

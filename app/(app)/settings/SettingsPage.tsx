@@ -503,6 +503,7 @@ function PlacementsEditor({
       title: t,
       platform,
       icon: platform.toLowerCase(),
+      url: u,
     };
     onChange([...placements, next]);
     setTitle("");

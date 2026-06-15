@@ -329,6 +329,7 @@ export function OnboardingWizard() {
           "Untitled track",
         platform: isSpotify ? "Spotify" : "YouTube",
         icon: isSpotify ? "library" : "youtube",
+        url: v,
       },
     ]);
     setLink("");

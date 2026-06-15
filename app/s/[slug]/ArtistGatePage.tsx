@@ -167,34 +167,11 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
           </p>
         )}
 
-        {/* Producer socials */}
-        {socialEntries.length > 0 && (
-          <div className="flex items-center" style={{ gap: 12 }}>
-            {socialEntries.map(([platform, url]) => (
-              <a
-                key={platform}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Open ${platform}`}
-                className="inline-flex items-center justify-center transition-colors duration-fast"
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: "50%",
-                  background: "oklch(1 0 0 / 0.08)",
-                  border: "1px solid oklch(1 0 0 / 0.12)",
-                  color: "#fff",
-                }}
-              >
-                <Icon
-                  name={PLATFORM_ICON[platform] as IconName}
-                  size={16}
-                />
-              </a>
-            ))}
-          </div>
-        )}
+        {/* ── Producer block — handle + socials + certs + placements
+              All optional: each subsection renders only when there's
+              data for it, so a minimal-profile producer's gate page
+              still looks intentional. */}
+        <ProducerBlock data={data} handleAt={handleAt} />
 
         {/* Form or success card */}
         {submitted ? (
@@ -281,6 +258,270 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
       </div>
     </main>
   );
+}
+
+/* ============================================================
+   ProducerBlock — @handle, socials, certifications, placements
+   carousel. Renders below the server meta + description; each
+   sub-block is conditional on its data.
+   ============================================================ */
+
+function ProducerBlock({
+  data,
+  handleAt,
+}: {
+  data: ArtistGateData;
+  handleAt: string;
+}) {
+  const socialEntries = Object.entries(data.producer_socials ?? {}).filter(
+    ([k, v]) => v && PLATFORM_ICON[k],
+  );
+
+  return (
+    <div
+      className="flex flex-col items-center w-full"
+      style={{ gap: 14 }}
+    >
+      {/* @handle — prominent producer handle, link-like styling */}
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 14,
+          fontWeight: 600,
+          color: "#fff",
+          letterSpacing: 0,
+        }}
+      >
+        {handleAt}
+      </div>
+
+      {/* Socials */}
+      {socialEntries.length > 0 && (
+        <div className="flex items-center" style={{ gap: 10 }}>
+          {socialEntries.map(([platform, url]) => (
+            <a
+              key={platform}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open ${platform}`}
+              className="inline-flex items-center justify-center transition-colors duration-fast"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                background: "oklch(1 0 0 / 0.08)",
+                border: "1px solid oklch(1 0 0 / 0.12)",
+                color: "#fff",
+              }}
+            >
+              <Icon
+                name={PLATFORM_ICON[platform] as IconName}
+                size={15}
+              />
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Certifications */}
+      {data.producer_certifications.length > 0 && (
+        <div
+          className="flex items-center justify-center flex-wrap"
+          style={{ gap: 6 }}
+        >
+          {data.producer_certifications.map((c) => (
+            <span
+              key={c}
+              className="inline-flex items-center"
+              style={{
+                height: 24,
+                padding: "0 10px",
+                gap: 4,
+                borderRadius: "var(--r-sm)",
+                background: "oklch(0.55 0.18 80 / 0.16)", // gold-ish
+                border: "1px solid oklch(0.6 0.18 80 / 0.45)",
+                color: "oklch(0.92 0.14 90)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Placements carousel — horizontal scroll snap. Shows up to
+          all placements; the scroll container handles overflow. */}
+      {data.producer_placements.length > 0 && (
+        <PlacementsCarousel
+          placements={data.producer_placements}
+        />
+      )}
+    </div>
+  );
+}
+
+function PlacementsCarousel({
+  placements,
+}: {
+  placements: ArtistGateData["producer_placements"];
+}) {
+  return (
+    <div
+      className="w-full"
+      style={{
+        marginTop: 6,
+        // Bleed slightly past the column padding so the cards look
+        // edge-to-edge on mobile.
+        marginLeft: -10,
+        marginRight: -10,
+      }}
+    >
+      <div
+        className="flex overflow-x-auto"
+        style={{
+          gap: 10,
+          padding: "0 12px",
+          scrollSnapType: "x mandatory",
+          scrollbarWidth: "none",
+        }}
+      >
+        {placements.map((p) => {
+          const thumb =
+            p.platform === "YouTube" && p.url
+              ? youtubeThumbnail(p.url)
+              : null;
+          const cardInner = (
+            <div
+              className="flex flex-col shrink-0"
+              style={{
+                width: 200,
+                scrollSnapAlign: "start",
+                borderRadius: "var(--r-md)",
+                overflow: "hidden",
+                background: "oklch(1 0 0 / 0.06)",
+                border: "1px solid oklch(1 0 0 / 0.1)",
+              }}
+            >
+              <div
+                className="relative"
+                style={{
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  background:
+                    p.platform === "Spotify"
+                      ? "oklch(0.55 0.18 145)"
+                      : "oklch(0.55 0.22 25)",
+                }}
+              >
+                {thumb && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={thumb}
+                    alt=""
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    width: 26,
+                    height: 26,
+                    borderRadius: "50%",
+                    background: "oklch(0 0 0 / 0.5)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon
+                    name={
+                      p.platform === "Spotify" ? "spotify" : "youtube"
+                    }
+                    size={14}
+                  />
+                </div>
+              </div>
+              <div style={{ padding: "10px 12px" }}>
+                <div
+                  className="truncate"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#fff",
+                  }}
+                >
+                  {p.title}
+                </div>
+                <div
+                  className="t-mono-s"
+                  style={{
+                    color: "oklch(0.6 0.02 270)",
+                    marginTop: 3,
+                  }}
+                >
+                  {p.platform.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          );
+          return p.url ? (
+            <a
+              key={p.id}
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: "none" }}
+            >
+              {cardInner}
+            </a>
+          ) : (
+            <div key={p.id}>{cardInner}</div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Extract the video id from common YouTube URL shapes and return
+ *  the medium-resolution thumbnail URL. Returns null if the URL
+ *  doesn't look like YouTube. */
+function youtubeThumbnail(rawUrl: string): string | null {
+  try {
+    const u = new URL(
+      /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`,
+    );
+    const host = u.hostname.replace(/^www\./, "");
+    let id: string | null = null;
+    if (host === "youtu.be") {
+      id = u.pathname.replace(/^\//, "").split("/")[0] || null;
+    } else if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      if (u.pathname === "/watch") id = u.searchParams.get("v");
+      else if (u.pathname.startsWith("/embed/"))
+        id = u.pathname.split("/")[2] ?? null;
+      else if (u.pathname.startsWith("/shorts/"))
+        id = u.pathname.split("/")[2] ?? null;
+    }
+    return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ============================================================

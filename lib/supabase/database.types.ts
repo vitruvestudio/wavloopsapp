@@ -28,6 +28,12 @@ export interface PlacementRecord {
   title: string;
   platform: "Spotify" | "YouTube";
   icon: string;
+  /** Source URL the producer pasted. Optional for legacy compat —
+   *  early records were stored without it and we can't recover the
+   *  source. New records (onboarding + Settings editor) always
+   *  populate this so the gate-page carousel can deep-link + use
+   *  YouTube's thumbnail CDN for cover art. */
+  url?: string;
 }
 
 /* ============================================================
