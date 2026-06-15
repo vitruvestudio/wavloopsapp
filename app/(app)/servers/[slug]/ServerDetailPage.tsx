@@ -36,6 +36,8 @@ import type {
   ContactRow,
   ServerWithStatsRow,
 } from "@/lib/supabase/database.types";
+import { AddBeatsModal } from "./AddBeatsModal";
+import { addBeatsToServerAction } from "./actions";
 
 type Tab = "beats" | "artists";
 
@@ -45,6 +47,8 @@ interface ServerDetailPageProps {
   contacts: ContactRow[];
   likesCount: number;
   userId: string;
+  /** Full producer library — populates the Add beats modal. */
+  library: BeatWithStatsRow[];
 }
 
 export function ServerDetailPage({
@@ -52,13 +56,38 @@ export function ServerDetailPage({
   beats,
   contacts,
   likesCount,
+  library,
 }: ServerDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
   const supabase = React.useMemo(() => createClient(), []);
   const [tab, setTab] = React.useState<Tab>("beats");
   const [copied, setCopied] = React.useState(false);
+  const [addBeatsOpen, setAddBeatsOpen] = React.useState(false);
+  const [addBeatsPending, startAddBeats] = React.useTransition();
   const now = React.useMemo(() => new Date(), []);
+
+  // Ids of beats already attached — used to filter the modal list.
+  const existingBeatIds = React.useMemo(
+    () => new Set(beats.map((b) => b.id)),
+    [beats],
+  );
+
+  const addBeats = (beatIds: string[]) => {
+    startAddBeats(async () => {
+      const result = await addBeatsToServerAction(
+        server.id,
+        beatIds,
+        server.slug,
+      );
+      if (result.error) {
+        alert(`Couldn't add beats: ${result.error}`);
+        return;
+      }
+      setAddBeatsOpen(false);
+      router.refresh();
+    });
+  };
 
   // Public artist-side URL (J6's `/s/<slug>` will live at wavloops.io).
   const artistUrl = `wavloops.io/s/${server.slug}`;
@@ -212,7 +241,7 @@ export function ServerDetailPage({
               <Button
                 icon="plus"
                 size="sm"
-                onClick={() => stub("Add beats")}
+                onClick={() => setAddBeatsOpen(true)}
                 className="!h-[36px]"
               >
                 Add beats
@@ -289,6 +318,19 @@ export function ServerDetailPage({
         <Icon name="external" size={14} />
         Preview Artist Link
       </button>
+
+      {addBeatsOpen && (
+        <AddBeatsModal
+          serverName={server.name}
+          library={library}
+          existingBeatIds={existingBeatIds}
+          onClose={() => {
+            if (!addBeatsPending) setAddBeatsOpen(false);
+          }}
+          onConfirm={addBeats}
+          pending={addBeatsPending}
+        />
+      )}
     </>
   );
 }

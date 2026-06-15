@@ -41,24 +41,32 @@ export default async function ServerPage({ params }: PageProps) {
   const server = serverRes.data;
   if (!server) notFound();
 
-  const [pivotRes, contactsRes, likesCountRes, userRes] = await Promise.all([
-    supabase
-      .from("server_beats")
-      .select("beat_id, position")
-      .eq("server_id", server.id)
-      .order("position", { ascending: true }),
-    supabase
-      .from("contacts")
-      .select("*")
-      .eq("server_id", server.id)
-      .order("first_seen_at", { ascending: false })
-      .returns<ContactRow[]>(),
-    supabase
-      .from("likes")
-      .select("*", { count: "exact", head: true })
-      .eq("server_id", server.id),
-    supabase.auth.getUser(),
-  ]);
+  const [pivotRes, contactsRes, likesCountRes, userRes, libraryRes] =
+    await Promise.all([
+      supabase
+        .from("server_beats")
+        .select("beat_id, position")
+        .eq("server_id", server.id)
+        .order("position", { ascending: true }),
+      supabase
+        .from("contacts")
+        .select("*")
+        .eq("server_id", server.id)
+        .order("first_seen_at", { ascending: false })
+        .returns<ContactRow[]>(),
+      supabase
+        .from("likes")
+        .select("*", { count: "exact", head: true })
+        .eq("server_id", server.id),
+      supabase.auth.getUser(),
+      // The producer's full library — used to populate the
+      // "Add beats" modal. RLS scopes it to their own beats only.
+      supabase
+        .from("beats_with_stats")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .returns<BeatWithStatsRow[]>(),
+    ]);
 
   // Re-order beats to match the pivot's position order — `.in()` on
   // `id` doesn't preserve order, so we do it in JS via a Map.
@@ -85,6 +93,7 @@ export default async function ServerPage({ params }: PageProps) {
       contacts={contactsRes.data ?? []}
       likesCount={likesCountRes.count ?? 0}
       userId={userRes.data.user?.id ?? ""}
+      library={libraryRes.data ?? []}
     />
   );
 }
