@@ -54,9 +54,15 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
     ? producerHandle
     : `@${producerHandle}`;
 
+  // Private servers need manual approval → producer wants a social
+  // handle to vet the artist. Public servers auto-join → no friction,
+  // social is optional.
+  const socialRequired = data.visibility === "private";
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !social.trim() || submitting) return;
+    if (!email.trim() || submitting) return;
+    if (socialRequired && !social.trim()) return;
     setSubmitting(true);
     // Stub — real submission lands next. We fake the network so the
     // success state feels real.
@@ -195,17 +201,23 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
               required
             />
             <GateField
-              label="SOCIAL — REQUIRED"
+              label={
+                socialRequired
+                  ? "SOCIAL — REQUIRED"
+                  : "SOCIAL — OPTIONAL"
+              }
               icon="link"
               value={social}
               onChange={setSocial}
               placeholder="@handle (Instagram, X…)"
-              required
+              required={socialRequired}
             />
             <button
               type="submit"
               disabled={
-                !email.trim() || !social.trim() || submitting
+                !email.trim() ||
+                (socialRequired && !social.trim()) ||
+                submitting
               }
               className="inline-flex items-center justify-center cursor-pointer transition-all duration-fast"
               style={{
@@ -223,7 +235,9 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
                 fontWeight: 600,
                 letterSpacing: 0,
                 opacity:
-                  !email.trim() || !social.trim() || submitting
+                  !email.trim() ||
+                  (socialRequired && !social.trim()) ||
+                  submitting
                     ? 0.5
                     : 1,
               }}
