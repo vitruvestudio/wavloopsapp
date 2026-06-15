@@ -215,7 +215,8 @@ export function ArtistSidebar({
           />
         ))}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
