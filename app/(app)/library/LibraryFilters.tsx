@@ -205,15 +205,18 @@ export function LibraryFilters({
 
   return (
     <div>
-      {/* Search + Segmented row — search has a fixed-ish width on
-          desktop (340-360) so the segmented sits next to it as a
-          paired toolbar instead of being pushed to the far right of
-          the 1440 container. */}
-      <div
-        className="flex flex-col sm:flex-row items-stretch sm:items-center"
-        style={{ gap: 12, marginBottom: 14 }}
-      >
+      {/* Row 1 — Search bar (always its own line, full width). */}
+      <div style={{ marginBottom: 12 }}>
         <SearchBeats value={search} onChange={setSearch} />
+      </div>
+
+      {/* Row 2 — Segmented (left) + ViewToggle + SortChip (right).
+          Same row on every breakpoint so the toolbar caps at 3 lines
+          even on mobile. */}
+      <div
+        className="flex items-center justify-between"
+        style={{ gap: 12, marginBottom: 12 }}
+      >
         <Segmented<TypeFilter>
           options={[
             { value: "all", label: "All" },
@@ -223,9 +226,18 @@ export function LibraryFilters({
           value={type}
           onChange={setType}
         />
+        <div
+          className="flex items-center shrink-0"
+          style={{ gap: 12 }}
+        >
+          <ViewToggle value={view} onChange={setView} />
+          <SortChip value={sort} onChange={setSort} />
+        </div>
       </div>
 
-      {/* Filter chips row — chips on the left, SORT on the right */}
+      {/* Row 3 — Filter chips MOOD / BPM / KEY / SERVER. Wraps to a
+          second visual row if the viewport is too narrow to hold all
+          four — that's the documented 3-line cap. */}
       <div
         className="flex flex-wrap items-center"
         style={{ gap: 8, marginBottom: 22 }}
@@ -304,12 +316,6 @@ export function LibraryFilters({
             />
           )}
         </FilterChip>
-
-        {/* Spacer pushes view toggle + SORT to the right edge */}
-        <div className="ml-auto flex items-center" style={{ gap: 14 }}>
-          <ViewToggle value={view} onChange={setView} />
-          <SortChip value={sort} onChange={setSort} />
-        </div>
       </div>
 
       {/* Filtered BeatList — list or grid */}
