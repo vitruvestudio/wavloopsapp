@@ -67,7 +67,19 @@ async function getEssentia(): Promise<EssentiaApi> {
     if (!w.Essentia || !w.EssentiaWASM) {
       throw new Error("essentia.js failed to attach to window");
     }
-    return new w.Essentia(w.EssentiaWASM);
+
+    // The web build's `EssentiaWASM` is an emscripten factory that returns
+    // a Promise<Module>. We need to await it before passing the resolved
+    // module to the Essentia constructor (which then reaches for
+    // `.EssentiaJS` on it). Some build variants expose the module directly
+    // — handle both shapes defensively.
+    const rawWasm = w.EssentiaWASM;
+    const wasmModule =
+      typeof rawWasm === "function"
+        ? await (rawWasm as () => Promise<unknown>)()
+        : rawWasm;
+
+    return new w.Essentia(wasmModule);
   })();
 
   return essentiaPromise as Promise<EssentiaApi>;
