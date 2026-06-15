@@ -25,27 +25,28 @@ import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
 
-/** Mesh of deep jewel-toned blobs that radiate from the top of the
- *  banner. Built to sit on a dark page background — the blobs are
- *  positioned in the upper half so the bottom naturally darkens,
- *  and a CSS mask fades the whole gradient to transparent in the
- *  bottom third so it bleeds INTO var(--bg-0) without a seam. The
- *  four hues are deterministic from the slug so every server keeps
- *  its own signature.
+/** Single-hue glow that anchors the banner — one dominant colour
+ *  derived from the slug, with small adjacent-hue variants for
+ *  depth. Much more cohesive than the previous 4-clashing-hues
+ *  mesh: the eye reads it as "this pack's colour" rather than a
+ *  rainbow club poster. Chroma stays moderate (0.10-0.14) so the
+ *  result feels premium rather than saturated.
  *  Phase 3 will swap this for real palette extraction off the
  *  cover image bytes. */
 function bannerGradient(seed: string): string {
-  const h1 = hashSeed(seed) % 360;
-  const h2 = (h1 + 50 + (hashSeed(seed + "~b") % 80)) % 360;
-  const h3 = (h2 + 40 + (hashSeed(seed + "~c") % 70)) % 360;
-  const h4 = (h1 + 130 + (hashSeed(seed + "~d") % 70)) % 360;
+  const base = hashSeed(seed) % 360;
+  // Adjacent hues, ±20° max from the base, for tonal variation
+  // without colour clashes.
+  const h2 = (base + 15) % 360;
+  const h3 = (base - 25 + 360) % 360;
   return [
-    // Blobs biased to the upper half so the bottom is naturally
-    // emptier — the mask underneath then fades anything remaining.
-    `radial-gradient(at 15% 18%, oklch(0.48 0.22 ${h1}) 0%, transparent 55%)`,
-    `radial-gradient(at 85% 12%, oklch(0.46 0.24 ${h2}) 0%, transparent 60%)`,
-    `radial-gradient(at 55% 28%, oklch(0.42 0.20 ${h3}) 0%, transparent 60%)`,
-    `radial-gradient(at 30% 48%, oklch(0.45 0.18 ${h4}) 0%, transparent 55%)`,
+    // Main glow — large, centred toward the upper half, this is
+    // the dominant colour signature.
+    `radial-gradient(ellipse 80% 70% at 50% 20%, oklch(0.42 0.14 ${base}) 0%, transparent 70%)`,
+    // Subtle wash on the right edge, slightly warmer.
+    `radial-gradient(ellipse 50% 60% at 95% 30%, oklch(0.38 0.13 ${h2}) 0%, transparent 60%)`,
+    // Cooler shoulder on the left, anchors the composition.
+    `radial-gradient(ellipse 45% 55% at 5% 35%, oklch(0.28 0.10 ${h3}) 0%, transparent 55%)`,
   ].join(", ");
 }
 
