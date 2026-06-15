@@ -201,7 +201,7 @@ export function ServerDetailPage({
               name="edit"
               size={36}
               iconSize={18}
-              onClick={() => stub("Edit server")}
+              onClick={() => router.push(`/servers/${server.slug}/edit`)}
               label="Edit server"
             />
           </div>

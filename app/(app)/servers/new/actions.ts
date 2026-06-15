@@ -20,6 +20,32 @@ import type {
   Visibility,
 } from "@/lib/supabase/database.types";
 
+export interface UpdateServerPayload {
+  id: string;
+  name: string;
+  style_text: string | null;
+  description: string | null;
+  artist_types: string[];
+  artwork_mode: ArtworkMode;
+  accent_hue: number | null;
+  /** Final URL to persist. The client decides between
+   *    - the existing URL (no change)
+   *    - a newly uploaded URL (replaced artwork)
+   *    - null (artwork removed or mode != 'image')
+   *  This action just stores what it's given. */
+  artwork_image_url: string | null;
+  visibility: Visibility;
+  beat_ids: string[];
+}
+
+export interface UpdateServerResult {
+  error: string | null;
+  /** Same slug the server already had — we keep slugs stable across
+   *  renames so shared artist links don't break. Returned for the
+   *  client to redirect with. */
+  slug: string | null;
+}
+
 export interface CreateServerPayload {
   name: string;
   style_text: string | null;
@@ -152,4 +178,81 @@ export async function createServerAction(
   revalidatePath("/dashboard", "page");
   revalidatePath("/library", "page");
   redirect(`/servers/${createdServer.slug}`);
+}
+
+/* ================================================================
+   updateServerAction — edit an existing server.
+   ================================================================
+   RLS via `servers_owner_update` policy gates this to the producer.
+   Slug is kept stable on rename so shared links don't break. Beats
+   are re-attached via a DELETE-then-INSERT — simpler than diffing
+   and at V1 scale (a few dozen beats per server max) the cost is
+   trivial. */
+export async function updateServerAction(
+  payload: UpdateServerPayload,
+): Promise<UpdateServerResult> {
+  const supabase = await createClient();
+
+  const cleanName = payload.name.trim();
+  if (!cleanName) return { error: "Server name is required.", slug: null };
+
+  // UPDATE the server row. RLS prevents an attacker from touching
+  // someone else's server — owner_id is implicit in the policy.
+  const { data: updated, error: updateErr } = await supabase
+    .from("servers")
+    .update({
+      name: cleanName,
+      style_text: payload.style_text || null,
+      description: payload.description || null,
+      artist_types: payload.artist_types,
+      artwork_mode: payload.artwork_mode,
+      accent_hue: payload.accent_hue,
+      artwork_image_url: payload.artwork_image_url,
+      visibility: payload.visibility,
+    })
+    .eq("id", payload.id)
+    .select("slug")
+    .single();
+
+  if (updateErr || !updated) {
+    return {
+      error: updateErr?.message ?? "Could not update the server.",
+      slug: null,
+    };
+  }
+
+  // Re-attach beats: wipe the pivot then re-INSERT in the new order.
+  // Cleaner than diffing for our scale, and idempotent.
+  const { error: delErr } = await supabase
+    .from("server_beats")
+    .delete()
+    .eq("server_id", payload.id);
+  if (delErr) {
+    return {
+      error: `Server updated but couldn't refresh its beats: ${delErr.message}`,
+      slug: updated.slug,
+    };
+  }
+
+  if (payload.beat_ids.length > 0) {
+    const rows = payload.beat_ids.map((bid, i) => ({
+      server_id: payload.id,
+      beat_id: bid,
+      position: i,
+    }));
+    const { error: pivotErr } = await supabase
+      .from("server_beats")
+      .insert(rows);
+    if (pivotErr) {
+      return {
+        error: `Server updated but couldn't re-attach beats: ${pivotErr.message}`,
+        slug: updated.slug,
+      };
+    }
+  }
+
+  revalidatePath(`/servers/${updated.slug}`, "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/library", "page");
+  return { error: null, slug: updated.slug };
 }

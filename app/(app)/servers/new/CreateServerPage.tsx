@@ -1,5 +1,17 @@
 /**
- * CreateServerPage — client form for /servers/new.
+ * Server form — used by both /servers/new (create) AND
+ * /servers/[slug]/edit (edit). The mode is decided by whether
+ * `existing` is passed in: if it is, the form pre-fills, the title
+ * becomes "Edit <name>", the submit button says "Save changes", and
+ * submission calls `updateServerAction` instead of
+ * `createServerAction`.
+ *
+ * Why one component handles both: every field, every layout cell,
+ * every preview interaction is identical between create and edit.
+ * Splitting them would force every visual tweak to be made twice.
+ *
+ * Slug stability: in edit mode the slug is never regenerated, even
+ * on rename — shared artist URLs (wavloops.io/s/<slug>) stay valid.
  *
  *   ┌─ PageHeader: ◂ Create a server ── [ Cancel ] [ Create server ] ┐
  *   │
@@ -41,17 +53,26 @@ import { TagInput } from "@/components/ui/TagInput";
 import { ARTIST_TYPE_SUGGEST, MOOD_SUGGEST } from "@/lib/audio";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/client";
-import { createServerAction } from "./actions";
+import { createServerAction, updateServerAction } from "./actions";
 import type {
   ArtworkMode,
   BeatWithStatsRow,
   ServerRow,
+  ServerWithStatsRow,
   Visibility,
 } from "@/lib/supabase/database.types";
 
 interface CreateServerPageProps {
   userId: string;
   beats: BeatWithStatsRow[];
+  /** When set, the form operates in edit mode: pre-fills every
+   *  field, switches the title + submit label, and calls
+   *  `updateServerAction` on submit. */
+  existing?: ServerWithStatsRow;
+  /** Beat ids already attached to the server being edited. Used to
+   *  pre-check the multi-select. Order is preserved as the new
+   *  position order. */
+  existingBeatIds?: string[];
 }
 
 /** 8-stop hue palette for the Color artwork mode — even spread around
@@ -62,26 +83,50 @@ const HUE_PRESETS = [0, 30, 60, 120, 180, 240, 280, 330] as const;
 export function CreateServerPage({
   userId,
   beats,
+  existing,
+  existingBeatIds,
 }: CreateServerPageProps) {
   const router = useRouter();
   const supabase = React.useMemo(() => createClient(), []);
+  const mode: "create" | "edit" = existing ? "edit" : "create";
 
   /* ============================================================
-     Form state
+     Form state — initialised from `existing` when editing,
+     otherwise from defaults.
      ============================================================ */
 
-  const [name, setName] = React.useState("");
-  const [styleTags, setStyleTags] = React.useState<string[]>([]);
-  const [description, setDescription] = React.useState("");
-  const [artistTypes, setArtistTypes] = React.useState<string[]>([]);
-  const [artworkMode, setArtworkMode] = React.useState<ArtworkMode>("auto");
-  const [accentHue, setAccentHue] = React.useState<number>(270);
-  const [visibility, setVisibility] = React.useState<Visibility>("private");
-  const [beatIds, setBeatIds] = React.useState<string[]>([]);
+  const [name, setName] = React.useState(existing?.name ?? "");
+  const [styleTags, setStyleTags] = React.useState<string[]>(() =>
+    splitStyleText(existing?.style_text),
+  );
+  const [description, setDescription] = React.useState(
+    existing?.description ?? "",
+  );
+  const [artistTypes, setArtistTypes] = React.useState<string[]>(
+    existing?.artist_types ?? [],
+  );
+  const [artworkMode, setArtworkMode] = React.useState<ArtworkMode>(
+    existing?.artwork_mode ?? "auto",
+  );
+  const [accentHue, setAccentHue] = React.useState<number>(
+    existing?.accent_hue ?? 270,
+  );
+  const [visibility, setVisibility] = React.useState<Visibility>(
+    existing?.visibility ?? "private",
+  );
+  const [beatIds, setBeatIds] = React.useState<string[]>(
+    existingBeatIds ?? [],
+  );
   const [beatSearch, setBeatSearch] = React.useState("");
 
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+
+  /** Frozen at mount — used at submit time to detect whether the
+   *  producer kept the existing artwork untouched (no upload needed). */
+  const originalArtworkUrl = React.useRef<string | null>(
+    existing?.artwork_image_url ?? null,
+  ).current;
 
   /* ============================================================
      Custom artwork upload (when artworkMode === "image").
@@ -90,11 +135,21 @@ export function CreateServerPage({
      client write directly without a server roundtrip.
      ============================================================ */
 
-  const serverIdRef = React.useRef<string>(crypto.randomUUID());
+  // Random UUID per submission — used as the storage filename for
+  // any newly uploaded image. In edit mode we always upload to a
+  // fresh path rather than overwrite the previous one (avoids cache
+  // staleness on CDNs that already cached the old URL).
+  const newArtworkUploadIdRef = React.useRef<string>(crypto.randomUUID());
   const [artworkFile, setArtworkFile] = React.useState<File | null>(null);
+  // In edit mode, pre-populate the preview with the existing URL so
+  // the producer sees their current artwork rendered in the picker.
   const [artworkPreviewUrl, setArtworkPreviewUrl] = React.useState<
     string | null
-  >(null);
+  >(
+    existing?.artwork_mode === "image"
+      ? (existing.artwork_image_url ?? null)
+      : null,
+  );
   const artworkInputRef = React.useRef<HTMLInputElement>(null);
 
   const onPickArtwork = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,7 +181,7 @@ export function CreateServerPage({
     const ext = (artworkFile.name.split(".").pop() ?? "jpg")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
-    const path = `${userId}/${serverIdRef.current}.${ext}`;
+    const path = `${userId}/${newArtworkUploadIdRef.current}.${ext}`;
     const { error } = await supabase.storage
       .from("server-covers")
       .upload(path, artworkFile, {
@@ -143,11 +198,36 @@ export function CreateServerPage({
     return data.publicUrl;
   };
 
+  /** Resolves the final `artwork_image_url` to persist. */
+  const resolveArtworkUrl = async (): Promise<
+    { url: string | null; error?: string } | null
+  > => {
+    if (artworkMode !== "image") return { url: null };
+    if (artworkFile) {
+      const url = await uploadArtwork();
+      if (!url) return { url: null, error: "Failed to upload artwork." };
+      return { url };
+    }
+    // No new file picked. If the preview still shows the existing
+    // URL, the producer kept the original — reuse it. If the preview
+    // is empty, they removed the artwork.
+    if (artworkPreviewUrl && artworkPreviewUrl === originalArtworkUrl) {
+      return { url: originalArtworkUrl };
+    }
+    return { url: null };
+  };
+
   /* ============================================================
      Derived values
      ============================================================ */
 
-  const slug = React.useMemo(() => slugify(name) || "untitled", [name]);
+  // In edit mode the slug is frozen — renaming doesn't break the
+  // public artist URL. In create mode it tracks the name input as a
+  // live preview (the server action still computes it server-side).
+  const slug = React.useMemo(
+    () => existing?.slug ?? (slugify(name) || "untitled"),
+    [existing?.slug, name],
+  );
 
   /** Style/mood tags joined with " · " for the DB column (text) +
    *  the live preview's display string. */
@@ -230,39 +310,53 @@ export function CreateServerPage({
     if (!canSubmit) return;
     setServerError(null);
     startTransition(async () => {
-      // Upload the custom image first (if any) so the action gets a
-      // ready-to-store URL.
-      let artworkImageUrl: string | null = null;
-      if (artworkMode === "image" && artworkFile) {
-        artworkImageUrl = await uploadArtwork();
-        if (!artworkImageUrl) {
-          setServerError("Failed to upload artwork. Try again.");
-          return;
-        }
+      const artwork = await resolveArtworkUrl();
+      if (artwork?.error) {
+        setServerError(artwork.error);
+        return;
       }
 
-      const result = await createServerAction({
+      const sharedPayload = {
         name,
         style_text: styleText,
         description: description.trim() || null,
         artist_types: artistTypes,
         artwork_mode: artworkMode,
         accent_hue: artworkMode === "color" ? accentHue : null,
-        artwork_image_url: artworkImageUrl,
+        artwork_image_url: artwork?.url ?? null,
         visibility,
         beat_ids: beatIds,
-      });
+      };
+
+      if (mode === "edit" && existing) {
+        const result = await updateServerAction({
+          id: existing.id,
+          ...sharedPayload,
+        });
+        if (result.error) {
+          setServerError(result.error);
+          return;
+        }
+        // Slug is stable across edits — redirect back to the detail
+        // page (or refresh in place if we somehow ended up nowhere).
+        router.push(`/servers/${result.slug ?? existing.slug}`);
+        router.refresh();
+        return;
+      }
+
+      const result = await createServerAction(sharedPayload);
       if (result?.error) setServerError(result.error);
     });
   };
 
-  const cancel = () => router.push("/dashboard");
+  const cancel = () =>
+    router.push(mode === "edit" ? `/servers/${existing!.slug}` : "/dashboard");
   const now = React.useMemo(() => new Date(), []);
 
   return (
     <>
       <PageHeader
-        title="Create a server"
+        title={mode === "edit" ? `Edit ${existing?.name ?? "server"}` : "Create a server"}
         back
         onBack={cancel}
         right={
@@ -274,13 +368,19 @@ export function CreateServerPage({
               <Button variant="ghost">Cancel</Button>
             </span>
             <Button
-              icon="plus"
+              icon={mode === "edit" ? "check" : "plus"}
               onClick={submit}
               disabled={!canSubmit}
               size="sm"
               className="lg:!h-[38px] lg:!text-[14px]"
             >
-              {pending ? "Creating…" : "Create server"}
+              {mode === "edit"
+                ? pending
+                  ? "Saving…"
+                  : "Save changes"
+                : pending
+                  ? "Creating…"
+                  : "Create server"}
             </Button>
           </div>
         }
@@ -616,6 +716,20 @@ export function CreateServerPage({
       </div>
     </>
   );
+}
+
+/* ============================================================
+   splitStyleText — reverse of the `styleTags.join(" · ")` we use to
+   write style_text. Splits on either " · " or "," and trims so any
+   legacy comma-separated values still parse.
+   ============================================================ */
+
+function splitStyleText(s: string | null | undefined): string[] {
+  if (!s) return [];
+  return s
+    .split(/[·,]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
 }
 
 /* ============================================================
