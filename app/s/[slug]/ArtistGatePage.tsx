@@ -80,49 +80,24 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
       {/* ── Banner — server artwork, Discord/Spotify-style ──── */}
       <GateBanner data={data} />
 
-      {/* ── Avatar — circle that overlaps the banner's bottom edge */}
+      {/* ── Avatar — circle that overlaps the banner's bottom edge
+            No accent ring (Theo's pass): just a 4px page-bg cut-out
+            so the avatar reads cleanly against the banner. */}
       <div
         className="relative"
         style={{
-          marginTop: -72, // half of 144 avatar size — straddles the banner edge
+          marginTop: -68, // straddles the banner edge
           zIndex: 10,
+          padding: 4,
+          borderRadius: "50%",
+          background: "oklch(0.08 0.02 270)",
         }}
       >
-        <span
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, oklch(0.65 0.18 270 / 0.45), transparent 70%)",
-            filter: "blur(22px)",
-            transform: "scale(1.5)",
-            zIndex: -1,
-          }}
+        <Avatar
+          name={data.producer_name ?? handleAt}
+          src={data.producer_avatar_url}
+          size={128}
         />
-        <div
-          style={{
-            padding: 4,
-            borderRadius: "50%",
-            background: "oklch(0.08 0.02 270)", // matches the page bg so the
-            // ring reads as a clean cut-out around the avatar
-          }}
-        >
-          <div
-            style={{
-              padding: 3,
-              borderRadius: "50%",
-              background:
-                "linear-gradient(135deg, var(--accent), oklch(0.5 0.18 280))",
-            }}
-          >
-            <Avatar
-              name={data.producer_name ?? handleAt}
-              src={data.producer_avatar_url}
-              size={132}
-            />
-          </div>
-        </div>
       </div>
 
       {/* ── Foreground column ─────────────────────────────────── */}
@@ -135,16 +110,6 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
           padding: "22px 22px 48px",
         }}
       >
-        {/* Kicker */}
-        <div
-          className="t-mono-s"
-          style={{
-            color: "oklch(0.75 0.18 270)",
-            letterSpacing: "0.12em",
-          }}
-        >
-          YOU&rsquo;VE BEEN INVITED TO
-        </div>
 
         {/* Title */}
         <h1
