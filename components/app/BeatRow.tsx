@@ -177,36 +177,37 @@ export function BeatRow({
 
       {/* Title + meta */}
       <div className="min-w-0 flex-1">
-        {/* Top row — title on the left, "PRODUCED BY …" on the right.
-            The producers line is hidden under md to keep mobile rows
-            uncluttered. */}
+        {/* Top row — title (truncates if long) sits inline immediately
+            beside the producer credit. No flex-1 push to the right
+            edge: producer reads as a byline next to the title, not as
+            a separate column. Hidden on < md to keep mobile rows tight. */}
         <div
-          className="flex items-baseline"
-          style={{ gap: 12 }}
+          className="flex items-baseline min-w-0"
+          style={{ gap: 10 }}
         >
-          <div
-            className="t-title truncate min-w-0 flex-1"
+          <span
+            className="t-title truncate min-w-0"
             style={{
               fontSize: 14.5,
               color: isCurrent ? "var(--accent-text)" : "var(--fg-1)",
             }}
           >
             {beat.title}
-          </div>
+          </span>
           {beat.co_producers.length > 0 && (
             <span
-              className="t-mono-s hidden md:inline-block truncate shrink-0"
+              className="t-mono-s shrink-0 hidden md:inline-block truncate"
               style={{
                 color: "var(--fg-3)",
-                maxWidth: 280,
+                maxWidth: 200,
               }}
             >
-              PROD&nbsp;BY&nbsp;{beat.co_producers.join(" · ")}
+              {beat.co_producers.join(" · ")}
             </span>
           )}
         </div>
 
-        {/* Bottom row — type tag · BPM · KEY · mood tags · artist type tags */}
+        {/* Bottom row — type tag · BPM · KEY · mood tags */}
         <div
           className="flex items-center flex-wrap"
           style={{ gap: 7, marginTop: 5 }}
@@ -228,12 +229,7 @@ export function BeatRow({
             ]}
           />
           {beat.mood.map((m) => (
-            <Tag key={`mood-${m}`}>{m}</Tag>
-          ))}
-          {beat.artist_types.map((a) => (
-            <Tag key={`type-${a}`} variant="solid">
-              {a}
-            </Tag>
+            <Tag key={m}>{m}</Tag>
           ))}
         </div>
       </div>
