@@ -62,7 +62,12 @@ export type IconName =
   /* server card / visibility */
   | "lock"
   | "chevron-right"
-  | "note";
+  | "note"
+  /* beat library / row */
+  | "waves"
+  | "repeat"
+  | "drag"
+  | "more";
 
 interface IconProps {
   name: IconName;
@@ -402,6 +407,44 @@ export function Icon({
           <path d="M10 18V5l9-1.5v12" />
           <circle cx="7.5" cy="18" r="2.2" fill="currentColor" stroke="none" />
           <circle cx="16.5" cy="15.5" r="2.2" fill="currentColor" stroke="none" />
+        </svg>
+      );
+
+    /* -------------------- beat library / row -------------------- */
+    case "waves":
+      /* Equalizer bars — used inside the Tag for COMP beat type. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M3 12v0M7.5 8.5v7M12 5.5v13M16.5 8.5v7M21 12v0" />
+        </svg>
+      );
+    case "repeat":
+      /* Loop arrows — used inside the Tag for LOOP beat type. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M4 9V8a2 2 0 012-2h12l-3-3" />
+          <path d="M20 15v1a2 2 0 01-2 2H6l3 3" />
+        </svg>
+      );
+    case "drag":
+      /* 6-dot grip handle. */
+      return (
+        <svg {...common} fill="currentColor">
+          <circle cx="9" cy="6" r="1.2" />
+          <circle cx="15" cy="6" r="1.2" />
+          <circle cx="9" cy="12" r="1.2" />
+          <circle cx="15" cy="12" r="1.2" />
+          <circle cx="9" cy="18" r="1.2" />
+          <circle cx="15" cy="18" r="1.2" />
+        </svg>
+      );
+    case "more":
+      /* 3 horizontal dots — row action menu trigger. */
+      return (
+        <svg {...common} fill="currentColor">
+          <circle cx="6" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="18" cy="12" r="1.5" />
         </svg>
       );
 

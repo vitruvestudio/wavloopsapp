@@ -66,8 +66,23 @@ export interface BeatRow {
   duration_seconds: number | null;
   mood: string[];
   has_stems: boolean;
+  /* migration #4 */
+  description: string | null;
+  co_producers: string[];
+  artist_types: string[];
+  autotune_key: string | null;
+  artwork_url: string | null;
+  /* */
   created_at: string;
   updated_at: string;
+}
+
+/** Row of `beats_with_stats` view — BeatRow + in_servers_count
+ *  + plays_count + likes_count (migration #4). */
+export interface BeatWithStatsRow extends BeatRow {
+  in_servers_count: number;
+  plays_count: number;
+  likes_count: number;
 }
 
 export interface ServerBeatRow {
