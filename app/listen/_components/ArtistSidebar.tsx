@@ -86,7 +86,11 @@ export function ArtistSidebar({
         style={{
           width: 280,
           height: "100vh",
-          background: "var(--bg-0)",
+          // Slightly deeper than the page bg so the rail reads as a
+          // distinct surface even in dark mode. In light mode the
+          // color-mix flips to a near-white tint.
+          background:
+            "color-mix(in oklch, var(--bg-0) 78%, oklch(0 0 0) 22%)",
         }}
       >
       {/* Logo — the Logo primitive already composes the logomark +
@@ -99,7 +103,12 @@ export function ArtistSidebar({
       </div>
 
       {/* Search */}
-      <div style={{ padding: "0 18px 14px" }}>
+      <div
+        style={{
+          padding: "0 18px 16px",
+          borderBottom: "1px solid var(--border-1)",
+        }}
+      >
         <div
           className="flex items-center bg-bg-inset border border-border-2 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)]"
           style={{
@@ -129,7 +138,12 @@ export function ArtistSidebar({
       </div>
 
       {/* Liked Songs */}
-      <div style={{ padding: "0 14px 14px" }}>
+      <div
+        style={{
+          padding: "14px 14px 14px",
+          borderBottom: "1px solid var(--border-1)",
+        }}
+      >
         <Link
           href="/listen/liked"
           className="flex items-center transition-colors duration-fast"
@@ -197,11 +211,12 @@ export function ArtistSidebar({
         className="flex-1 overflow-y-auto"
         style={{ padding: "0 10px 18px" }}
       >
-        {PRODUCERS.map((p) => (
+        {PRODUCERS.map((p, i) => (
           <ProducerGroup
             key={p.handle}
             producer={p}
             pathname={pathname}
+            isLast={i === PRODUCERS.length - 1}
           />
         ))}
       </div>
@@ -213,9 +228,11 @@ export function ArtistSidebar({
 function ProducerGroup({
   producer,
   pathname,
+  isLast,
 }: {
   producer: MockProducer;
   pathname: string;
+  isLast: boolean;
 }) {
   // Auto-expand if any of this producer's servers is active.
   const activeUnderHere = producer.servers.some(
@@ -225,7 +242,15 @@ function ProducerGroup({
   const totalUnread = producer.servers.reduce((n, s) => n + s.unread, 0);
 
   return (
-    <div style={{ marginBottom: 4 }}>
+    <div
+      style={{
+        paddingTop: 6,
+        paddingBottom: 6,
+        borderBottom: isLast
+          ? "none"
+          : "1px solid var(--border-1)",
+      }}
+    >
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
