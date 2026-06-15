@@ -48,10 +48,12 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { PlayButton } from "@/components/ui/PlayButton";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { VisBadge } from "@/components/ui/VisBadge";
+import { Waveform } from "@/components/ui/Waveform";
 import {
   ARTIST_TYPE_SUGGEST,
   COPRODUCER_SUGGEST,
@@ -118,6 +120,111 @@ export function UploadBeatPage({
   const beatIdRef = React.useRef<string>(crypto.randomUUID());
   /** Strict-mode double-invoke guard for the consume on mount. */
   const consumedRef = React.useRef(false);
+
+  /* ============================================================
+     Artwork (optional custom cover image)
+     ============================================================ */
+
+  const [artworkFile, setArtworkFile] = React.useState<File | null>(null);
+  const [artworkPreviewUrl, setArtworkPreviewUrl] = React.useState<
+    string | null
+  >(null);
+  const artworkInputRef = React.useRef<HTMLInputElement>(null);
+
+  const onPickArtwork = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setServerError("Cover must be an image (JPG, PNG, WEBP).");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setServerError("Cover image is over 5 MB. Compress and try again.");
+      return;
+    }
+    setServerError(null);
+    if (artworkPreviewUrl) URL.revokeObjectURL(artworkPreviewUrl);
+    setArtworkFile(f);
+    setArtworkPreviewUrl(URL.createObjectURL(f));
+  };
+
+  const removeArtwork = () => {
+    if (artworkPreviewUrl) URL.revokeObjectURL(artworkPreviewUrl);
+    setArtworkFile(null);
+    setArtworkPreviewUrl(null);
+  };
+
+  const uploadArtwork = async (): Promise<string | null> => {
+    if (!artworkFile) return null;
+    const supabase = createClient();
+    const ext = (artworkFile.name.split(".").pop() ?? "jpg")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const path = `${userId}/${beatIdRef.current}.${ext}`;
+    const { error } = await supabase.storage
+      .from("beat-covers")
+      .upload(path, artworkFile, {
+        contentType: artworkFile.type,
+        upsert: true,
+      });
+    if (error) {
+      console.warn("[upload-beat] artwork upload failed", error);
+      return null;
+    }
+    const { data } = supabase.storage
+      .from("beat-covers")
+      .getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  /* ============================================================
+     Audio playback (preview the beat before uploading)
+     ============================================================ */
+
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const [audioPlaying, setAudioPlaying] = React.useState(false);
+  const [audioCurrentSec, setAudioCurrentSec] = React.useState(0);
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onPlay = () => setAudioPlaying(true);
+    const onPause = () => setAudioPlaying(false);
+    const onTime = () => setAudioCurrentSec(audio.currentTime);
+    const onEnded = () => {
+      setAudioPlaying(false);
+      setAudioCurrentSec(0);
+    };
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, [fileUrl]);
+
+  const toggleAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audioPlaying) audio.pause();
+    else audio.play().catch((e) => console.warn("[audio] play failed", e));
+  };
+
+  const seekAudio = (frac: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    audio.currentTime = audio.duration * frac;
+  };
+
+  const audioProgress =
+    durationSeconds && durationSeconds > 0
+      ? Math.min(1, audioCurrentSec / durationSeconds)
+      : 0;
 
   /* ============================================================
      File handling
@@ -234,6 +341,11 @@ export function UploadBeatPage({
     setServerError(null);
 
     startTransition(async () => {
+      // Upload the custom artwork now (if any). Failure is non-fatal —
+      // the beat falls back to the generative CoverArt seeded from
+      // wave_seed.
+      const artworkUrl = await uploadArtwork();
+
       const result = await saveBeatAction({
         title,
         type,
@@ -248,6 +360,7 @@ export function UploadBeatPage({
         description: description || null,
         has_stems: hasStems,
         audio_path: upload.path,
+        artwork_url: artworkUrl,
         wave_seed: beatIdRef.current,
         server_ids: serverIds,
       });
@@ -336,12 +449,36 @@ export function UploadBeatPage({
               className="flex flex-col lg:sticky lg:self-start"
               style={{ gap: 16, top: 92 }}
             >
-              <ArtworkBlock seed={beatIdRef.current} />
+              <input
+                ref={artworkInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPickArtwork}
+              />
+              <ArtworkBlock
+                seed={beatIdRef.current}
+                previewUrl={artworkPreviewUrl}
+                onPick={() => artworkInputRef.current?.click()}
+                onRemove={removeArtwork}
+              />
 
               <AudioFileRow
                 file={file}
                 upload={upload}
                 onRemove={cancelUpload}
+              />
+
+              <AudioPlayer
+                fileUrl={fileUrl}
+                audioRef={audioRef}
+                playing={audioPlaying}
+                onToggle={toggleAudio}
+                onSeek={seekAudio}
+                progress={audioProgress}
+                currentSec={audioCurrentSec}
+                durationSec={durationSeconds}
+                seed={beatIdRef.current}
               />
             </div>
 
@@ -469,36 +606,153 @@ export function UploadBeatPage({
 }
 
 /* ============================================================
-   ArtworkBlock — big generative CoverArt with overlay action
+   ArtworkBlock — generative CoverArt OR uploaded image, with two
+   overlay actions (REMOVE + ARTWORK / CHANGE).
    ============================================================ */
 
-function ArtworkBlock({ seed }: { seed: string }) {
+function ArtworkBlock({
+  seed,
+  previewUrl,
+  onPick,
+  onRemove,
+}: {
+  seed: string;
+  previewUrl: string | null;
+  onPick: () => void;
+  onRemove: () => void;
+}) {
   return (
     <div className="relative" style={{ aspectRatio: "1 / 1" }}>
-      <CoverArt seed={seed} fill radius="var(--r-lg)" />
-      <button
-        type="button"
-        disabled
-        title="Custom artwork upload — coming soon"
-        className="absolute t-mono-s inline-flex items-center cursor-not-allowed"
+      {previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previewUrl}
+          alt=""
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            borderRadius: "var(--r-lg)",
+            border: "1px solid var(--border-1)",
+            display: "block",
+          }}
+        />
+      ) : (
+        <CoverArt seed={seed} fill radius="var(--r-lg)" />
+      )}
+
+      <div
+        className="absolute flex items-center"
+        style={{ right: 14, bottom: 14, gap: 8 }}
+      >
+        {previewUrl && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="t-mono-s inline-flex items-center cursor-pointer"
+            style={{
+              height: 30,
+              padding: "0 12px",
+              borderRadius: "var(--r-pill)",
+              background: "oklch(0 0 0 / 0.5)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              border: "1px solid oklch(1 0 0 / 0.2)",
+              color: "oklch(1 0 0 / 0.85)",
+            }}
+          >
+            REMOVE
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onPick}
+          className="t-mono-s inline-flex items-center cursor-pointer"
+          style={{
+            height: 30,
+            padding: "0 12px",
+            gap: 6,
+            borderRadius: "var(--r-pill)",
+            background: "oklch(0 0 0 / 0.5)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            border: "1px solid oklch(1 0 0 / 0.2)",
+            color: "oklch(1 0 0 / 0.85)",
+          }}
+        >
+          <Icon name="plus" size={13} />
+          {previewUrl ? "CHANGE" : "ARTWORK"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   AudioPlayer — preview the uploaded audio with PlayButton +
+   click-to-seek Waveform + time display.
+   ============================================================ */
+
+function AudioPlayer({
+  fileUrl,
+  audioRef,
+  playing,
+  onToggle,
+  onSeek,
+  progress,
+  currentSec,
+  durationSec,
+  seed,
+}: {
+  fileUrl: string | null;
+  audioRef: React.RefObject<HTMLAudioElement | null>;
+  playing: boolean;
+  onToggle: () => void;
+  onSeek: (frac: number) => void;
+  progress: number;
+  currentSec: number;
+  durationSec: number | null;
+  seed: string;
+}) {
+  return (
+    <div
+      className="flex items-center border border-border-1 bg-bg-1"
+      style={{
+        padding: "12px 14px",
+        gap: 12,
+        borderRadius: "var(--r-md)",
+      }}
+    >
+      <PlayButton size={38} playing={playing} onClick={onToggle} />
+      <div className="min-w-0 flex-1">
+        <Waveform
+          seed={seed}
+          bars={64}
+          height={36}
+          progress={progress}
+          onSeek={onSeek}
+          glow
+        />
+      </div>
+      <span
+        className="t-mono-s shrink-0"
         style={{
-          right: 14,
-          bottom: 14,
-          height: 30,
-          padding: "0 12px",
-          gap: 6,
-          borderRadius: "var(--r-pill)",
-          background: "oklch(0 0 0 / 0.5)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
-          border: "1px solid oklch(1 0 0 / 0.2)",
-          color: "oklch(1 0 0 / 0.85)",
-          opacity: 0.65,
+          minWidth: 78,
+          textAlign: "right",
+          color: "var(--fg-3)",
         }}
       >
-        <Icon name="plus" size={13} />
-        ARTWORK
-      </button>
+        {fmtDuration(Math.floor(currentSec))}
+        <span style={{ color: "var(--fg-4)" }}>
+          {" / "}
+          {fmtDuration(durationSec)}
+        </span>
+      </span>
+      <audio
+        ref={audioRef}
+        src={fileUrl ?? undefined}
+        preload="metadata"
+      />
     </div>
   );
 }

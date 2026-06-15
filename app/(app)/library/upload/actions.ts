@@ -46,6 +46,9 @@ export interface SaveBeatPayload {
   /** Storage path inside the `beat-audio` bucket, e.g.
    *  `<user_id>/<uuid>.wav`. Already uploaded by the browser client. */
   audio_path: string;
+  /** Public URL of the uploaded custom cover (beat-covers bucket), or
+   *  null when the producer kept the generative artwork. */
+  artwork_url: string | null;
   /** Deterministic seed for the Waveform component. */
   wave_seed: string;
   /** Server ids the producer wants to attach this beat to. */
@@ -108,6 +111,7 @@ export async function saveBeatAction(
       description: payload.description?.trim() || null,
       has_stems: payload.has_stems,
       audio_url: payload.audio_path,
+      artwork_url: payload.artwork_url,
       wave_seed: payload.wave_seed,
     })
     .select("id")
