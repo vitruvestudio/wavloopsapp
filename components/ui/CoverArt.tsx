@@ -72,8 +72,17 @@ export function CoverArt({
         position: "relative",
         overflow: "hidden",
         flexShrink: 0,
-        border: "1px solid var(--border-1)",
-        background: `linear-gradient(${135 + tilt}deg, oklch(0.32 0.07 ${hue}) 0%, oklch(0.16 0.04 ${h2}) 100%)`,
+        // The dark generative gradient + 1px border are the visible
+        // surface for the no-image case. When `src` is set the image
+        // covers the whole container, so the border + gradient would
+        // only show through the rounded corners as dark fringes —
+        // strip them in that case.
+        ...(src
+          ? { background: "transparent", border: "none" }
+          : {
+              border: "1px solid var(--border-1)",
+              background: `linear-gradient(${135 + tilt}deg, oklch(0.32 0.07 ${hue}) 0%, oklch(0.16 0.04 ${h2}) 100%)`,
+            }),
         ...(fill
           ? {
               width: "100%",
