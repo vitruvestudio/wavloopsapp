@@ -211,16 +211,25 @@ export function LibraryFilters({
       </div>
 
       {/* Row 2 — Segmented (left) + ViewToggle + SortChip (right).
-          Same row on every breakpoint so the toolbar caps at 3 lines
-          even on mobile. */}
+          Same row on every breakpoint; components shrink on mobile so
+          they all fit a 360px-ish viewport without horizontal scroll. */}
       <div
         className="flex items-center justify-between"
-        style={{ gap: 12, marginBottom: 12 }}
+        style={{ gap: 8, marginBottom: 12 }}
       >
         <Segmented<TypeFilter>
+          size="sm"
           options={[
             { value: "all", label: "All" },
-            { value: "comp", label: "Compositions" },
+            {
+              value: "comp",
+              label: (
+                <>
+                  <span className="sm:hidden">Comp</span>
+                  <span className="hidden sm:inline">Compositions</span>
+                </>
+              ),
+            },
             { value: "loop", label: "Loops" },
           ]}
           value={type}
@@ -228,7 +237,7 @@ export function LibraryFilters({
         />
         <div
           className="flex items-center shrink-0"
-          style={{ gap: 12 }}
+          style={{ gap: 8 }}
         >
           <ViewToggle value={view} onChange={setView} />
           <SortChip value={sort} onChange={setSort} />
@@ -516,7 +525,7 @@ function ViewToggle({
       aria-label="Library view"
       className="inline-flex items-center bg-bg-inset border border-border-1"
       style={{
-        padding: 3,
+        padding: 2,
         gap: 0,
         borderRadius: "var(--r-md)",
       }}
@@ -531,16 +540,14 @@ function ViewToggle({
             aria-selected={active}
             aria-label={it.label}
             onClick={() => onChange(it.value)}
-            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast border-0"
+            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast border-0 w-[26px] h-[26px] sm:w-[30px] sm:h-[30px]"
             style={{
-              width: 30,
-              height: 30,
               borderRadius: "var(--r-sm)",
               background: active ? "var(--bg-3)" : "transparent",
               color: active ? "var(--fg-1)" : "var(--fg-3)",
             }}
           >
-            <Icon name={it.icon} size={15} />
+            <Icon name={it.icon} size={14} />
           </button>
         );
       })}
@@ -583,8 +590,11 @@ function SortChip({
 
   return (
     <div className="inline-flex items-center" style={{ gap: 10 }}>
+      {/* "SORT" prefix label — hidden on mobile to save horizontal
+          room. The accent pill already carries the value, which is
+          enough signal on a small screen. */}
       <span
-        className="t-mono-s"
+        className="t-mono-s hidden sm:inline"
         style={{ color: "var(--fg-4)" }}
       >
         SORT
@@ -594,11 +604,9 @@ function SortChip({
           type="button"
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="t-mono-s inline-flex items-center cursor-pointer transition-colors duration-fast"
+          className="t-mono-s inline-flex items-center cursor-pointer transition-colors duration-fast h-[28px] sm:h-[32px] px-[12px] sm:px-[14px]"
           style={{
-            height: 32,
-            padding: "0 14px",
-            gap: 8,
+            gap: 6,
             borderRadius: "var(--r-pill)",
             border: "none",
             background: "var(--accent-surface)",
@@ -608,7 +616,7 @@ function SortChip({
           {current.label}
           <Icon
             name="chevron-down"
-            size={12}
+            size={11}
             style={{ color: "var(--accent-text)" }}
           />
         </button>
