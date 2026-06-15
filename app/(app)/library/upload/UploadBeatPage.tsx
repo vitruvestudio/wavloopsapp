@@ -50,6 +50,7 @@ import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { VisBadge } from "@/components/ui/VisBadge";
 import {
   ARTIST_TYPE_SUGGEST,
@@ -643,12 +644,16 @@ function CellShell({
   label,
   children,
   analyzing,
+  labelTooltip,
 }: {
   label: string;
   children: React.ReactNode;
   /** During analysis: hide the zap (it lights up when detected
    *  arrives) and replace `children` with a pulsing skeleton. */
   analyzing?: boolean;
+  /** Optional explanation popover shown when hovering the info icon
+   *  next to the label. Currently only used by LoudnessCell. */
+  labelTooltip?: React.ReactNode;
 }) {
   return (
     <div
@@ -669,6 +674,19 @@ function CellShell({
             size={11}
             style={{ color: "var(--accent-text)" }}
           />
+        )}
+        {labelTooltip && (
+          <Tooltip content={labelTooltip}>
+            <span
+              tabIndex={0}
+              role="button"
+              aria-label={`What is ${label}?`}
+              className="inline-flex items-center cursor-help text-fg-3 hover:text-fg-1 transition-colors"
+              style={{ marginLeft: 2 }}
+            >
+              <Icon name="info" size={12} />
+            </span>
+          </Tooltip>
         )}
       </div>
       <div style={{ marginTop: 6 }}>
@@ -810,7 +828,11 @@ function LoudnessCell({
   const tag = loudnessLufs != null ? loudnessTag(loudnessLufs) : null;
 
   return (
-    <CellShell label="LOUDNESS" analyzing={analyzing}>
+    <CellShell
+      label="LOUDNESS"
+      analyzing={analyzing}
+      labelTooltip={<LoudnessTooltipContent />}
+    >
       <div className="flex items-baseline" style={{ gap: 6 }}>
         <span
           className="t-mono-lg"
@@ -836,6 +858,86 @@ function LoudnessCell({
         )}
       </div>
     </CellShell>
+  );
+}
+
+function LoudnessTooltipContent() {
+  return (
+    <div>
+      <div
+        className="t-mono-s"
+        style={{ color: "var(--accent-text)", marginBottom: 8 }}
+      >
+        LOUDNESS · LUFS
+      </div>
+      <p
+        className="t-body-s"
+        style={{ marginBottom: 10, lineHeight: 1.45 }}
+      >
+        Standardised perceived volume — what Spotify, Apple Music and
+        YouTube use to normalise every track they stream.
+      </p>
+      <div className="flex flex-col" style={{ gap: 5 }}>
+        <LoudnessLegendRow
+          dotColor="var(--warn)"
+          label="LOUD"
+          range="> −9 LUFS"
+          desc="limited, will be turned down"
+        />
+        <LoudnessLegendRow
+          dotColor="var(--ok)"
+          label="MASTERED"
+          range="−9 to −15"
+          desc="industry standard"
+        />
+        <LoudnessLegendRow
+          dotColor="var(--fg-3)"
+          label="DEMO"
+          range="< −15"
+          desc="needs a mastering pass"
+        />
+      </div>
+    </div>
+  );
+}
+
+function LoudnessLegendRow({
+  dotColor,
+  label,
+  range,
+  desc,
+}: {
+  dotColor: string;
+  label: string;
+  range: string;
+  desc: string;
+}) {
+  return (
+    <div className="t-body-s" style={{ display: "flex", gap: 7 }}>
+      <span
+        aria-hidden
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: dotColor,
+          marginTop: 6,
+          flexShrink: 0,
+        }}
+      />
+      <div>
+        <span className="t-mono-s" style={{ color: "var(--fg-1)" }}>
+          {label}
+        </span>
+        <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+          {" "}
+          {range}
+        </span>
+        <span style={{ display: "block", color: "var(--fg-3)" }}>
+          {desc}
+        </span>
+      </div>
+    </div>
   );
 }
 

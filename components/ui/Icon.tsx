@@ -69,7 +69,9 @@ export type IconName =
   | "drag"
   | "more"
   /* upload — auto-detect indicator */
-  | "zap";
+  | "zap"
+  /* info / tooltip */
+  | "info";
 
 interface IconProps {
   name: IconName;
@@ -453,10 +455,26 @@ export function Icon({
     /* -------------------- upload / auto-detect -------------------- */
     case "zap":
       /* Lightning bolt — auto-detected indicator next to TEMPO / KEY /
-         LENGTH / AUTOTUNE KEY labels on the Upload page. */
+         LENGTH / LOUDNESS labels on the Upload page. */
       return (
         <svg {...common} fill="currentColor">
           <path d="M13 2L4 14h7l-2 8 9-12h-7l2-8z" />
+        </svg>
+      );
+
+    case "info":
+      /* Circled "i" — tooltip / contextual help affordance. */
+      return (
+        <svg {...common} {...lineProps}>
+          <circle cx="12" cy="12" r="9.5" />
+          <path d="M12 11v6" />
+          <circle
+            cx="12"
+            cy="7.5"
+            r="1"
+            fill="currentColor"
+            stroke="none"
+          />
         </svg>
       );
 
