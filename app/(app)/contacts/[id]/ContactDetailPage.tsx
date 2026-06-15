@@ -131,9 +131,12 @@ export function ContactDetailPage({
       />
 
       <div className="px-[18px] py-[24px] lg:px-[30px] lg:pb-[48px] lg:pt-[28px]">
-        {/* ── Profile bloc ────────────────────────────────────── */}
+        {/* ── Profile bloc ──────────────────────────────────────
+            Mobile: avatar centered above, everything stacked +
+            centered below. Desktop: avatar on the left, content
+            left-aligned to its right (the original layout). */}
         <div
-          className="flex flex-col sm:flex-row items-start"
+          className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left"
           style={{ gap: 24, marginBottom: 32 }}
         >
           <Avatar
@@ -156,7 +159,7 @@ export function ContactDetailPage({
                 flex-wrap row. Order matters: identity first, then
                 tagging, then external profiles. */}
             <div
-              className="flex items-center flex-wrap"
+              className="flex items-center flex-wrap justify-center sm:justify-start"
               style={{ gap: 12, marginBottom: 14 }}
             >
               <span
@@ -206,7 +209,7 @@ export function ContactDetailPage({
             </div>
             {(servers.length > 0 || contact.first_seen_at) && (
               <div
-                className="flex items-center flex-wrap"
+                className="flex items-center flex-wrap justify-center sm:justify-start"
                 style={{ gap: 8 }}
               >
                 {servers.length > 0 && (
