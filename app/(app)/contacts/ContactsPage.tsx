@@ -31,6 +31,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import type { ContactRowVM, ServerStub } from "./page";
 import { AddContactModal } from "./AddContactModal";
+import { ImportCsvModal } from "./ImportCsvModal";
 
 type SortKey = "engagement" | "az";
 
@@ -45,6 +46,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
   const [serverFilter, setServerFilter] = React.useState<string | "all">("all");
   const [sort, setSort] = React.useState<SortKey>("engagement");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
@@ -86,7 +88,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
               variant="ghost"
               icon="upload"
               size="sm"
-              onClick={() => stub("Import CSV")}
+              onClick={() => setImportOpen(true)}
               className="hidden sm:inline-flex !h-[36px]"
             >
               Import CSV
@@ -181,6 +183,12 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
         <AddContactModal
           allServers={allServers}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {importOpen && (
+        <ImportCsvModal
+          allServers={allServers}
+          onClose={() => setImportOpen(false)}
         />
       )}
     </>

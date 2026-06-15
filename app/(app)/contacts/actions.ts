@@ -287,3 +287,134 @@ export async function updateContactAction(
   revalidatePath("/dashboard", "page");
   return { error: null, contactId: payload.id };
 }
+
+/* ================================================================
+   importContactsAction — bulk-create contacts from a parsed CSV.
+   ================================================================
+   The client parses the CSV (Papa Parse) and normalises every row
+   into the shape below before calling. We do ONE bulk upsert on
+   `contacts` (onConflict: owner_id,email) — re-importing the same
+   email refreshes its optional fields rather than erroring.
+
+   Then ONE bulk insert on `server_contacts` to attach every newly
+   upserted contact to the chosen servers. ON CONFLICT DO NOTHING
+   so re-imports stay idempotent.
+
+   Rows missing a valid email are dropped client-side; this action
+   trusts the input and surfaces only the DB-level errors.
+*/
+export interface CsvContactRow {
+  email: string;
+  name: string | null;
+  phone: string | null;
+  roles: string[];
+  socials: Record<string, string>;
+}
+
+export interface ImportContactsResult {
+  imported: number;
+  skipped: number;
+  error: string | null;
+}
+
+export async function importContactsAction(
+  rows: CsvContactRow[],
+  serverIds: string[],
+): Promise<ImportContactsResult> {
+  if (rows.length === 0) {
+    return { imported: 0, skipped: 0, error: null };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { imported: 0, skipped: 0, error: "You're not signed in." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!profile) {
+    return {
+      imported: 0,
+      skipped: 0,
+      error: "Your producer profile isn't set up yet.",
+    };
+  }
+
+  // Dedupe by email within the batch — if the CSV has the same
+  // email twice, Postgres' upsert would still work, but PostgREST
+  // rejects the batch with a 21000 "ON CONFLICT DO UPDATE command
+  // cannot affect row a second time" error. Keep the last seen row
+  // per email.
+  const byEmail = new Map<string, CsvContactRow>();
+  for (const r of rows) {
+    const e = r.email.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(e)) continue;
+    byEmail.set(e, { ...r, email: e });
+  }
+  const cleanRows = Array.from(byEmail.values());
+  const skipped = rows.length - cleanRows.length;
+  if (cleanRows.length === 0) {
+    return { imported: 0, skipped, error: null };
+  }
+
+  // Bulk upsert.
+  const nowIso = new Date().toISOString();
+  const upsertPayload = cleanRows.map((r) => ({
+    owner_id: profile.id,
+    email: r.email,
+    name: r.name?.trim() || null,
+    phone: r.phone?.trim() || null,
+    roles: r.roles,
+    socials: r.socials,
+    last_active_at: nowIso,
+  }));
+
+  const { data: upserted, error: upErr } = await supabase
+    .from("contacts")
+    .upsert(upsertPayload, { onConflict: "owner_id,email" })
+    .select("id");
+
+  if (upErr || !upserted) {
+    return {
+      imported: 0,
+      skipped,
+      error: upErr?.message ?? "Bulk upsert failed.",
+    };
+  }
+
+  // Attach every upserted contact to the chosen servers.
+  if (serverIds.length > 0 && upserted.length > 0) {
+    const pivotRows = upserted.flatMap((c) =>
+      serverIds.map((sid) => ({
+        server_id: sid,
+        contact_id: c.id,
+      })),
+    );
+    const { error: pivotErr } = await supabase
+      .from("server_contacts")
+      .upsert(pivotRows, {
+        onConflict: "server_id,contact_id",
+        ignoreDuplicates: true,
+      });
+    if (pivotErr) {
+      // Contacts already saved — surface the pivot error but report
+      // the imported count so the producer knows the data landed.
+      return {
+        imported: upserted.length,
+        skipped,
+        error: `Contacts saved but couldn't attach to servers: ${pivotErr.message}`,
+      };
+    }
+  }
+
+  revalidatePath("/contacts", "page");
+  revalidatePath("/dashboard", "page");
+  return { imported: upserted.length, skipped, error: null };
+}
