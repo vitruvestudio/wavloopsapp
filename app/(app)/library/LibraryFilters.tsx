@@ -205,31 +205,46 @@ export function LibraryFilters({
 
   return (
     <div>
-      {/* Row 1 — Search bar (always its own line, full width). */}
-      <div style={{ marginBottom: 12 }}>
+      {/*
+        Toolbar layout differs by breakpoint:
+
+        ─ Mobile  (3 rows): Search | Segmented + view + SORT | chips
+        ─ Desktop (2 rows): Search + Segmented | chips + view + SORT
+
+        The view+SORT cluster has to move between rows, so we render
+        it twice and toggle visibility with `hidden`/`sm:flex` rather
+        than try to twist a single CSS grid into both layouts.
+      */}
+
+      {/* Row 1 — Search; paired with Segmented on sm+. */}
+      <div
+        className="flex flex-col sm:flex-row items-stretch sm:items-center"
+        style={{ gap: 12, marginBottom: 12 }}
+      >
         <SearchBeats value={search} onChange={setSearch} />
+        <div className="hidden sm:block">
+          <Segmented<TypeFilter>
+            options={[
+              { value: "all", label: "All" },
+              { value: "comp", label: "Compositions" },
+              { value: "loop", label: "Loops" },
+            ]}
+            value={type}
+            onChange={setType}
+          />
+        </div>
       </div>
 
-      {/* Row 2 — Segmented (left) + ViewToggle + SortChip (right).
-          Same row on every breakpoint; components shrink on mobile so
-          they all fit a 360px-ish viewport without horizontal scroll. */}
+      {/* Row 2 (mobile only) — Segmented + ViewToggle + SortChip. */}
       <div
-        className="flex items-center justify-between"
+        className="flex sm:hidden items-center justify-between"
         style={{ gap: 8, marginBottom: 12 }}
       >
         <Segmented<TypeFilter>
           size="sm"
           options={[
             { value: "all", label: "All" },
-            {
-              value: "comp",
-              label: (
-                <>
-                  <span className="sm:hidden">Comp</span>
-                  <span className="hidden sm:inline">Compositions</span>
-                </>
-              ),
-            },
+            { value: "comp", label: "Comp" },
             { value: "loop", label: "Loops" },
           ]}
           value={type}
@@ -244,9 +259,9 @@ export function LibraryFilters({
         </div>
       </div>
 
-      {/* Row 3 — Filter chips MOOD / BPM / KEY / SERVER. Wraps to a
-          second visual row if the viewport is too narrow to hold all
-          four — that's the documented 3-line cap. */}
+      {/* Row 2 (desktop) / Row 3 (mobile) — Filter chips on the left.
+          On sm+ the ViewToggle + SortChip sit on the same row at the
+          right edge via ml-auto. */}
       <div
         className="flex flex-wrap items-center"
         style={{ gap: 8, marginBottom: 22 }}
@@ -325,6 +340,15 @@ export function LibraryFilters({
             />
           )}
         </FilterChip>
+
+        {/* Desktop only — ViewToggle + SortChip sit on the chip row */}
+        <div
+          className="hidden sm:flex ml-auto items-center"
+          style={{ gap: 12 }}
+        >
+          <ViewToggle value={view} onChange={setView} />
+          <SortChip value={sort} onChange={setSort} />
+        </div>
       </div>
 
       {/* Filtered BeatList — list or grid */}
