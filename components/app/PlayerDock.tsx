@@ -17,12 +17,47 @@
 
 "use client";
 
-import Image from "next/image";
+import { CoverArt } from "@/components/ui/CoverArt";
 import { IconButton } from "@/components/ui/IconButton";
 import { PlayButton } from "@/components/ui/PlayButton";
 import { Tag } from "@/components/ui/Tag";
 import { Waveform } from "@/components/ui/Waveform";
 import { usePlayer } from "./PlayerContext";
+
+/**
+ * Cover thumbnail — uses a plain <img> when src is set (works for
+ * both blob: URLs from the Upload preview and Storage https: URLs),
+ * falls back to the generative CoverArt seeded with `wave` when there
+ * is no cover image.
+ */
+function CoverThumb({
+  src,
+  wave,
+  size,
+}: {
+  src: string | null;
+  wave: string;
+  size: number;
+}) {
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        className="block shrink-0 rounded-sm object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, flexShrink: 0 }}>
+      <CoverArt seed={wave} fill radius="var(--r-sm)" />
+    </div>
+  );
+}
 
 export function PlayerDock() {
   const { current, playing, progress, toggle, seek } = usePlayer();
@@ -53,13 +88,7 @@ export function PlayerDock() {
         style={{ height: 64, gridTemplateColumns: "40px 1fr auto" }}
       >
         {/* Cover */}
-        <Image
-          src={current.img}
-          alt=""
-          width={40}
-          height={40}
-          className="block shrink-0 rounded-sm object-cover"
-        />
+        <CoverThumb src={current.img} wave={current.wave} size={40} />
 
         {/* Title + meta — truncate */}
         <div className="min-w-0">
@@ -82,13 +111,7 @@ export function PlayerDock() {
       >
         {/* LEFT — cover + meta */}
         <div className="flex min-w-0 items-center gap-[12px]">
-          <Image
-            src={current.img}
-            alt=""
-            width={50}
-            height={50}
-            className="block shrink-0 rounded-sm object-cover"
-          />
+          <CoverThumb src={current.img} wave={current.wave} size={50} />
           <div className="min-w-0">
             <div className="t-title truncate" style={{ fontSize: 14 }}>
               {current.title}

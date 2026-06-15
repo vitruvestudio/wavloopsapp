@@ -1,13 +1,26 @@
 /**
- * PlayerContext — global currently-playing state.
+ * PlayerContext — global currently-playing state, backed by a real
+ * <audio> element managed inside the provider.
  *
- * Lives in the (app) route group layout so any nested screen
- * (Dashboard, ServerView, Library, BeatDetail, ContactDetail) can
- * call `play(beat)` / `pause()` / `seek(progress)` and surface the
- * dock at the bottom of the shell when a beat is playing.
+ * Lives in the (app) route group layout so any screen can call
+ * `toggle(beat)`, `pause()`, `resume()`, `seek(progress)` and surface
+ * the dock at the bottom of the shell when a beat is playing.
  *
- * V1 progress is faked via setInterval — a real <audio> element +
- * Web Audio listeners will replace the timer in a later commit.
+ * Architecture:
+ *   - A single <audio preload="metadata"> is rendered as a sibling of
+ *     `children` so play/pause/seek work even across navigations
+ *     (the provider lives in the (app) layout which doesn't unmount).
+ *   - `current` holds the Beat metadata; the audio src is bound to
+ *     `current.audioUrl` via an effect.
+ *   - `playing` + `progress` mirror the audio element's events
+ *     (play/pause/timeupdate/ended) — no setInterval anymore.
+ *
+ * The Beat type:
+ *   - `img` may be a blob: URL (Upload preview), a Storage URL, or
+ *     null (fall back to the generative CoverArt seeded with `wave`).
+ *   - `audioUrl` is the playback source. Without it, toggle() will
+ *     still set `current` so the dock can show metadata, but `playing`
+ *     stays false because there's nothing to decode.
  */
 
 "use client";
@@ -21,11 +34,14 @@ export interface Beat {
   key: string;
   /** Display duration string e.g. "2:48". */
   dur: string;
-  /** Cover image URL. */
-  img: string;
-  /** Stable seed for the Waveform component. */
+  /** Cover image URL — blob: / https: / null. */
+  img: string | null;
+  /** Stable seed for the Waveform component + generative CoverArt fallback. */
   wave: string;
   mood?: string[];
+  /** Playback source. blob: URL from the Upload page, or a Storage URL
+   *  in the rest of the app. Null = metadata-only (no playback). */
+  audioUrl?: string | null;
 }
 
 interface PlayerState {
@@ -40,43 +56,114 @@ interface PlayerCtx extends PlayerState {
   pause(): void;
   resume(): void;
   seek(progress: number): void;
+  /** Stop and clear the current beat. Used when its source goes away
+   *  (e.g. the Upload page cancels and revokes the blob URL). */
+  clear(): void;
 }
 
 const Ctx = React.createContext<PlayerCtx | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [current, setCurrent] = React.useState<Beat | null>(null);
   const [playing, setPlaying] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
 
-  // Fake playback timer — replace with <audio> + timeupdate in V1.1.
+  /* Bind the audio src whenever the current beat changes */
   React.useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => {
-      setProgress((p) => (p >= 1 ? 0 : p + 0.0035));
-    }, 80);
-    return () => clearInterval(id);
-  }, [playing]);
-
-  const toggle = React.useCallback(
-    (beat: Beat) => {
-      setCurrent((prev) => {
-        if (prev && prev.id === beat.id) {
-          setPlaying((p) => !p);
-          return prev;
-        }
-        setProgress(0);
-        setPlaying(true);
-        return beat;
-      });
-    },
-    []
-  );
-
-  const pause = React.useCallback(() => setPlaying(false), []);
-  const resume = React.useCallback(() => {
-    if (current) setPlaying(true);
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!current?.audioUrl) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      return;
+    }
+    if (audio.src !== current.audioUrl) {
+      audio.src = current.audioUrl;
+      audio.load();
+    }
   }, [current]);
+
+  /* Mirror playback events into React state */
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onTime = () => {
+      const d = audio.duration;
+      if (Number.isFinite(d) && d > 0) {
+        setProgress(audio.currentTime / d);
+      }
+    };
+    const onEnded = () => {
+      setPlaying(false);
+      setProgress(0);
+    };
+
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
+
+    return () => {
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
+  const toggle = React.useCallback((beat: Beat) => {
+    const audio = audioRef.current;
+    setCurrent((prev) => {
+      if (prev && prev.id === beat.id) {
+        // Same beat — flip play/pause without resetting position.
+        if (audio?.paused) {
+          audio.play().catch(() => {});
+        } else {
+          audio?.pause();
+        }
+        return prev;
+      }
+      // Different beat — bind src then auto-play.
+      setProgress(0);
+      if (audio && beat.audioUrl) {
+        audio.src = beat.audioUrl;
+        audio.load();
+        audio.play().catch(() => {});
+      }
+      return beat;
+    });
+  }, []);
+
+  const pause = React.useCallback(() => {
+    audioRef.current?.pause();
+  }, []);
+
+  const resume = React.useCallback(() => {
+    audioRef.current?.play().catch(() => {});
+  }, []);
+
+  const seek = React.useCallback((frac: number) => {
+    const audio = audioRef.current;
+    const clamped = Math.max(0, Math.min(1, frac));
+    if (!audio || !Number.isFinite(audio.duration) || audio.duration === 0) {
+      setProgress(clamped);
+      return;
+    }
+    audio.currentTime = audio.duration * clamped;
+    setProgress(clamped);
+  }, []);
+
+  const clear = React.useCallback(() => {
+    audioRef.current?.pause();
+    setCurrent(null);
+    setPlaying(false);
+    setProgress(0);
+  }, []);
 
   const value: PlayerCtx = {
     current,
@@ -85,10 +172,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     toggle,
     pause,
     resume,
-    seek: setProgress,
+    seek,
+    clear,
   };
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      <audio ref={audioRef} preload="metadata" className="hidden" />
+    </Ctx.Provider>
+  );
 }
 
 export function usePlayer(): PlayerCtx {

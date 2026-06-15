@@ -48,12 +48,11 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import { PlayButton } from "@/components/ui/PlayButton";
 import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { VisBadge } from "@/components/ui/VisBadge";
-import { Waveform } from "@/components/ui/Waveform";
+import { usePlayer, type Beat } from "@/components/app/PlayerContext";
 import {
   ARTIST_TYPE_SUGGEST,
   COPRODUCER_SUGGEST,
@@ -179,52 +178,43 @@ export function UploadBeatPage({
   };
 
   /* ============================================================
-     Audio playback (preview the beat before uploading)
+     Audio playback — routed through the global PlayerDock.
+     We build a Beat object from the current form state and ship it
+     to PlayerContext on cover click. The dock at the bottom of the
+     shell takes over from there (play/pause/seek/skip).
      ============================================================ */
 
-  const audioRef = React.useRef<HTMLAudioElement>(null);
-  const [audioPlaying, setAudioPlaying] = React.useState(false);
-  const [audioCurrentSec, setAudioCurrentSec] = React.useState(0);
+  const player = usePlayer();
 
-  React.useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onPlay = () => setAudioPlaying(true);
-    const onPause = () => setAudioPlaying(false);
-    const onTime = () => setAudioCurrentSec(audio.currentTime);
-    const onEnded = () => {
-      setAudioPlaying(false);
-      setAudioCurrentSec(0);
+  const previewBeat: Beat | null = React.useMemo(() => {
+    if (!file || !fileUrl) return null;
+    return {
+      id: beatIdRef.current,
+      title: title || file.name,
+      bpm: bpm ? Number(bpm) : 0,
+      key: key || "",
+      dur: fmtDuration(durationSeconds),
+      img: artworkPreviewUrl,
+      wave: beatIdRef.current,
+      mood,
+      audioUrl: fileUrl,
     };
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("timeupdate", onTime);
-    audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [fileUrl]);
+  }, [
+    file,
+    fileUrl,
+    title,
+    bpm,
+    key,
+    durationSeconds,
+    artworkPreviewUrl,
+    mood,
+  ]);
 
-  const toggleAudio = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audioPlaying) audio.pause();
-    else audio.play().catch((e) => console.warn("[audio] play failed", e));
+  const isCurrent =
+    previewBeat != null && player.current?.id === previewBeat.id;
+  const togglePreview = () => {
+    if (previewBeat) player.toggle(previewBeat);
   };
-
-  const seekAudio = (frac: number) => {
-    const audio = audioRef.current;
-    if (!audio || !Number.isFinite(audio.duration)) return;
-    audio.currentTime = audio.duration * frac;
-  };
-
-  const audioProgress =
-    durationSeconds && durationSeconds > 0
-      ? Math.min(1, audioCurrentSec / durationSeconds)
-      : 0;
 
   /* ============================================================
      File handling
@@ -292,6 +282,9 @@ export function UploadBeatPage({
   }, [handleFile, router]);
 
   const cancelUpload = () => {
+    // Stop any preview playing through the dock — the blob URL is
+    // about to be revoked, the dock would error otherwise.
+    if (isCurrent) player.clear();
     if (fileUrl) URL.revokeObjectURL(fileUrl);
     router.push("/library");
   };
@@ -461,24 +454,15 @@ export function UploadBeatPage({
                 previewUrl={artworkPreviewUrl}
                 onPick={() => artworkInputRef.current?.click()}
                 onRemove={removeArtwork}
+                onPlay={togglePreview}
+                isCurrent={isCurrent}
+                playing={isCurrent && player.playing}
               />
 
               <AudioFileRow
                 file={file}
                 upload={upload}
                 onRemove={cancelUpload}
-              />
-
-              <AudioPlayer
-                fileUrl={fileUrl}
-                audioRef={audioRef}
-                playing={audioPlaying}
-                onToggle={toggleAudio}
-                onSeek={seekAudio}
-                progress={audioProgress}
-                currentSec={audioCurrentSec}
-                durationSec={durationSeconds}
-                seed={beatIdRef.current}
               />
             </div>
 
@@ -606,8 +590,14 @@ export function UploadBeatPage({
 }
 
 /* ============================================================
-   ArtworkBlock — generative CoverArt OR uploaded image, with two
-   overlay actions (REMOVE + ARTWORK / CHANGE).
+   ArtworkBlock — square-cropped generative CoverArt OR uploaded
+   image. Hover the cover to reveal a centred play overlay that
+   feeds the global PlayerDock at the bottom of the shell — the
+   producer previews the beat in the same player surface artists
+   will use.
+
+   Two stop-propagation pills sit bottom-right (REMOVE + CHANGE /
+   ARTWORK). They never trigger the play overlay.
    ============================================================ */
 
 function ArtworkBlock({
@@ -615,14 +605,35 @@ function ArtworkBlock({
   previewUrl,
   onPick,
   onRemove,
+  onPlay,
+  isCurrent,
+  playing,
 }: {
   seed: string;
   previewUrl: string | null;
   onPick: () => void;
   onRemove: () => void;
+  onPlay: () => void;
+  isCurrent: boolean;
+  playing: boolean;
 }) {
+  const [hovered, setHovered] = React.useState(false);
+  const showOverlay = hovered || isCurrent;
+
   return (
-    <div className="relative" style={{ aspectRatio: "1 / 1" }}>
+    <div
+      className="relative cursor-pointer overflow-hidden"
+      style={{
+        aspectRatio: "1 / 1",
+        borderRadius: "var(--r-lg)",
+        border: "1px solid var(--border-1)",
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onPlay}
+    >
+      {/* Cover surface — uploaded image (object-fit: cover crops to
+          the 1:1 container) or generative CoverArt. */}
       {previewUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -632,23 +643,43 @@ function ArtworkBlock({
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            borderRadius: "var(--r-lg)",
-            border: "1px solid var(--border-1)",
             display: "block",
           }}
         />
       ) : (
-        <CoverArt seed={seed} fill radius="var(--r-lg)" />
+        <CoverArt seed={seed} fill radius={0} />
       )}
 
+      {/* Hover / playing overlay — dark scrim + big play/pause icon */}
+      <div
+        aria-hidden
+        className="absolute inset-0 flex items-center justify-center transition-opacity duration-fast"
+        style={{
+          background: "oklch(0 0 0 / 0.45)",
+          opacity: showOverlay ? 1 : 0,
+          pointerEvents: "none",
+        }}
+      >
+        <Icon
+          name={isCurrent && playing ? "pause" : "play"}
+          size={56}
+          style={{ color: "#fff" }}
+        />
+      </div>
+
+      {/* REMOVE / CHANGE pills — bottom-right, stop propagation so
+          clicking them doesn't also toggle playback. */}
       <div
         className="absolute flex items-center"
-        style={{ right: 14, bottom: 14, gap: 8 }}
+        style={{ right: 14, bottom: 14, gap: 8, zIndex: 2 }}
       >
         {previewUrl && (
           <button
             type="button"
-            onClick={onRemove}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
             className="t-mono-s inline-flex items-center cursor-pointer"
             style={{
               height: 30,
@@ -666,7 +697,10 @@ function ArtworkBlock({
         )}
         <button
           type="button"
-          onClick={onPick}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPick();
+          }}
           className="t-mono-s inline-flex items-center cursor-pointer"
           style={{
             height: 30,
@@ -684,75 +718,6 @@ function ArtworkBlock({
           {previewUrl ? "CHANGE" : "ARTWORK"}
         </button>
       </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   AudioPlayer — preview the uploaded audio with PlayButton +
-   click-to-seek Waveform + time display.
-   ============================================================ */
-
-function AudioPlayer({
-  fileUrl,
-  audioRef,
-  playing,
-  onToggle,
-  onSeek,
-  progress,
-  currentSec,
-  durationSec,
-  seed,
-}: {
-  fileUrl: string | null;
-  audioRef: React.RefObject<HTMLAudioElement | null>;
-  playing: boolean;
-  onToggle: () => void;
-  onSeek: (frac: number) => void;
-  progress: number;
-  currentSec: number;
-  durationSec: number | null;
-  seed: string;
-}) {
-  return (
-    <div
-      className="flex items-center border border-border-1 bg-bg-1"
-      style={{
-        padding: "12px 14px",
-        gap: 12,
-        borderRadius: "var(--r-md)",
-      }}
-    >
-      <PlayButton size={38} playing={playing} onClick={onToggle} />
-      <div className="min-w-0 flex-1">
-        <Waveform
-          seed={seed}
-          bars={64}
-          height={36}
-          progress={progress}
-          onSeek={onSeek}
-          glow
-        />
-      </div>
-      <span
-        className="t-mono-s shrink-0"
-        style={{
-          minWidth: 78,
-          textAlign: "right",
-          color: "var(--fg-3)",
-        }}
-      >
-        {fmtDuration(Math.floor(currentSec))}
-        <span style={{ color: "var(--fg-4)" }}>
-          {" / "}
-          {fmtDuration(durationSec)}
-        </span>
-      </span>
-      <audio
-        ref={audioRef}
-        src={fileUrl ?? undefined}
-        preload="metadata"
-      />
     </div>
   );
 }
