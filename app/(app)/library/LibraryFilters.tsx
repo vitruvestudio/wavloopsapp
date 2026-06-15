@@ -108,11 +108,13 @@ export function LibraryFilters({
 
   return (
     <div>
-      {/* Search + Segmented row — same height so they read as one
-          toolbar. */}
+      {/* Search + Segmented row — search has a fixed-ish width on
+          desktop (340-360) so the segmented sits next to it as a
+          paired toolbar instead of being pushed to the far right of
+          the 1440 container. */}
       <div
         className="flex flex-col sm:flex-row items-stretch sm:items-center"
-        style={{ gap: 10, marginBottom: 14 }}
+        style={{ gap: 12, marginBottom: 14 }}
       >
         <SearchBeats value={search} onChange={setSearch} />
         <Segmented<TypeFilter>
@@ -226,12 +228,17 @@ function SearchBeats({
 }) {
   return (
     <div
-      className="flex items-center bg-bg-inset border border-border-1 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)] flex-1 min-w-0"
+      className="flex items-center bg-bg-inset border border-border-1 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)] w-full sm:w-auto sm:flex-none"
       style={{
         height: 36,
         padding: "0 14px",
         gap: 9,
         borderRadius: "var(--r-pill)",
+        // Constrained on desktop so the search input doesn't stretch
+        // edge-to-edge — segmented sits right next to it instead of
+        // being pushed to the far right of a 1440 container.
+        flexBasis: 340,
+        maxWidth: 360,
       }}
     >
       <Icon name="search" size={15} className="text-fg-3" />
