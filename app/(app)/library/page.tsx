@@ -1,49 +1,63 @@
 /**
  * /library — producer Beat library.
  *
- * Server component. Pulls the producer's beats via the
- * `beats_with_stats` view (migration #4) — one query, three counts per
- * row (in_servers_count, plays_count, likes_count).
+ * Server component. Fetches in parallel:
+ *   - beats_with_stats   — the producer's beats + per-beat counts
+ *   - servers            — for the SERVER filter dropdown
+ *   - server_beats       — pivot rows used to build the
+ *                          { beat_id → server_ids[] } map the
+ *                          SERVER filter needs to evaluate locally.
  *
- * Layout:
- *   - PageHeader: title "Beat library" · sub "X BEATS · Y COMPOSITIONS
- *     · Z LOOPS" · right slot "Upload a beat" → opens UploadModal
- *   - Body: <Dropzone /> permanent at the top (click opens the same
- *     UploadModal — file selection is centralised in one component)
- *   - Then either <EmptyState /> or the beat list.
+ * All filtering happens client-side inside <LibraryFilters />. Library
+ * sizes (≤ ~hundreds of beats) make a fresh O(n) scan per keystroke
+ * trivially cheap and side-steps a server roundtrip per filter
+ * keystroke.
  *
- * Upload flow:
- *   1. Any "Upload" entry point opens UploadModal (client wrapper)
- *   2. Modal accepts a File, drops it in the pending-upload singleton
- *   3. Modal navigates to /library/upload
- *   4. Setup page consumes the singleton on mount and renders the form
- *
- * V1 scope (this commit): list view only — no Search input, no
- * Segmented filter, no MOOD/BPM/KEY/SERVER chip filters, no Sort
- * dropdown, no list/grid toggle. All deferred to V1.1.
- *
- * `now` is computed once on the server and threaded down to BeatRow so
- * the relative-time formatter stays stable through SSR + hydrate.
+ * `now` is computed once on the server and passed down so the BeatRow
+ * relative-time formatter stays stable across SSR + hydrate.
  */
 
 import { PageHeader } from "@/components/app/PageHeader";
-import { BeatRow } from "@/components/app/BeatRow";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/server";
-import type { BeatWithStatsRow } from "@/lib/supabase/database.types";
+import type {
+  BeatWithStatsRow,
+  ServerRow,
+} from "@/lib/supabase/database.types";
+import { LibraryFilters } from "./LibraryFilters";
 import { UploadTrigger } from "./UploadTrigger";
 
 export default async function LibraryPage() {
   const supabase = await createClient();
 
-  const { data: beats } = await supabase
-    .from("beats_with_stats")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<BeatWithStatsRow[]>();
+  const [beatsRes, serversRes, membershipsRes] = await Promise.all([
+    supabase
+      .from("beats_with_stats")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .returns<BeatWithStatsRow[]>(),
+    supabase
+      .from("servers")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .returns<ServerRow[]>(),
+    supabase
+      .from("server_beats")
+      .select("beat_id, server_id")
+      .returns<Array<{ beat_id: string; server_id: string }>>(),
+  ]);
 
-  const list = beats ?? [];
+  const list = beatsRes.data ?? [];
+  const servers = serversRes.data ?? [];
+  const memberships = membershipsRes.data ?? [];
+
+  // Group memberships by beat → array of server ids.
+  const beatServers: Record<string, string[]> = {};
+  for (const m of memberships) {
+    (beatServers[m.beat_id] ??= []).push(m.server_id);
+  }
+
   const compCount = list.filter((b) => b.type === "comp").length;
   const loopCount = list.filter((b) => b.type === "loop").length;
   const now = new Date();
@@ -73,7 +87,12 @@ export default async function LibraryPage() {
         {list.length === 0 ? (
           <EmptyState />
         ) : (
-          <BeatList beats={list} now={now} />
+          <LibraryFilters
+            beats={list}
+            servers={servers}
+            beatServers={beatServers}
+            now={now}
+          />
         )}
       </div>
     </>
@@ -123,7 +142,6 @@ function Dropzone() {
                 Drag &amp; drop your beats here
               </span>
             </div>
-            {/* Helper line — desktop only; mobile keeps the dropzone tight */}
             <div
               className="t-mono-s hidden sm:block"
               style={{ marginTop: 3 }}
@@ -177,76 +195,6 @@ function EmptyState() {
           Upload your first beat
         </Button>
       </UploadTrigger>
-    </div>
-  );
-}
-
-/* ============================================================
-   BeatList — table-like list with mono header row + BeatRows
-   ============================================================ */
-
-function BeatList({
-  beats,
-  now,
-}: {
-  beats: BeatWithStatsRow[];
-  now: Date;
-}) {
-  return (
-    <div>
-      <div
-        className="hidden md:flex items-center"
-        style={{
-          gap: 14,
-          padding: "0 12px",
-          marginBottom: 6,
-        }}
-      >
-        <span className="t-mono-s" style={{ width: 46, flexShrink: 0 }} />
-        <span
-          className="t-mono-s flex-1"
-          style={{ color: "var(--fg-4)" }}
-        >
-          BEAT
-        </span>
-        <span
-          className="t-mono-s shrink-0"
-          style={{
-            width: 90,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          ADDED
-        </span>
-        <span
-          className="t-mono-s hidden lg:inline-block shrink-0"
-          style={{
-            width: 110,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          IN SERVERS
-        </span>
-        <span
-          className="t-mono-s shrink-0"
-          style={{
-            width: 100,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          ENGAGEMENT
-        </span>
-        <span className="shrink-0" style={{ width: 32 }} />
-      </div>
-
-      <div className="flex flex-col" style={{ gap: 2 }}>
-        {beats.map((b) => (
-          <BeatRow key={b.id} beat={b} now={now} />
-        ))}
-      </div>
     </div>
   );
 }
