@@ -421,44 +421,10 @@ export function AddContactModal({
           )}
 
           <div className="flex flex-col" style={{ gap: 16 }}>
-            <Field
-              label="NAME · OPTIONAL"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. kayde"
-            />
-            <Field
-              label="EMAIL"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="artist@email.com"
-              required
-            />
-            <Field
-              label="PHONE · OPTIONAL"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 …"
-            />
-
-            {/* Roles — who this contact is professionally */}
-            <div>
-              <div className="t-mono-s" style={{ marginBottom: 10 }}>
-                TYPE · OPTIONAL
-              </div>
-              <TagInput
-                value={roles}
-                onChange={setRoles}
-                max={3}
-                suggestions={CONTACT_ROLE_SUGGEST as string[]}
-                placeholder="e.g. Producer, Beatmaker…"
-                accent
-              />
-            </div>
-
-            {/* Socials */}
+            {/* Socials — sits right under the PASTE field so each
+                paste lights up its chip in the producer's sight
+                line, and they can click another chip to enter a
+                second platform manually. */}
             <div>
               <div className="t-mono-s" style={{ marginBottom: 10 }}>
                 SOCIALS & LINKS · OPTIONAL
@@ -516,6 +482,43 @@ export function AddContactModal({
                   />
                 </div>
               )}
+            </div>
+
+            <Field
+              label="NAME · OPTIONAL"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. kayde"
+            />
+            <Field
+              label="EMAIL"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="artist@email.com"
+              required
+            />
+            <Field
+              label="PHONE · OPTIONAL"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 …"
+            />
+
+            {/* Roles — who this contact is professionally */}
+            <div>
+              <div className="t-mono-s" style={{ marginBottom: 10 }}>
+                TYPE · OPTIONAL
+              </div>
+              <TagInput
+                value={roles}
+                onChange={setRoles}
+                max={3}
+                suggestions={CONTACT_ROLE_SUGGEST as string[]}
+                placeholder="e.g. Producer, Beatmaker…"
+                accent
+              />
             </div>
 
             {/* Servers */}
