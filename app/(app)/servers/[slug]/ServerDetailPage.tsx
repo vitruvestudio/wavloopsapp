@@ -37,7 +37,11 @@ import type {
   ServerWithStatsRow,
 } from "@/lib/supabase/database.types";
 import { AddBeatsModal } from "./AddBeatsModal";
-import { addBeatsToServerAction } from "./actions";
+import {
+  addArtistsToServerAction,
+  addBeatsToServerAction,
+} from "./actions";
+import { AddArtistsModal } from "./AddArtistsModal";
 import { AddContactModal } from "../../contacts/AddContactModal";
 import type { ServerStub } from "../../contacts/page";
 
@@ -52,8 +56,11 @@ interface ServerDetailPageProps {
   /** Full producer library — populates the Add beats modal. */
   library: BeatWithStatsRow[];
   /** Every server the producer owns — passed to the Add artist
-   *  modal so the chip group can render all options. */
+   *  create-new modal so the chip group can render all options. */
   allServers: ServerStub[];
+  /** Every contact in the producer's address book — picker source
+   *  for the AddArtistsModal. */
+  addressBook: ContactRow[];
 }
 
 export function ServerDetailPage({
@@ -63,6 +70,7 @@ export function ServerDetailPage({
   likesCount,
   library,
   allServers,
+  addressBook,
 }: ServerDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
@@ -71,7 +79,33 @@ export function ServerDetailPage({
   const [copied, setCopied] = React.useState(false);
   const [addBeatsOpen, setAddBeatsOpen] = React.useState(false);
   const [addBeatsPending, startAddBeats] = React.useTransition();
-  const [addArtistOpen, setAddArtistOpen] = React.useState(false);
+  /** "Pick from address book" modal — the default flow. */
+  const [addArtistsOpen, setAddArtistsOpen] = React.useState(false);
+  const [addArtistsPending, startAddArtists] = React.useTransition();
+  /** "Create new contact" modal — opened from inside the picker
+   *  when the artist isn't in the address book yet. */
+  const [createContactOpen, setCreateContactOpen] = React.useState(false);
+
+  const existingContactIds = React.useMemo(
+    () => new Set(contacts.map((c) => c.id)),
+    [contacts],
+  );
+
+  const addArtists = (contactIds: string[]) => {
+    startAddArtists(async () => {
+      const result = await addArtistsToServerAction(
+        server.id,
+        contactIds,
+        server.slug,
+      );
+      if (result.error) {
+        alert(`Couldn't add artists: ${result.error}`);
+        return;
+      }
+      setAddArtistsOpen(false);
+      router.refresh();
+    });
+  };
   const now = React.useMemo(() => new Date(), []);
 
   // Ids of beats already attached — used to filter the modal list.
@@ -267,7 +301,7 @@ export function ServerDetailPage({
                 <Button
                   icon="plus"
                   size="sm"
-                  onClick={() => setAddArtistOpen(true)}
+                  onClick={() => setAddArtistsOpen(true)}
                   className="!h-[36px]"
                 >
                   Add artist
@@ -294,7 +328,7 @@ export function ServerDetailPage({
           <ArtistsTab
             contacts={contacts}
             now={now}
-            onAdd={() => setAddArtistOpen(true)}
+            onAdd={() => setAddArtistsOpen(true)}
           />
         )}
       </div>
@@ -338,11 +372,27 @@ export function ServerDetailPage({
           pending={addBeatsPending}
         />
       )}
-      {addArtistOpen && (
+      {addArtistsOpen && (
+        <AddArtistsModal
+          serverName={server.name}
+          library={addressBook}
+          existingContactIds={existingContactIds}
+          onClose={() => {
+            if (!addArtistsPending) setAddArtistsOpen(false);
+          }}
+          onConfirm={addArtists}
+          onCreateNew={() => {
+            setAddArtistsOpen(false);
+            setCreateContactOpen(true);
+          }}
+          pending={addArtistsPending}
+        />
+      )}
+      {createContactOpen && (
         <AddContactModal
           allServers={allServers}
           defaultServerIds={[server.id]}
-          onClose={() => setAddArtistOpen(false)}
+          onClose={() => setCreateContactOpen(false)}
         />
       )}
     </>

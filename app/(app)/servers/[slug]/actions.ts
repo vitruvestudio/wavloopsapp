@@ -69,3 +69,50 @@ export async function addBeatsToServerAction(
   revalidatePath("/library", "page");
   return { error: null, added: fresh.length };
 }
+
+/* ================================================================
+   addArtistsToServerAction — bulk-attach existing address-book
+   contacts to this server via the server_contacts pivot.
+   ================================================================
+   Same idempotency shape as addBeatsToServerAction:
+     - dedup against the existing pivot rows so re-clicking on a
+       briefly-stale modal doesn't 23505
+     - INSERT only the fresh subset
+     - revalidate the server detail + dashboard
+   RLS via `server_contacts_owner_all` gates ownership of the server.
+*/
+export interface AddArtistsResult {
+  error: string | null;
+  added: number;
+}
+
+export async function addArtistsToServerAction(
+  serverId: string,
+  contactIds: string[],
+  serverSlug: string,
+): Promise<AddArtistsResult> {
+  const supabase = await createClient();
+
+  if (contactIds.length === 0) return { error: null, added: 0 };
+
+  const { data: existing } = await supabase
+    .from("server_contacts")
+    .select("contact_id")
+    .eq("server_id", serverId)
+    .in("contact_id", contactIds);
+  const alreadyIn = new Set((existing ?? []).map((r) => r.contact_id));
+  const fresh = contactIds.filter((id) => !alreadyIn.has(id));
+  if (fresh.length === 0) return { error: null, added: 0 };
+
+  const rows = fresh.map((cid) => ({
+    server_id: serverId,
+    contact_id: cid,
+  }));
+  const { error } = await supabase.from("server_contacts").insert(rows);
+  if (error) return { error: error.message, added: 0 };
+
+  revalidatePath(`/servers/${serverSlug}`, "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/contacts", "page");
+  return { error: null, added: fresh.length };
+}

@@ -48,6 +48,7 @@ export default async function ServerPage({ params }: PageProps) {
     userRes,
     libraryRes,
     allServersRes,
+    addressBookRes,
   ] = await Promise.all([
     supabase
       .from("server_beats")
@@ -81,13 +82,20 @@ export default async function ServerPage({ params }: PageProps) {
       .order("created_at", { ascending: false })
       .returns<BeatWithStatsRow[]>(),
     // The producer's full server list — used by the "Add artist"
-    // modal so the chip group can render every server, with the
-    // current one pre-selected via defaultServerIds.
+    // create-new modal so the chip group can render every server
+    // with the current one pre-selected via defaultServerIds.
     supabase
       .from("servers")
       .select("id, name, slug")
       .order("name", { ascending: true })
       .returns<Array<{ id: string; name: string; slug: string }>>(),
+    // The producer's full address book — populates the
+    // AddArtistsModal's picker. RLS scopes it to their own contacts.
+    supabase
+      .from("contacts")
+      .select("*")
+      .order("last_active_at", { ascending: false })
+      .returns<ContactRow[]>(),
   ]);
 
   // Re-order beats to match the pivot's position order — `.in()` on
@@ -121,6 +129,7 @@ export default async function ServerPage({ params }: PageProps) {
       userId={userRes.data.user?.id ?? ""}
       library={libraryRes.data ?? []}
       allServers={allServersRes.data ?? []}
+      addressBook={addressBookRes.data ?? []}
     />
   );
 }
