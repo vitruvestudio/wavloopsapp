@@ -27,6 +27,10 @@ export interface CreateServerPayload {
   artist_types: string[];
   artwork_mode: ArtworkMode;
   accent_hue: number | null;
+  /** Public URL of the uploaded custom cover image (server-covers
+   *  bucket), or null when artwork_mode !== 'image'. The client
+   *  performs the upload before calling this action. */
+  artwork_image_url: string | null;
   visibility: Visibility;
   beat_ids: string[];
 }
@@ -85,6 +89,7 @@ export async function createServerAction(
         artist_types: payload.artist_types,
         artwork_mode: payload.artwork_mode,
         accent_hue: payload.accent_hue,
+        artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
       })
       .select("id, slug")
@@ -116,6 +121,7 @@ export async function createServerAction(
         artist_types: payload.artist_types,
         artwork_mode: payload.artwork_mode,
         accent_hue: payload.accent_hue,
+        artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
       })
       .select("id, slug")

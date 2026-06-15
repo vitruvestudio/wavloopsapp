@@ -40,6 +40,7 @@ import { Segmented } from "@/components/ui/Segmented";
 import { TagInput } from "@/components/ui/TagInput";
 import { ARTIST_TYPE_SUGGEST } from "@/lib/audio";
 import { slugify } from "@/lib/slug";
+import { createClient } from "@/lib/supabase/client";
 import { createServerAction } from "./actions";
 import type {
   ArtworkMode,
@@ -49,6 +50,7 @@ import type {
 } from "@/lib/supabase/database.types";
 
 interface CreateServerPageProps {
+  userId: string;
   beats: BeatWithStatsRow[];
 }
 
@@ -57,8 +59,12 @@ interface CreateServerPageProps {
  *  garish. The default 270 is the Wavloops brand accent. */
 const HUE_PRESETS = [0, 30, 60, 120, 180, 240, 280, 330] as const;
 
-export function CreateServerPage({ beats }: CreateServerPageProps) {
+export function CreateServerPage({
+  userId,
+  beats,
+}: CreateServerPageProps) {
   const router = useRouter();
+  const supabase = React.useMemo(() => createClient(), []);
 
   /* ============================================================
      Form state
@@ -76,6 +82,66 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
 
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+
+  /* ============================================================
+     Custom artwork upload (when artworkMode === "image").
+     Uploaded to the `server-covers` bucket on submit. The path
+     prefix is the user's auth.uid() so the bucket's RLS lets the
+     client write directly without a server roundtrip.
+     ============================================================ */
+
+  const serverIdRef = React.useRef<string>(crypto.randomUUID());
+  const [artworkFile, setArtworkFile] = React.useState<File | null>(null);
+  const [artworkPreviewUrl, setArtworkPreviewUrl] = React.useState<
+    string | null
+  >(null);
+  const artworkInputRef = React.useRef<HTMLInputElement>(null);
+
+  const onPickArtwork = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setServerError("Artwork must be an image (JPG, PNG, WEBP).");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setServerError("Image is over 5 MB. Compress and try again.");
+      return;
+    }
+    setServerError(null);
+    if (artworkPreviewUrl) URL.revokeObjectURL(artworkPreviewUrl);
+    setArtworkFile(f);
+    setArtworkPreviewUrl(URL.createObjectURL(f));
+  };
+
+  const removeArtwork = () => {
+    if (artworkPreviewUrl) URL.revokeObjectURL(artworkPreviewUrl);
+    setArtworkFile(null);
+    setArtworkPreviewUrl(null);
+  };
+
+  const uploadArtwork = async (): Promise<string | null> => {
+    if (!artworkFile || !userId) return null;
+    const ext = (artworkFile.name.split(".").pop() ?? "jpg")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const path = `${userId}/${serverIdRef.current}.${ext}`;
+    const { error } = await supabase.storage
+      .from("server-covers")
+      .upload(path, artworkFile, {
+        contentType: artworkFile.type,
+        upsert: true,
+      });
+    if (error) {
+      console.warn("[create-server] artwork upload failed", error);
+      return null;
+    }
+    const { data } = supabase.storage
+      .from("server-covers")
+      .getPublicUrl(path);
+    return data.publicUrl;
+  };
 
   /* ============================================================
      Derived values
@@ -96,7 +162,8 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
       artist_types: artistTypes,
       artwork_mode: artworkMode,
       accent_hue: artworkMode === "color" ? accentHue : null,
-      artwork_image_url: null,
+      artwork_image_url:
+        artworkMode === "image" ? artworkPreviewUrl : null,
       visibility,
       created_at: "",
       updated_at: "",
@@ -109,6 +176,7 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
       artistTypes,
       artworkMode,
       accentHue,
+      artworkPreviewUrl,
       visibility,
     ],
   );
@@ -150,6 +218,17 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
     if (!canSubmit) return;
     setServerError(null);
     startTransition(async () => {
+      // Upload the custom image first (if any) so the action gets a
+      // ready-to-store URL.
+      let artworkImageUrl: string | null = null;
+      if (artworkMode === "image" && artworkFile) {
+        artworkImageUrl = await uploadArtwork();
+        if (!artworkImageUrl) {
+          setServerError("Failed to upload artwork. Try again.");
+          return;
+        }
+      }
+
       const result = await createServerAction({
         name,
         style_text: styleText.trim() || null,
@@ -157,6 +236,7 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
         artist_types: artistTypes,
         artwork_mode: artworkMode,
         accent_hue: artworkMode === "color" ? accentHue : null,
+        artwork_image_url: artworkImageUrl,
         visibility,
         beat_ids: beatIds,
       });
@@ -300,11 +380,7 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
                     { value: "image", label: "Image" },
                   ]}
                   value={artworkMode}
-                  onChange={(v) => {
-                    // V1: Image upload disabled — bounce silently back to auto.
-                    if (v === "image") return;
-                    setArtworkMode(v);
-                  }}
+                  onChange={setArtworkMode}
                 />
               </div>
               {artworkMode === "auto" && (
@@ -322,6 +398,15 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
               )}
               {artworkMode === "color" && (
                 <HueChips value={accentHue} onChange={setAccentHue} />
+              )}
+              {artworkMode === "image" && (
+                <ImagePicker
+                  inputRef={artworkInputRef}
+                  previewUrl={artworkPreviewUrl}
+                  onPick={onPickArtwork}
+                  onClickPick={() => artworkInputRef.current?.click()}
+                  onRemove={removeArtwork}
+                />
               )}
             </div>
 
@@ -497,6 +582,109 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
         </div>
       </div>
     </>
+  );
+}
+
+/* ============================================================
+   ImagePicker — file picker UI for the Image artwork mode
+   ============================================================ */
+
+function ImagePicker({
+  inputRef,
+  previewUrl,
+  onPick,
+  onClickPick,
+  onRemove,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  previewUrl: string | null;
+  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClickPick: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      className="border border-border-1 bg-bg-1"
+      style={{ padding: 14, borderRadius: "var(--r-md)" }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onPick}
+      />
+      {previewUrl ? (
+        <div className="flex items-center" style={{ gap: 14 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewUrl}
+            alt=""
+            style={{
+              width: 80,
+              height: 80,
+              objectFit: "cover",
+              borderRadius: "var(--r-sm)",
+              flexShrink: 0,
+            }}
+          />
+          <div className="flex flex-col min-w-0 flex-1" style={{ gap: 8 }}>
+            <span
+              className="t-mono-s"
+              style={{ color: "var(--accent-text)" }}
+            >
+              CUSTOM ARTWORK SET
+            </span>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onClickPick}
+              >
+                Replace
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onRemove}>
+                Remove
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onClickPick}
+          className="flex flex-col items-center justify-center w-full cursor-pointer transition-colors duration-fast hover:bg-bg-2"
+          style={{
+            padding: "30px 16px",
+            borderRadius: "var(--r-sm)",
+            border: "1.5px dashed var(--border-2)",
+            background: "transparent",
+          }}
+        >
+          <div
+            className="flex items-center justify-center text-accent-text"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "var(--r-md)",
+              background: "var(--accent-surface)",
+              marginBottom: 10,
+            }}
+          >
+            <Icon name="upload" size={20} />
+          </div>
+          <span className="t-title" style={{ fontSize: 14 }}>
+            Click to upload artwork
+          </span>
+          <span
+            className="t-mono-s"
+            style={{ marginTop: 4, color: "var(--fg-4)" }}
+          >
+            JPG, PNG, WEBP · MAX 5 MB
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 

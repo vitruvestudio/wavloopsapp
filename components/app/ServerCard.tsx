@@ -72,25 +72,42 @@ export function ServerCard({ server, beatSeeds, stats }: ServerCardProps) {
         transitionTimingFunction: "var(--ease)",
       }}
     >
-      {/* Cover mosaic */}
+      {/* Cover surface — uploaded image (artwork_mode 'image') OR
+          generative mosaic from beat seeds (default 'auto' / 'color'). */}
       <div
         className="relative flex overflow-hidden bg-bg-inset"
         style={{ height: 132, gap: 2 }}
       >
-        {seeds.map((s, i) => (
-          <div key={i} className="relative flex-1">
-            <CoverArt
-              fill
-              seed={s}
-              hue={
-                // First slice picks up the server's accent if set so the
-                // whole card reads "this server colour"; subsequent
-                // slices keep their per-beat hue for visual variety.
-                i === 0 && overlayHue != null ? overlayHue : undefined
-              }
-            />
-          </div>
-        ))}
+        {server.artwork_mode === "image" && server.artwork_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={server.artwork_image_url}
+            alt=""
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        ) : (
+          seeds.map((s, i) => (
+            <div key={i} className="relative flex-1">
+              <CoverArt
+                fill
+                seed={s}
+                hue={
+                  // First slice picks up the server's accent if set so the
+                  // whole card reads "this server colour"; subsequent
+                  // slices keep their per-beat hue for visual variety.
+                  i === 0 && overlayHue != null ? overlayHue : undefined
+                }
+              />
+            </div>
+          ))
+        )}
 
         {/* Darken-down overlay tinted with the server's accent hue */}
         <div
