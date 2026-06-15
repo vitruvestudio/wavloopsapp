@@ -92,8 +92,8 @@ function Dropzone() {
         tabIndex={0}
         className={[
           "flex w-full items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]",
-          "gap-[12px] p-[14px]",
-          "sm:gap-[18px] sm:p-[18px_22px]",
+          "gap-[12px] p-[20px_16px]",
+          "sm:gap-[18px] sm:p-[22px_24px]",
         ].join(" ")}
         style={{
           borderRadius: "var(--r-lg)",
