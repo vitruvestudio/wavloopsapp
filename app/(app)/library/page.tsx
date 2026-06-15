@@ -7,28 +7,32 @@
  *
  * Layout:
  *   - PageHeader: title "Beat library" · sub "X BEATS · Y COMPOSITIONS
- *     · Z LOOPS" · right slot "Upload a beat" button → /library/upload
- *   - Body: <Dropzone /> permanent at the top (click → /library/upload
- *     for V1; drag-drop handling lands in J4.2 with the upload page)
+ *     · Z LOOPS" · right slot "Upload a beat" → opens UploadModal
+ *   - Body: <Dropzone /> permanent at the top (click opens the same
+ *     UploadModal — file selection is centralised in one component)
  *   - Then either <EmptyState /> or the beat list.
  *
- * V1 scope (this commit):
- *   - List view only — no list/grid toggle, no Search input, no
- *     Segmented filter, no MOOD/BPM/KEY/SERVER chip filters, no Sort
- *     dropdown. All deferred to V1.1 — wired once the data flow is
- *     proven and we have enough rows to make them useful.
+ * Upload flow:
+ *   1. Any "Upload" entry point opens UploadModal (client wrapper)
+ *   2. Modal accepts a File, drops it in the pending-upload singleton
+ *   3. Modal navigates to /library/upload
+ *   4. Setup page consumes the singleton on mount and renders the form
+ *
+ * V1 scope (this commit): list view only — no Search input, no
+ * Segmented filter, no MOOD/BPM/KEY/SERVER chip filters, no Sort
+ * dropdown, no list/grid toggle. All deferred to V1.1.
  *
  * `now` is computed once on the server and threaded down to BeatRow so
- * the relative-time formatter is stable through SSR + hydrate.
+ * the relative-time formatter stays stable through SSR + hydrate.
  */
 
-import Link from "next/link";
 import { PageHeader } from "@/components/app/PageHeader";
 import { BeatRow } from "@/components/app/BeatRow";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/server";
 import type { BeatWithStatsRow } from "@/lib/supabase/database.types";
+import { UploadTrigger } from "./UploadTrigger";
 
 export default async function LibraryPage() {
   const supabase = await createClient();
@@ -50,12 +54,16 @@ export default async function LibraryPage() {
         title="Beat library"
         sub={`${list.length} BEAT${list.length === 1 ? "" : "S"} · ${compCount} COMPOSITION${compCount === 1 ? "" : "S"} · ${loopCount} LOOP${loopCount === 1 ? "" : "S"}`}
         right={
-          <Link href="/library/upload" className="shrink-0">
-            <Button icon="upload" size="sm" className="lg:!h-[38px] lg:!text-[14px]">
+          <UploadTrigger>
+            <Button
+              icon="upload"
+              size="sm"
+              className="lg:!h-[38px] lg:!text-[14px]"
+            >
               <span className="hidden sm:inline">Upload a beat</span>
               <span className="sm:hidden">Upload</span>
             </Button>
-          </Link>
+          </UploadTrigger>
         }
       />
 
@@ -73,52 +81,53 @@ export default async function LibraryPage() {
 }
 
 /* ============================================================
-   Dropzone — permanent banner at the top of the library
+   Dropzone — permanent banner that opens the Upload modal
    ============================================================ */
 
 function Dropzone() {
-  // V1: clickable shell that routes to the upload page. Full drag-drop
-  // handling (browser-side file API + auto-detect) ships in J4.2.
   return (
-    <Link
-      href="/library/upload"
-      className="flex items-center justify-between hover:bg-bg-1 transition-colors duration-fast mb-[24px]"
-      style={{
-        gap: 18,
-        padding: "18px 22px",
-        borderRadius: "var(--r-lg)",
-        border: "1.5px dashed var(--border-2)",
-        background: "transparent",
-      }}
-    >
-      <div className="flex items-center min-w-0" style={{ gap: 16 }}>
-        <div
-          className="flex items-center justify-center shrink-0 text-accent-text"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: "var(--r-md)",
-            background: "var(--accent-surface)",
-          }}
-        >
-          <Icon name="upload" size={20} />
-        </div>
-        <div className="min-w-0">
-          <div className="t-title" style={{ fontSize: 15 }}>
-            Drag &amp; drop your beats here
+    <UploadTrigger>
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex items-center justify-between hover:bg-bg-1 transition-colors duration-fast cursor-pointer mb-[24px]"
+        style={{
+          gap: 18,
+          padding: "18px 22px",
+          borderRadius: "var(--r-lg)",
+          border: "1.5px dashed var(--border-2)",
+          background: "transparent",
+        }}
+      >
+        <div className="flex items-center min-w-0" style={{ gap: 16 }}>
+          <div
+            className="flex items-center justify-center shrink-0 text-accent-text"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "var(--r-md)",
+              background: "var(--accent-surface)",
+            }}
+          >
+            <Icon name="upload" size={20} />
           </div>
-          <div className="t-mono-s" style={{ marginTop: 3 }}>
-            WAV or MP3 · add title and style/mood tags after upload
+          <div className="min-w-0">
+            <div className="t-title" style={{ fontSize: 15 }}>
+              Drag &amp; drop your beats here
+            </div>
+            <div className="t-mono-s" style={{ marginTop: 3 }}>
+              WAV or MP3 · add title and style/mood tags after upload
+            </div>
           </div>
         </div>
+        <span className="shrink-0">
+          <Button variant="secondary" size="sm" icon="upload">
+            <span className="hidden sm:inline">Browse files</span>
+            <span className="sm:hidden">Browse</span>
+          </Button>
+        </span>
       </div>
-      <span className="shrink-0">
-        <Button variant="secondary" size="sm" icon="upload">
-          <span className="hidden sm:inline">Browse files</span>
-          <span className="sm:hidden">Browse</span>
-        </Button>
-      </span>
-    </Link>
+    </UploadTrigger>
   );
 }
 
@@ -151,11 +160,11 @@ function EmptyState() {
         Drop a beat above or upload one from your computer. Auto-detect
         tempo, key and length — add mood tags afterwards.
       </p>
-      <Link href="/library/upload">
+      <UploadTrigger>
         <Button size="lg" icon="upload">
           Upload your first beat
         </Button>
-      </Link>
+      </UploadTrigger>
     </div>
   );
 }
@@ -173,7 +182,6 @@ function BeatList({
 }) {
   return (
     <div>
-      {/* Column headers — mono, fg-3, mirror BeatRow's right-cluster widths */}
       <div
         className="hidden md:flex items-center"
         style={{
@@ -212,7 +220,7 @@ function BeatList({
         <span
           className="t-mono-s hidden sm:inline-block shrink-0"
           style={{
-            width: 14 * 3 + 38 + 38 + 38, // matches the right cluster width approximately
+            width: 14 * 3 + 38 + 38 + 38,
             textAlign: "right",
             color: "var(--fg-4)",
           }}

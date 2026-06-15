@@ -1,16 +1,14 @@
 /**
- * UploadBeatPage — client component, 2-column upload form.
+ * UploadBeatPage — client component, 2-column setup form.
  *
- * Pixel-aligned to the prototype upload modal (`screen_upload.jsx`),
- * but laid out as a full page route under the (app) shell instead of
- * an overlay — see the J4.2 design rationale.
+ * Reached from the UploadModal on /library after a file has been
+ * picked. The File object is handed over via the pending-upload module
+ * singleton (see lib/pending-upload.ts) — refresh = back to /library.
  *
- *   ┌─ PageHeader: ◂ "Upload a beat" ────────── [ Upload beat ] ┐
- *   ├─ pre-file state: BIG dropzone, centred ──────────────────┤
- *   │  └─ once a file is picked, the layout switches to: ─────┘
+ *   ┌─ PageHeader: ◂ "Upload a beat" ─────── [ Cancel ] [ Upload beat ] ┐
  *   │
  *   │  ┌─ left col ─────────────┐  ┌─ right col ──────────────┐
- *   │  │ 330×330 CoverArt        │  │ AUTO-DETECTED kicker    │
+ *   │  │ 1:1 CoverArt            │  │ AUTO-DETECTED kicker    │
  *   │  │ + "ARTWORK" overlay     │  │ TEMPO · KEY · LENGTH    │
  *   │  │                         │  │ · AUTOTUNE KEY (4 cells)│
  *   │  │ audio file row          │  │                         │
@@ -24,26 +22,25 @@
  *   │                               └──────────────────────────┘
  *   └────────────────────────────────────────────────────────────┘
  *
+ * Lifecycle:
+ *   1. Mount → consumePendingFile() once (ref-guarded against strict
+ *      mode double-invoke)
+ *   2. If null → router.replace("/library") and bail
+ *   3. Else → kick off background upload to Storage + pre-fill title
+ *      + auto-detect length
+ *   4. While the audio uploads in the background the producer fills
+ *      the form; "Upload beat" stays disabled until upload.status === "ready"
+ *
  * V1 scope (this commit):
- *   - File selection via picker OR drag-drop on the page.
  *   - Length auto-detect from the audio file's metadata (cheap, native).
  *   - BPM / KEY / AUTOTUNE KEY are MANUAL inputs — auto-detect ships in
  *     J4.3 with essentia.js.
  *   - Title auto-extracted from filename (Title-Cased).
- *   - Browser-direct upload to Storage on submit (avoids the Next 16
- *     1MB server-action body limit on large WAVs).
- *
- * Wire on submit:
- *   1. Generate beat id + storage path
- *   2. Upload File to `beat-audio/<user_id>/<beat_id>.<ext>`
- *   3. Call saveBeatAction with the storage path + all form fields
- *   4. Action INSERTs beat + pivots + redirects to /library
  */
 
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -64,6 +61,7 @@ import {
   getAudioDurationSeconds,
 } from "@/lib/audio";
 import { fmtDuration } from "@/lib/fmt";
+import { consumePendingFile } from "@/lib/pending-upload";
 import { createClient } from "@/lib/supabase/client";
 import { saveBeatAction } from "./actions";
 import type { BeatType, ServerRow } from "@/lib/supabase/database.types";
@@ -117,80 +115,77 @@ export function UploadBeatPage({
   const [pending, startTransition] = React.useTransition();
 
   const beatIdRef = React.useRef<string>(crypto.randomUUID());
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  /** Strict-mode double-invoke guard for the consume on mount. */
+  const consumedRef = React.useRef(false);
 
   /* ============================================================
-     File pick / drop
+     File handling
      ============================================================ */
 
-  const handleFile = React.useCallback(async (f: File) => {
-    if (!f.type.startsWith("audio/")) {
-      setServerError("Please upload an audio file (WAV, MP3, AIFF, FLAC).");
+  const uploadFile = React.useCallback(
+    async (f: File) => {
+      setUpload({ status: "uploading", pct: 0 });
+      const supabase = createClient();
+      const ext = (f.name.split(".").pop() ?? "mp3").toLowerCase();
+      const path = `${userId}/${beatIdRef.current}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from("beat-audio")
+        .upload(path, f, {
+          contentType: f.type || "audio/mpeg",
+          upsert: false,
+        });
+
+      if (error) {
+        setUpload({ status: "failed", message: error.message });
+        return;
+      }
+      setUpload({ status: "ready", path });
+    },
+    [userId],
+  );
+
+  const handleFile = React.useCallback(
+    async (f: File) => {
+      setServerError(null);
+      setFile(f);
+      setFileUrl(URL.createObjectURL(f));
+      setTitle((cur) => cur || decodeFilenameTitle(f.name));
+
+      try {
+        const d = await getAudioDurationSeconds(f);
+        setDurationSeconds(d);
+      } catch {
+        // length auto-detect failed — user can still submit without it
+      }
+
+      // Background upload — by the time the producer finishes filling
+      // the form the audio is already in Storage.
+      void uploadFile(f);
+    },
+    [uploadFile],
+  );
+
+  /* ============================================================
+     Mount: consume the file the modal handed over via the singleton.
+     Strict mode runs this twice in dev — the ref guard makes it idempotent.
+     ============================================================ */
+
+  React.useEffect(() => {
+    if (consumedRef.current) return;
+    consumedRef.current = true;
+
+    const f = consumePendingFile();
+    if (!f) {
+      router.replace("/library");
       return;
     }
-    if (f.size > 100 * 1024 * 1024) {
-      setServerError("Audio file is over 100 MB. Compress and try again.");
-      return;
-    }
+    void handleFile(f);
+  }, [handleFile, router]);
 
-    setServerError(null);
-    setFile(f);
-    setFileUrl(URL.createObjectURL(f));
-    setTitle((cur) => cur || decodeFilenameTitle(f.name));
-
-    try {
-      const d = await getAudioDurationSeconds(f);
-      setDurationSeconds(d);
-    } catch {
-      // length auto-detect failed — user can still submit without it
-    }
-
-    // Kick off upload in the background so by the time the producer
-    // finishes filling the form the audio is already in Storage.
-    void uploadFile(f);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const uploadFile = async (f: File) => {
-    setUpload({ status: "uploading", pct: 0 });
-    const supabase = createClient();
-    const ext = (f.name.split(".").pop() ?? "mp3").toLowerCase();
-    const path = `${userId}/${beatIdRef.current}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("beat-audio")
-      .upload(path, f, {
-        contentType: f.type || "audio/mpeg",
-        upsert: false,
-      });
-
-    if (error) {
-      setUpload({ status: "failed", message: error.message });
-      return;
-    }
-    setUpload({ status: "ready", path });
-  };
-
-  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) void handleFile(f);
-    e.target.value = "";
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const f = e.dataTransfer.files?.[0];
-    if (f) void handleFile(f);
-  };
-
-  const removeFile = () => {
+  const cancelUpload = () => {
     if (fileUrl) URL.revokeObjectURL(fileUrl);
-    setFile(null);
-    setFileUrl(null);
-    setUpload({ status: "idle" });
-    setDurationSeconds(null);
-    beatIdRef.current = crypto.randomUUID();
+    router.push("/library");
   };
 
   /* ============================================================
@@ -243,12 +238,15 @@ export function UploadBeatPage({
       <PageHeader
         title="Upload a beat"
         back
-        onBack={() => router.push("/library")}
+        onBack={cancelUpload}
         right={
           <div className="flex items-center" style={{ gap: 10 }}>
-            <Link href="/library" className="hidden sm:inline-block">
+            <span
+              onClick={cancelUpload}
+              className="hidden sm:inline-block cursor-pointer"
+            >
               <Button variant="ghost">Cancel</Button>
-            </Link>
+            </span>
             <Button
               icon="upload"
               onClick={submit}
@@ -286,21 +284,9 @@ export function UploadBeatPage({
           </div>
         )}
 
-        {/* Hidden file input — triggered by buttons + the dropzone */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="audio/*"
-          className="hidden"
-          onChange={onPickFile}
-        />
-
-        {file == null ? (
-          <PreUploadDropzone
-            onDrop={onDrop}
-            onBrowse={() => fileInputRef.current?.click()}
-          />
-        ) : (
+        {/* file is non-null whenever we reach this branch — the mount
+            effect redirects to /library otherwise. */}
+        {file == null ? null : (
           <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 32 }}>
             {/* ============================================================
                 LEFT — artwork + audio file + waveform
@@ -311,7 +297,7 @@ export function UploadBeatPage({
               <AudioFileRow
                 file={file}
                 upload={upload}
-                onRemove={removeFile}
+                onRemove={cancelUpload}
               />
 
               <div
@@ -445,70 +431,6 @@ export function UploadBeatPage({
         )}
       </div>
     </>
-  );
-}
-
-/* ============================================================
-   PreUploadDropzone — big centred zone before a file is picked
-   ============================================================ */
-
-function PreUploadDropzone({
-  onDrop,
-  onBrowse,
-}: {
-  onDrop: (e: React.DragEvent) => void;
-  onBrowse: () => void;
-}) {
-  const [over, setOver] = React.useState(false);
-
-  return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setOver(true);
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        setOver(false);
-        onDrop(e);
-      }}
-      className="mx-auto flex flex-col items-center text-center"
-      style={{
-        maxWidth: 620,
-        marginTop: "8vh",
-        padding: "56px 32px",
-        borderRadius: "var(--r-xl)",
-        border: `1.5px dashed ${over ? "var(--accent)" : "var(--border-2)"}`,
-        background: over ? "var(--accent-surface)" : "transparent",
-        transition: "all var(--dur-fast) var(--ease)",
-      }}
-    >
-      <div
-        className="flex items-center justify-center text-accent-text"
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: "var(--r-xl)",
-          background: "var(--accent-surface)",
-          marginBottom: 22,
-        }}
-      >
-        <Icon name="upload" size={32} />
-      </div>
-      <h2 className="t-h2" style={{ marginBottom: 10 }}>
-        Drop your beat to upload
-      </h2>
-      <p className="t-body-l" style={{ marginBottom: 24, maxWidth: 420 }}>
-        WAV, MP3, AIFF or FLAC. We&rsquo;ll auto-detect the tempo, key and
-        length for you.
-      </p>
-      <div className="flex items-center" style={{ gap: 12 }}>
-        <Button size="lg" icon="upload" onClick={onBrowse}>
-          Browse files
-        </Button>
-      </div>
-    </div>
   );
 }
 
