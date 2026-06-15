@@ -75,7 +75,7 @@ export function ArtistSidebar({
       )}
       <aside
         className={[
-          "flex flex-col shrink-0 border-r border-border-1",
+          "flex flex-col shrink-0",
           // Mobile: fixed slide-in drawer.
           "fixed top-0 left-0 z-50 transition-transform duration-300",
           drawerOpen ? "translate-x-0" : "-translate-x-full",
@@ -86,11 +86,12 @@ export function ArtistSidebar({
         style={{
           width: 280,
           height: "100vh",
-          // Slightly deeper than the page bg so the rail reads as a
-          // distinct surface even in dark mode. In light mode the
-          // color-mix flips to a near-white tint.
-          background:
-            "color-mix(in oklch, var(--bg-0) 78%, oklch(0 0 0) 22%)",
+          // Match the page body exactly so the rail isn't a darker
+          // panel slapped on top — the vertical separator alone
+          // defines the boundary. Theo's design.
+          background: "var(--bg-0)",
+          // Hairline vertical divider against the main column.
+          borderRight: "1px solid oklch(1 0 0 / 0.06)",
         }}
       >
       {/* Logo — the Logo primitive already composes the logomark +
@@ -106,7 +107,7 @@ export function ArtistSidebar({
       <div
         style={{
           padding: "0 18px 16px",
-          borderBottom: "1px solid var(--border-1)",
+          borderBottom: "1px solid oklch(1 0 0 / 0.06)",
         }}
       >
         <div
@@ -141,7 +142,7 @@ export function ArtistSidebar({
       <div
         style={{
           padding: "14px 14px 14px",
-          borderBottom: "1px solid var(--border-1)",
+          borderBottom: "1px solid oklch(1 0 0 / 0.06)",
         }}
       >
         <Link
@@ -248,7 +249,7 @@ function ProducerGroup({
         paddingBottom: 6,
         borderBottom: isLast
           ? "none"
-          : "1px solid var(--border-1)",
+          : "1px solid oklch(1 0 0 / 0.06)",
       }}
     >
       <button
