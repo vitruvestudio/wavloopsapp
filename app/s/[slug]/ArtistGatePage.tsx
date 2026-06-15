@@ -80,18 +80,10 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
       {/* ── Banner — server artwork, Discord/Spotify-style ──── */}
       <GateBanner data={data} />
 
-      {/* ── Avatar — circle that overlaps the banner's bottom edge
-            No accent ring (Theo's pass): just a 4px page-bg cut-out
-            so the avatar reads cleanly against the banner. */}
+      {/* ── Avatar — straddles the banner's bottom edge, no ring. */}
       <div
         className="relative"
-        style={{
-          marginTop: -68, // straddles the banner edge
-          zIndex: 10,
-          padding: 4,
-          borderRadius: "50%",
-          background: "oklch(0.08 0.02 270)",
-        }}
+        style={{ marginTop: -64, zIndex: 10 }}
       >
         <Avatar
           name={data.producer_name ?? handleAt}
@@ -126,6 +118,11 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
           {data.name}
         </h1>
 
+        {/* Meta strip — visibility · beats · mood. Dark-themed chips
+            that live on the dark page (the app's VisBadge is sized
+            for light surfaces, so we render inline here). */}
+        <GateMeta data={data} />
+
         {/* Sub */}
         <p
           style={{
@@ -137,12 +134,29 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
             maxWidth: 340,
           }}
         >
-          {data.beats_count} beat{data.beats_count === 1 ? "" : "s"} from{" "}
-          <strong style={{ color: "#fff" }}>{handleAt}</strong>.{" "}
+          From <strong style={{ color: "#fff" }}>{handleAt}</strong>.{" "}
           {data.visibility === "private"
             ? "Request access to listen."
             : "Drop your email to listen."}
         </p>
+
+        {/* Description — producer's pitch (style/exclusivity/lease
+            terms). Optional so we render conditionally. */}
+        {data.description && (
+          <p
+            style={{
+              color: "oklch(0.72 0.02 270)",
+              textAlign: "center",
+              fontSize: 14,
+              lineHeight: 1.55,
+              margin: 0,
+              maxWidth: 360,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {data.description}
+          </p>
+        )}
 
         {/* Producer socials */}
         {socialEntries.length > 0 && (
@@ -257,6 +271,77 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
         </div>
       </div>
     </main>
+  );
+}
+
+/* ============================================================
+   GateMeta — dark-themed chip strip with visibility + beat count +
+   mood/style tags. The app's VisBadge / Tag primitives are styled
+   for light surfaces, so we render bespoke chips here.
+   ============================================================ */
+
+function GateMeta({ data }: { data: ArtistGateData }) {
+  const moodTags = (data.style_text ?? "")
+    .split(/[·,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const chipStyle: React.CSSProperties = {
+    height: 26,
+    padding: "0 11px",
+    gap: 6,
+    borderRadius: "var(--r-pill)",
+    background: "oklch(1 0 0 / 0.08)",
+    border: "1px solid oklch(1 0 0 / 0.12)",
+    color: "oklch(0.88 0.02 270)",
+    fontFamily: "var(--font-mono)",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase" as const,
+  };
+  return (
+    <div
+      className="flex items-center justify-center flex-wrap"
+      style={{ gap: 8 }}
+    >
+      <span
+        className="inline-flex items-center"
+        style={{
+          ...chipStyle,
+          background:
+            data.visibility === "public"
+              ? "oklch(0.55 0.16 145 / 0.18)"
+              : "oklch(1 0 0 / 0.08)",
+          color:
+            data.visibility === "public"
+              ? "oklch(0.8 0.18 145)"
+              : "oklch(0.88 0.02 270)",
+          border:
+            data.visibility === "public"
+              ? "1px solid oklch(0.6 0.16 145 / 0.4)"
+              : "1px solid oklch(1 0 0 / 0.12)",
+        }}
+      >
+        <Icon
+          name={data.visibility === "public" ? "globe" : "lock"}
+          size={11}
+        />
+        {data.visibility}
+      </span>
+      <span className="inline-flex items-center" style={chipStyle}>
+        <Icon name="library" size={11} />
+        {data.beats_count} {data.beats_count === 1 ? "beat" : "beats"}
+      </span>
+      {moodTags.map((m) => (
+        <span
+          key={m}
+          className="inline-flex items-center"
+          style={chipStyle}
+        >
+          {m}
+        </span>
+      ))}
+    </div>
   );
 }
 
