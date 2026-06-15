@@ -214,13 +214,17 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
         )}
 
         <div
-          className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px]"
+          className="grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)]"
           style={{ gap: 32 }}
         >
           {/* ============================================================
-              LEFT — form
+              FORM (DOM order 1 → mobile renders first)
+              On lg+, `order-2` pushes it into the second grid column.
              ============================================================ */}
-          <div className="flex flex-col" style={{ gap: 24 }}>
+          <div
+            className="flex flex-col lg:order-2"
+            style={{ gap: 24 }}
+          >
             <div>
               <Field
                 label="SERVER NAME"
@@ -453,10 +457,14 @@ export function CreateServerPage({ beats }: CreateServerPageProps) {
           </div>
 
           {/* ============================================================
-              RIGHT — live preview (sticky on lg+)
+              LIVE PREVIEW — DOM order 2 (mobile renders below the form)
+              On lg+, `order-1` puts it in the first grid column (left)
+              and `sticky` anchors it just below the PageHeader so it
+              stays visible while the producer scrolls the form. Mirrors
+              the Upload Beat page's left-column-sticky pattern.
              ============================================================ */}
           <div
-            className="lg:sticky lg:self-start"
+            className="lg:order-1 lg:sticky lg:self-start"
             style={{ top: 92 }}
           >
             <div
