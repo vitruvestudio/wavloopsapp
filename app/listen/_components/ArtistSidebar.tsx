@@ -23,13 +23,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
-import {
-  PRODUCERS,
-  PRODUCER_COUNT,
-  likedBeats,
-  type MockProducer,
-  type MockServer,
-} from "../_mock";
+import type {
+  ArtistProducerLite,
+  ArtistServerLite,
+} from "../_data";
+import { useArtistContext } from "./ArtistContext";
 
 interface ArtistSidebarProps {
   /** Mobile drawer state — ignored at lg+ where the sidebar is
@@ -42,9 +40,10 @@ export function ArtistSidebar({
   drawerOpen,
   onCloseDrawer,
 }: ArtistSidebarProps) {
+  const { producers, likedCount } = useArtistContext();
   const [search, setSearch] = React.useState("");
   const pathname = usePathname();
-  const likedCount = likedBeats().length;
+  const producerCount = producers.length;
 
   // Close the drawer on Escape (mobile only).
   React.useEffect(() => {
@@ -203,21 +202,39 @@ export function ArtistSidebar({
           color: "var(--fg-3)",
         }}
       >
-        YOUR PRODUCERS · {PRODUCER_COUNT}
+        YOUR PRODUCERS · {producerCount}
       </div>
 
-      {/* Scrollable producer list */}
+      {/* Scrollable producer list, or an empty-state for a brand-
+          new artist that no producer has added yet. */}
       <div
         className="flex-1 overflow-y-auto"
         style={{ padding: "0 10px 18px" }}
       >
-        {PRODUCERS.map((p) => (
-          <ProducerGroup
-            key={p.handle}
-            producer={p}
-            pathname={pathname}
-          />
-        ))}
+        {producerCount === 0 ? (
+          <div
+            className="t-body-s"
+            style={{
+              padding: "20px 12px",
+              textAlign: "center",
+              color: "var(--fg-3)",
+              border: "1px dashed var(--border-1)",
+              borderRadius: "var(--r-md)",
+              margin: "8px 0",
+            }}
+          >
+            No producers have added you yet. They&apos;ll show up
+            here as soon as one does.
+          </div>
+        ) : (
+          producers.map((p) => (
+            <ProducerGroup
+              key={p.profileId}
+              producer={p}
+              pathname={pathname}
+            />
+          ))
+        )}
       </div>
       </aside>
     </>
@@ -228,7 +245,7 @@ function ProducerGroup({
   producer,
   pathname,
 }: {
-  producer: MockProducer;
+  producer: ArtistProducerLite;
   pathname: string;
 }) {
   // Auto-expand if any of this producer's servers is active.
@@ -236,7 +253,9 @@ function ProducerGroup({
     (s) => pathname === `/listen/${s.slug}`,
   );
   const [expanded, setExpanded] = React.useState(activeUnderHere);
-  const totalUnread = producer.servers.reduce((n, s) => n + s.unread, 0);
+  // Per-server unread counts land alongside the notification
+  // trigger work — leave 0 for now so the dot is hidden.
+  const totalUnread = 0;
 
   return (
     <div style={{ paddingTop: 6, paddingBottom: 6 }}>
@@ -320,7 +339,7 @@ function ServerNavItem({
   server,
   active,
 }: {
-  server: MockServer;
+  server: ArtistServerLite;
   active: boolean;
 }) {
   return (
@@ -345,7 +364,11 @@ function ServerNavItem({
           borderRadius: "var(--r-sm)",
         }}
       >
-        <CoverArt fill seed={server.artSeeds[0]} />
+        <CoverArt
+          fill
+          seed={server.slug}
+          src={server.artworkImageUrl ?? undefined}
+        />
       </div>
       <div className="min-w-0 flex-1">
         <div
@@ -363,21 +386,9 @@ function ServerNavItem({
           className="t-mono-s truncate"
           style={{ color: "var(--fg-3)", marginTop: 1 }}
         >
-          {server.beats.length} BEATS
+          {(server.styleText ?? "").toUpperCase() || "SERVER"}
         </div>
       </div>
-      {server.unread > 0 && (
-        <span
-          aria-label={`${server.unread} new`}
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "var(--accent)",
-            flexShrink: 0,
-          }}
-        />
-      )}
     </Link>
   );
 }

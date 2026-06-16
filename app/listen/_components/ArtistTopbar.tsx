@@ -10,8 +10,8 @@
 import * as React from "react";
 import { Icon } from "@/components/ui/Icon";
 import { useTheme } from "@/lib/use-theme";
-import { ARTIST } from "../_mock";
 import { ArtistAccountMenu } from "./ArtistAccountMenu";
+import { useArtistContext } from "./ArtistContext";
 import { ArtistNotificationsMenu } from "./ArtistNotificationsMenu";
 
 interface ArtistTopbarProps {
@@ -21,7 +21,9 @@ interface ArtistTopbarProps {
 
 export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
   const { theme, toggle } = useTheme();
+  const { notifications } = useArtistContext();
   const [notifOpen, setNotifOpen] = React.useState(false);
+  const unread = notifications.unreadCount;
   return (
     <header
       className="sticky top-0 z-20 flex items-center border-b border-border-1"
@@ -96,9 +98,9 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
           }}
         >
           <Icon name="bell" size={17} />
-          {ARTIST.notifications > 0 && (
+          {unread > 0 && (
             <span
-              aria-label={`${ARTIST.notifications} notifications`}
+              aria-label={`${unread} unread notifications`}
               className="absolute inline-flex items-center justify-center"
               style={{
                 top: 4,
@@ -115,7 +117,7 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
                 border: "2px solid var(--bg-0)",
               }}
             >
-              {ARTIST.notifications}
+              {unread}
             </span>
           )}
         </button>

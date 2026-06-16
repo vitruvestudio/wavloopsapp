@@ -26,7 +26,7 @@ import Link from "next/link";
 import { signOutArtistAction } from "@/app/auth/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { ARTIST } from "../_mock";
+import { useArtistContext } from "./ArtistContext";
 
 interface MenuItem {
   icon: IconName;
@@ -40,6 +40,7 @@ const ITEMS: ReadonlyArray<MenuItem> = [
 ];
 
 export function ArtistAccountMenu() {
+  const { viewer } = useArtistContext();
   const [open, setOpen] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
 
@@ -83,9 +84,9 @@ export function ArtistAccountMenu() {
           className="t-mono-s hidden sm:inline"
           style={{ color: "var(--fg-2)", padding: "0 8px" }}
         >
-          @{ARTIST.handle.toUpperCase()}
+          @{viewer.handle.toUpperCase()}
         </span>
-        <Avatar name={ARTIST.handle} size={28} />
+        <Avatar name={viewer.handle} size={28} />
       </button>
 
       {open && (
@@ -113,19 +114,19 @@ export function ArtistAccountMenu() {
               marginBottom: 6,
             }}
           >
-            <Avatar name={ARTIST.handle} size={36} />
+            <Avatar name={viewer.handle} size={36} />
             <div className="min-w-0">
               <div
                 className="t-title truncate"
                 style={{ fontSize: 14 }}
               >
-                {ARTIST.name}
+                {viewer.displayName}
               </div>
               <div
                 className="t-mono-s truncate"
                 style={{ marginTop: 3 }}
               >
-                {ARTIST.email.toUpperCase()}
+                {viewer.email.toUpperCase()}
               </div>
             </div>
           </div>

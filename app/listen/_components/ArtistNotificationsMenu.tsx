@@ -29,14 +29,13 @@ import {
   type ArtistNotificationKind,
 } from "../_mock";
 
-/** Map every notification kind to its trailing-line icon. Keeping
- *  the mapping in one constant means a new kind only needs an entry
- *  here + a copy line in _mock — never a switch inside the row. */
+/** Map every notification kind to its trailing-line icon. Keys
+ *  match the notifications.kind text-check constraint. */
 const KIND_ICON: Record<ArtistNotificationKind, IconName> = {
   upload: "upload",
-  "added-to-server": "plus",
+  added_to_server: "plus",
   drop: "mic",
-  "comment-like": "message",
+  comment_like: "message",
   trending: "flame",
 };
 
@@ -49,8 +48,16 @@ export function ArtistNotificationsMenu({
   open,
   onClose,
 }: ArtistNotificationsMenuProps) {
-  const [items, setItems] =
-    React.useState<ArtistNotification[]>(NOTIFICATIONS);
+  const { notifications } = useArtistContext();
+  // Local override so MARK ALL READ is instant — the action that
+  // persists the update lands with the BeatNoteModal / comments
+  // wiring in a follow-up commit.
+  const [items, setItems] = React.useState<ArtistNotificationRow[]>(
+    notifications.items,
+  );
+  React.useEffect(() => {
+    setItems(notifications.items);
+  }, [notifications.items]);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   // Click-outside closes — defer attaching the listener one tick so
@@ -88,7 +95,7 @@ export function ArtistNotificationsMenu({
   if (!open) return null;
 
   const markAllRead = () =>
-    setItems((cur) => cur.map((n) => ({ ...n, unread: false })));
+    setItems((cur) => cur.map((n) => ({ ...n, read: true })));
 
   return (
     <div
@@ -171,18 +178,18 @@ export function ArtistNotificationsMenu({
   );
 }
 
-function NotificationRow({ n }: { n: ArtistNotification }) {
+function NotificationRow({ n }: { n: ArtistNotificationRow }) {
   return (
     <div
       className="flex"
       style={{
         gap: 12,
         padding: "12px 18px",
-        background: n.unread ? "var(--accent-surface)" : "transparent",
+        background: n.read ? "transparent" : "var(--accent-surface)",
         borderBottom: "1px solid var(--border-1)",
       }}
     >
-      <Avatar name={n.actorSeed} size={36} />
+      <Avatar name={n.actorSeed ?? n.actorName} size={36} />
       <div className="min-w-0 flex-1">
         <div
           style={{
@@ -205,11 +212,11 @@ function NotificationRow({ n }: { n: ArtistNotification }) {
             style={{ color: "var(--fg-4)" }}
           />
           <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-            {n.ago}
+            {fmtAgo(n.createdAt)}
           </span>
         </div>
       </div>
-      {n.unread && (
+      {!n.read && (
         <div
           aria-label="Unread"
           className="shrink-0"
@@ -224,4 +231,22 @@ function NotificationRow({ n }: { n: ArtistNotification }) {
       )}
     </div>
   );
+}
+
+/** Cheap relative-time formatter for the timestamp under each
+ *  row. Renders mono-uppercase so it matches the previous mock's
+ *  "12 MIN AGO" / "1 D AGO" copy. Phase 4: swap for a real lib
+ *  with locale handling. */
+function fmtAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  const diff = Date.now() - t;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "JUST NOW";
+  if (min < 60) return `${min} MIN AGO`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} H AGO`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d} D AGO`;
+  const w = Math.round(d / 7);
+  return `${w} W AGO`;
 }
