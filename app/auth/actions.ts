@@ -18,6 +18,7 @@
 
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -95,4 +96,74 @@ export async function signOutAction() {
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/auth");
+}
+
+/* ============================================================
+   Artist auth — passwordless magic link.
+
+   Producer auth (above) is email+password landing at /dashboard.
+   Artists never set a password — they paste their email into
+   /auth/magic (or into a server's gate page), receive a one-tap
+   link, and land in /listen.
+
+   The link target is /auth/callback (route handler) which
+   exchanges the code for a session and runs
+   bind_artist_contacts() so the freshly-authed user immediately
+   sees every producer that already had them on file.
+   ============================================================ */
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function signInWithMagicLinkAction(
+  _prev: AuthState | null,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const next = String(formData.get("next") ?? "/listen");
+
+  if (!email) return { error: "Email is required." };
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Please enter a valid email." };
+  }
+
+  // Resolve the public origin to build the redirect URL Supabase
+  // will embed in the email. `headers()` is async in Next 16. We
+  // prefer the request's `origin` header; in deploys behind a proxy
+  // that strips it, fall back to NEXT_PUBLIC_SITE_URL.
+  const h = await headers();
+  const origin =
+    h.get("origin") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000";
+
+  const supabase = await createClient();
+  // DEPLOY NOTE: every origin used here must be added to the
+  // Supabase project's Auth → URL Configuration → Redirect URLs
+  // allowlist (e.g. http://localhost:3000 + https://wavloops.co).
+  // Otherwise the magic link bounces to a Supabase error page.
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) return { error: error.message };
+
+  const qs = new URLSearchParams({ sent: "1", email });
+  if (next !== "/listen") qs.set("next", next);
+  redirect(`/auth/magic?${qs.toString()}`);
+}
+
+/** Sign-out variant for the artist surface — redirects to
+ *  /auth/magic instead of /auth so the same user doesn't get
+ *  thrown at the producer password form. */
+export async function signOutArtistAction() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/auth/magic");
 }
