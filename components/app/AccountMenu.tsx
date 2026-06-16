@@ -37,14 +37,20 @@
 import * as React from "react";
 import Link from "next/link";
 import { signOutAction } from "@/app/auth/actions";
+import { useProducerViewer } from "@/app/(app)/_components/ProducerContext";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
 
 interface AccountMenuProps {
+  /** Override the producer viewer pulled from ProducerContext — used by
+   *  storybook / standalone renderings. In the running app these come
+   *  from the (app) layout's loadProducerViewer fetch. */
   name?: string;
   email?: string;
   /** Two-letter avatar fallback. Defaults to first letter of first + last word. */
   avatarLabel?: string;
+  /** Avatar URL — when null the Avatar primitive falls back to label initials. */
+  avatarUrl?: string | null;
 }
 
 interface MenuItem {
@@ -67,13 +73,23 @@ function initialsFromName(name: string): string {
 }
 
 export function AccountMenu({
-  name = "Tyler Mills",
-  email = "tyler@studio.com",
-  avatarLabel,
+  name: nameProp,
+  email: emailProp,
+  avatarLabel: avatarLabelProp,
+  avatarUrl: avatarUrlProp,
 }: AccountMenuProps) {
+  const viewer = useProducerViewer();
+  // Props win over context (storybook / explicit override), context
+  // wins over hardcoded fallback. The hardcoded fallback only kicks
+  // in for the brief window where the layout hasn't resolved yet —
+  // shouldn't happen in practice because the layout is async/server.
+  const name = nameProp ?? viewer?.displayName ?? "Producer";
+  const email = emailProp ?? viewer?.email ?? "";
+  const avatarUrl = avatarUrlProp ?? viewer?.avatarUrl ?? null;
+  const label =
+    avatarLabelProp ?? viewer?.avatarLabel ?? initialsFromName(name);
   const [open, setOpen] = React.useState(false);
   const wrapRef = React.useRef<HTMLDivElement>(null);
-  const label = avatarLabel ?? initialsFromName(name);
 
   // Click-outside + Escape close
   React.useEffect(() => {
@@ -110,7 +126,7 @@ export function AccountMenu({
           background: open ? "var(--bg-2)" : "transparent",
         }}
       >
-        <Avatar name={name} label={label} size={28} />
+        <Avatar name={name} src={avatarUrl} label={label} size={28} />
         <Icon
           name="chevron-down"
           size={15}
