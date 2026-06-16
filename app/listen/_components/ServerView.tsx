@@ -53,70 +53,66 @@ function bannerGradient(baseHue: number): string {
 const BANNER_FADE_MASK =
   "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)";
 
+/** Same radial soft-glow shape the COLOR mesh uses for its main
+ *  blob (centred upper-half, fades out toward the edges). Applied
+ *  as a mask to the AUTO / IMAGE backdrops so they read as the
+ *  same premium tinted-cloud shape as the COLOR mesh — not a
+ *  full-bleed photo. */
+const BANNER_GLOW_MASK =
+  "radial-gradient(ellipse 90% 80% at 50% 20%, black 0%, black 45%, transparent 90%)";
+
 /** Banner backdrop dispatcher — mirrors the producer's choice in
  *  the Create Server form (servers.artwork_mode):
- *    IMAGE → full-bleed blur of the uploaded artwork, scaled up so
- *            the blur edges don't show through.
- *    AUTO  → same treatment on the first cover URL (Spotify-style
- *            "this pack's colour" derived from the actual artwork);
- *            falls back to a slug-seeded hue mesh if no cover is
+ *    IMAGE → producer's uploaded artwork, washed down to a soft
+ *            pastel cloud (heavy blur, desaturate, opacity 0.45,
+ *            glow-mask).
+ *    AUTO  → same treatment on the first beat cover URL — Spotify-
+ *            style "this pack's colour" but at premium density.
+ *            Falls back to a slug-seeded hue mesh if no cover is
  *            attached yet.
- *    COLOR → hue mesh built from accent_hue.
- *  Every mode shares the same bottom mask so the banner fades into
- *  the page background without a hard line. */
+ *    COLOR → existing hue mesh built from accent_hue.
+ *  Every mode shares the same fade-to-bg-0 bottom feel so the
+ *  banner blends into the page background without a hard line. */
 function BannerBackground({ server }: { server: MockServer }) {
-  // IMAGE — producer-uploaded artwork, heavily blurred.
-  if (server.artworkMode === "image" && server.artworkImageUrl) {
-    return (
-      <>
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `url(${server.artworkImageUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(60px) saturate(1.5)",
-            transform: "scale(1.25)",
-            WebkitMaskImage: BANNER_FADE_MASK,
-            maskImage: BANNER_FADE_MASK,
-            zIndex: 0,
-          }}
-        />
-        {/* Soft top-down vignette so the title stays legible
-            against any colour the image happens to carry. */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, oklch(0 0 0 / 0.25), transparent 55%)",
-            zIndex: 0,
-          }}
-        />
-      </>
-    );
-  }
-  // AUTO — pull colour from the first cover URL.
-  if (server.artworkMode === "auto" && server.artUrls?.[0]) {
+  // Source URL for the photo-backed modes (IMAGE or AUTO). Both go
+  // through the identical filter stack — only the source differs.
+  const photoSrc =
+    server.artworkMode === "image"
+      ? server.artworkImageUrl
+      : server.artworkMode === "auto"
+        ? server.artUrls?.[0]
+        : null;
+
+  if (photoSrc) {
     return (
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
-          backgroundImage: `url(${server.artUrls[0]})`,
+          backgroundImage: `url(${photoSrc})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(70px) saturate(1.6)",
-          transform: "scale(1.3)",
-          WebkitMaskImage: BANNER_FADE_MASK,
-          maskImage: BANNER_FADE_MASK,
+          // Heavy blur + slight desaturation + lift brightness
+          // turns the image into a soft tinted cloud rather than
+          // a recognisable photo. Scale 1.4 hides blur edges.
+          filter: "blur(90px) saturate(0.75) brightness(1.05)",
+          transform: "scale(1.4)",
+          // Opacity is the key dial — at 0.45 the cover colour
+          // tints the page background instead of replacing it, so
+          // light theme reads as a pastel wash exactly like the
+          // COLOR mesh, and dark theme reads as a muted glow.
+          opacity: 0.45,
+          // Same upper-centre glow shape as the COLOR mesh — the
+          // banner converges on one premium look regardless of
+          // which artwork mode produced it.
+          WebkitMaskImage: BANNER_GLOW_MASK,
+          maskImage: BANNER_GLOW_MASK,
           zIndex: 0,
         }}
       />
     );
   }
-  // COLOR (or AUTO fallback) — hue mesh.
+  // COLOR (or AUTO fallback when no cover URL yet) — hue mesh.
   const hue =
     server.accentHue ?? hashSeed(server.slug) % 360;
   return (
