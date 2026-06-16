@@ -18,14 +18,7 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { likedBeats, type MockBeat, type MockProducer, type MockServer } from "../_mock";
-import { bannerGradient, BANNER_FADE_MASK } from "./banner";
 import { BeatNoteModal } from "./BeatNoteModal";
-
-/** Hue 285° — exactly the dominant tone of the heart cover card
- *  (`linear-gradient(135°, oklch(0.58 0.22 285), oklch(0.46 0.18 305))`).
- *  Using it as the banner hue keeps the colour cloud behind the
- *  header in lock-step with the card itself. */
-const LIKED_BANNER_HUE = 285;
 
 type LikedEntry = {
   producer: MockProducer;
@@ -59,22 +52,21 @@ export function LikedSongsView() {
   return (
     <main className="flex-1 min-w-0">
       {/* ── Header — accent heart card + eyebrow + title + play
-              all. Same outer rhythm as ServerView's banner
-              (mobile stack, desktop row) so the two pages feel
-              like the same surface. Backdrop mesh uses the hue
-              of the heart card so the colour cloud and the card
-              read as one composition. ───────────────────────── */}
+              all. Backdrop is the design-system's spec'd vertical
+              wash: top → bottom from --accent-surface (16% in
+              dark, 10% in light — auto-adapts via the token) to
+              transparent at 70% of the box height. The wash and
+              the heart card both lean on the same accent indigo,
+              so the page reads as one composition. ─────────── */}
       <section
         className="relative overflow-hidden px-[18px] pt-[24px] pb-[40px] lg:px-[36px] lg:pt-[32px] lg:pb-[56px]"
       >
-        {/* Single-hue mesh, hue 285° matches the heart card. */}
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
-            background: bannerGradient(LIKED_BANNER_HUE),
-            WebkitMaskImage: BANNER_FADE_MASK,
-            maskImage: BANNER_FADE_MASK,
+            background:
+              "linear-gradient(180deg, var(--accent-surface), transparent 70%)",
             zIndex: 0,
           }}
         />
@@ -82,15 +74,17 @@ export function LikedSongsView() {
           className="relative flex flex-col items-center text-center lg:flex-row lg:items-end lg:text-left"
           style={{ gap: 22, zIndex: 1 }}
         >
-          {/* Heart cover — single solid accent-gradient card with a
-              white heart glyph, exactly mirroring the producer-side
-              "Liked Songs" pattern. */}
+          {/* Heart cover — brand-fixed 140° diagonal from the
+              indigo accent to a violet/magenta (per the design
+              system's gradient spec for the Liked Songs tile).
+              Same gradient regardless of theme so the cover
+              stays visually consistent across light + dark. */}
           <div
             className="relative shrink-0 overflow-hidden flex items-center justify-center w-[150px] h-[150px] lg:w-[200px] lg:h-[200px]"
             style={{
               borderRadius: "var(--r-md)",
               background:
-                "linear-gradient(135deg, oklch(0.58 0.22 285), oklch(0.46 0.18 305))",
+                "linear-gradient(140deg, var(--accent), oklch(0.5 0.22 320))",
               boxShadow:
                 "0 10px 30px -10px oklch(0 0 0 / 0.35), 0 2px 6px oklch(0 0 0 / 0.18)",
             }}
