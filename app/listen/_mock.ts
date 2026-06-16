@@ -105,12 +105,17 @@ export interface MockProducer {
 
 export interface ArtistAccount {
   handle: string;
+  /** Display name shown in the account-menu header (the bolded
+   *  line above the email). Phase 3 sources this from
+   *  `profiles.display_name` keyed to the artist's auth user id. */
+  name: string;
   email: string;
   notifications: number;
 }
 
 export const ARTIST: ArtistAccount = {
   handle: "juno215",
+  name: "juno",
   email: "juno215@icloud.com",
   notifications: 3,
 };

@@ -8,10 +8,10 @@
 "use client";
 
 import * as React from "react";
-import { Avatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
 import { useTheme } from "@/lib/use-theme";
 import { ARTIST } from "../_mock";
+import { ArtistAccountMenu } from "./ArtistAccountMenu";
 import { ArtistNotificationsMenu } from "./ArtistNotificationsMenu";
 
 interface ArtistTopbarProps {
@@ -125,29 +125,11 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
         />
       </div>
 
-      {/* Account chip — handle text hides on mobile to save space.
-          Avatar always visible. */}
-      <button
-        type="button"
-        className="inline-flex items-center cursor-pointer transition-colors duration-fast"
-        style={{
-          gap: 8,
-          padding: "4px 4px 4px 4px",
-          height: 38,
-          borderRadius: 999,
-          border: "1px solid var(--border-1)",
-          background: "var(--bg-1)",
-          color: "var(--fg-1)",
-        }}
-      >
-        <span
-          className="t-mono-s hidden sm:inline"
-          style={{ color: "var(--fg-2)", padding: "0 8px" }}
-        >
-          @{ARTIST.handle.toUpperCase()}
-        </span>
-        <Avatar name={ARTIST.handle} size={28} />
-      </button>
+      {/* Account chip — toggles a dropdown menu (Edit profile /
+          Notifications / Log out). Handle text hides on mobile;
+          avatar always visible. Same trigger anatomy as before,
+          now wrapped with click-to-open behaviour. */}
+      <ArtistAccountMenu />
     </header>
   );
 }
