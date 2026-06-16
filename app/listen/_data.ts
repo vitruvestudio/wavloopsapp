@@ -277,3 +277,277 @@ interface ServerJoinRow {
     artwork_image_url: string | null;
   } | null;
 }
+
+/* ============================================================
+   Per-route DAL — server detail view for /listen/[slug].
+   ============================================================ */
+
+export interface ArtistServerViewBeat {
+  id: string;
+  title: string;
+  type: "comp" | "loop";
+  bpm: number;
+  key: string;
+  mood: string[];
+  /** Formatted "M:SS". */
+  duration: string;
+  /** Relative time label e.g. "YESTERDAY", "3D AGO". */
+  addedAt: string;
+  addedAtIso: string;
+  liked: boolean;
+  listened: boolean;
+  /** Saved private note body, "" if none. */
+  noteBody: string;
+  /** Latest shared comment body, "" if none. */
+  latestCommentBody: string;
+  artSeed: string;
+  coverUrl: string | null;
+  /** Signed URL into beat-audio (1h TTL). Null if no upload. */
+  audioUrl: string | null;
+  isNew: boolean;
+  position: number;
+}
+
+export interface ArtistServerViewProducer {
+  profileId: string;
+  handle: string;
+  name: string;
+  avatarUrl: string | null;
+  socials: Record<string, string>;
+}
+
+export interface ArtistServerView {
+  viewer: { userId: string; contactId: string | null };
+  producer: ArtistServerViewProducer;
+  server: {
+    id: string;
+    slug: string;
+    name: string;
+    styleText: string;
+    artworkMode: "auto" | "color" | "image";
+    accentHue: number | null;
+    artworkImageUrl: string | null;
+  };
+  beats: ArtistServerViewBeat[];
+}
+
+/** Server detail + beats + viewer-scoped state. Returns null when
+ *  the slug doesn't exist or the authed user isn't a contact on it
+ *  (RLS filters that out transparently). */
+export async function loadServerView(
+  slug: string,
+): Promise<ArtistServerView | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: serverRow } = await supabase
+    .from("servers")
+    .select(
+      `
+      id, slug, name, style_text,
+      artwork_mode, accent_hue, artwork_image_url,
+      owner_id,
+      owner:profiles!servers_owner_id_fkey (
+        id, handle, name, avatar_url, socials
+      )
+    `,
+    )
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!serverRow) return null;
+  const owner = (serverRow as { owner?: ProducerRow }).owner;
+  if (!owner) return null;
+
+  const { data: myContact } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .eq("owner_id", serverRow.owner_id as string)
+    .maybeSingle<{ id: string }>();
+  const contactId = myContact?.id ?? null;
+
+  const { data: serverBeats } = await supabase
+    .from("server_beats")
+    .select(
+      `
+      position,
+      added_at,
+      beat:beats!server_beats_beat_id_fkey (
+        id, title, type, bpm, key, mood,
+        duration_seconds, audio_url, artwork_url, wave_seed,
+        created_at
+      )
+    `,
+    )
+    .eq("server_id", serverRow.id as string)
+    .order("position", { ascending: true });
+
+  const beatRows = (serverBeats ?? [])
+    .map((sb) => {
+      const b = (sb as { beat?: BeatTableRow }).beat;
+      return b ? { ...b, addedAtIso: sb.added_at as string } : null;
+    })
+    .filter((x): x is BeatTableRow & { addedAtIso: string } => x !== null);
+
+  const beatIds = beatRows.map((b) => b.id);
+
+  const [likesRes, listensRes, notesRes, commentsRes, signedAudio] =
+    await Promise.all([
+      contactId && beatIds.length
+        ? supabase
+            .from("likes")
+            .select("beat_id")
+            .eq("contact_id", contactId)
+            .in("beat_id", beatIds)
+        : Promise.resolve({ data: [] as Array<{ beat_id: string }> }),
+      contactId && beatIds.length
+        ? supabase
+            .from("listens")
+            .select("beat_id")
+            .eq("contact_id", contactId)
+            .in("beat_id", beatIds)
+        : Promise.resolve({ data: [] as Array<{ beat_id: string }> }),
+      beatIds.length
+        ? supabase
+            .from("beat_notes")
+            .select("beat_id, body")
+            .eq("user_id", user.id)
+            .in("beat_id", beatIds)
+        : Promise.resolve({
+            data: [] as Array<{ beat_id: string; body: string }>,
+          }),
+      beatIds.length
+        ? supabase
+            .from("beat_comments")
+            .select("beat_id, body, created_at")
+            .eq("user_id", user.id)
+            .in("beat_id", beatIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({
+            data: [] as Array<{
+              beat_id: string;
+              body: string;
+              created_at: string;
+            }>,
+          }),
+      beatIds.length
+        ? supabase.storage
+            .from("beat-audio")
+            .createSignedUrls(
+              beatRows
+                .map((b) => b.audio_url)
+                .filter((p): p is string => !!p),
+              3600,
+            )
+        : Promise.resolve({
+            data: [] as Array<{ path: string; signedUrl: string }>,
+          }),
+    ]);
+
+  const likedIds = new Set(
+    (likesRes.data ?? []).map((r) => r.beat_id as string),
+  );
+  const listenedIds = new Set(
+    (listensRes.data ?? []).map((r) => r.beat_id as string),
+  );
+  const noteByBeat = new Map(
+    (notesRes.data ?? []).map((r) => [
+      r.beat_id as string,
+      r.body as string,
+    ]),
+  );
+  const latestCommentByBeat = new Map<string, string>();
+  for (const c of commentsRes.data ?? []) {
+    const id = c.beat_id as string;
+    if (!latestCommentByBeat.has(id))
+      latestCommentByBeat.set(id, c.body as string);
+  }
+  const signedByPath = new Map(
+    (signedAudio.data ?? []).map((r) => [r.path, r.signedUrl]),
+  );
+
+  return {
+    viewer: { userId: user.id, contactId },
+    producer: {
+      profileId: owner.id,
+      handle: owner.handle ?? "producer",
+      name: owner.name ?? owner.handle ?? "Producer",
+      avatarUrl: owner.avatar_url,
+      socials: owner.socials ?? {},
+    },
+    server: {
+      id: serverRow.id as string,
+      slug: serverRow.slug as string,
+      name: serverRow.name as string,
+      styleText: (serverRow.style_text as string | null) ?? "",
+      artworkMode: serverRow.artwork_mode as
+        | "auto"
+        | "color"
+        | "image",
+      accentHue: (serverRow.accent_hue as number | null) ?? null,
+      artworkImageUrl:
+        (serverRow.artwork_image_url as string | null) ?? null,
+    },
+    beats: beatRows.map((b, i) => ({
+      id: b.id,
+      title: b.title,
+      type: (b.type ?? "comp") as "comp" | "loop",
+      bpm: b.bpm ?? 0,
+      key: b.key ?? "",
+      mood: b.mood ?? [],
+      duration: fmtSeconds(b.duration_seconds ?? 0),
+      addedAt: fmtAgo(b.addedAtIso),
+      addedAtIso: b.addedAtIso,
+      liked: likedIds.has(b.id),
+      listened: listenedIds.has(b.id),
+      noteBody: noteByBeat.get(b.id) ?? "",
+      latestCommentBody: latestCommentByBeat.get(b.id) ?? "",
+      artSeed: b.wave_seed,
+      coverUrl: b.artwork_url ?? null,
+      audioUrl: b.audio_url
+        ? (signedByPath.get(b.audio_url) ?? null)
+        : null,
+      isNew: isWithin7d(b.addedAtIso),
+      position: i,
+    })),
+  };
+}
+
+interface BeatTableRow {
+  id: string;
+  title: string;
+  type: "comp" | "loop" | null;
+  bpm: number | null;
+  key: string | null;
+  mood: string[] | null;
+  duration_seconds: number | null;
+  audio_url: string | null;
+  artwork_url: string | null;
+  wave_seed: string;
+  created_at: string;
+}
+
+function fmtSeconds(s: number): string {
+  if (!s || !Number.isFinite(s)) return "—";
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function fmtAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(diff / 86400000);
+  if (d <= 0) return "TODAY";
+  if (d === 1) return "YESTERDAY";
+  if (d < 7) return `${d}D AGO`;
+  if (d < 30) return `${Math.round(d / 7)}W AGO`;
+  if (d < 365) return `${Math.round(d / 30)}MO AGO`;
+  return `${Math.round(d / 365)}Y AGO`;
+}
+
+function isWithin7d(iso: string): boolean {
+  return Date.now() - new Date(iso).getTime() < 7 * 86400000;
+}
