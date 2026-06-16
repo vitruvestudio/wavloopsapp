@@ -600,6 +600,19 @@ function BeatRow({
         </div>
       </div>
 
+      {/* Added — same column as the producer library's ADDED. Hidden
+          under sm so the row stays usable on phones. */}
+      <span
+        className="t-mono-s shrink-0 hidden sm:inline"
+        style={{
+          color: "var(--fg-4)",
+          minWidth: 76,
+          textAlign: "right",
+        }}
+      >
+        {beat.addedAt}
+      </span>
+
       {/* Duration */}
       <span
         className="t-mono-s shrink-0"

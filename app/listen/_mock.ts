@@ -27,6 +27,11 @@ export interface MockBeat {
    *  beats.co_producers on the producer side. Rendered inline after
    *  the title in caps mono. */
   coProducers?: string[];
+  /** Display string for when the beat landed in this server, same
+   *  column as the producer library's ADDED column. Phase 1 uses
+   *  hardcoded strings ("YESTERDAY", "2D AGO", "3W AGO"); Phase 3
+   *  derives this from server_beats.added_at via fmtAgo(). */
+  addedAt: string;
   liked: boolean;
   listened: boolean;
   commentCount: number;
@@ -96,6 +101,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "C MIN",
             mood: ["R&B", "Soul"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:10",
             liked: true,
             listened: true,
@@ -109,6 +115,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "F# MAJ",
             mood: ["R&B", "Vocal"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:24",
             liked: false,
             listened: false,
@@ -122,6 +129,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "D MIN",
             mood: ["R&B"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:02",
             liked: false,
             listened: false,
@@ -136,6 +144,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "BB MIN",
             mood: ["Soul", "Keys"],
             coProducers: ["Metro"],
+            addedAt: "YESTERDAY",
             duration: "2:58",
             liked: false,
             listened: false,
@@ -149,6 +158,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "G MAJ",
             mood: ["Soul"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:33",
             liked: false,
             listened: false,
@@ -171,6 +181,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "F MIN",
             mood: ["Trap", "Dark"],
             type: "comp",
+            addedAt: "TODAY",
             duration: "2:48",
             liked: false,
             listened: false,
@@ -186,6 +197,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "A MIN",
             mood: ["Trap"],
             coProducers: ["Wheezy"],
+            addedAt: "TODAY",
             duration: "2:35",
             liked: false,
             listened: false,
@@ -200,6 +212,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "E MIN",
             mood: ["Trap", "Dark"],
             type: "comp",
+            addedAt: "1W AGO",
             duration: "2:44",
             liked: false,
             listened: true,
@@ -213,6 +226,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 130,
             key: "G# MIN",
             mood: ["Drill"],
+            addedAt: "3D AGO",
             duration: "2:22",
             liked: false,
             listened: true,
@@ -246,6 +260,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "G MIN",
             mood: ["Drill"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "2:18",
             liked: false,
             listened: false,
@@ -260,6 +275,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "C MIN",
             mood: ["Drill", "UK"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "2:33",
             liked: false,
             listened: false,
@@ -294,6 +310,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "A MIN",
             mood: ["Lo-fi", "Ambient"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:45",
             liked: false,
             listened: false,
@@ -307,6 +324,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "D MAJ",
             mood: ["Lo-fi"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "4:02",
             liked: false,
             listened: false,
@@ -320,6 +338,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "F MIN",
             mood: ["Ambient"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:33",
             liked: false,
             listened: false,
@@ -333,6 +352,7 @@ export const PRODUCERS: MockProducer[] = [
             key: "C MAJ",
             mood: ["Lo-fi", "Vapor"],
             type: "comp",
+            addedAt: "YESTERDAY",
             duration: "3:28",
             liked: false,
             listened: false,
