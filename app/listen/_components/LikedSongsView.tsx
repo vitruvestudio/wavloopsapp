@@ -403,7 +403,7 @@ function LikedRow({
               noteCount > 0 ? "var(--accent)" : "var(--fg-4)",
           }}
         >
-          <Icon name="comment-blank" size={16} />
+          <Icon name="message" size={16} />
         </button>
         <button
           type="button"

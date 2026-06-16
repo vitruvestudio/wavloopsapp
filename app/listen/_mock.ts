@@ -115,6 +115,84 @@ export const ARTIST: ArtistAccount = {
   notifications: 3,
 };
 
+/* ============================================================
+   Notifications — bell dropdown payload.
+   Phase 3 sources these from a `notifications` table scoped to
+   the artist's contact ids; shape mirrors what the renderer
+   needs so the component contract survives the swap.
+   ============================================================ */
+
+export type ArtistNotificationKind =
+  | "upload"            // producer added beats to a server you follow
+  | "added-to-server"   // producer added you as a contact on a new server
+  | "drop"              // producer dropped a featured beat
+  | "comment-like"      // producer liked your comment
+  | "trending";         // server you follow is trending
+
+export interface ArtistNotification {
+  id: string;
+  kind: ArtistNotificationKind;
+  /** Bolded subject of the sentence (producer or server name). */
+  actorName: string;
+  /** Used to seed the avatar circle in the notification row. */
+  actorSeed: string;
+  /** Sentence fragment after the actor name — keeps the renderer
+   *  dumb, no per-kind copy logic in the component. */
+  body: string;
+  /** Display-string for the time delta ("12 MIN AGO", "3 H AGO",
+   *  "1 D AGO"…). Phase 3 derives via fmtAgo(created_at). */
+  ago: string;
+  unread: boolean;
+}
+
+export const NOTIFICATIONS: ArtistNotification[] = [
+  {
+    id: "n-tyler-upload",
+    kind: "upload",
+    actorName: "Tyler Mills",
+    actorSeed: "tyler-mills",
+    body: "added 2 new beats to Atlanta Nights.",
+    ago: "12 MIN AGO",
+    unread: true,
+  },
+  {
+    id: "n-kane-invite",
+    kind: "added-to-server",
+    actorName: "Kane",
+    actorSeed: "kane",
+    body: "added you to UK Drill Pack.",
+    ago: "3 H AGO",
+    unread: true,
+  },
+  {
+    id: "n-yuki-drop",
+    kind: "drop",
+    actorName: "Yuki",
+    actorSeed: "yuki",
+    body: "dropped “Tokyo Drift” in Neon Tokyo.",
+    ago: "1 D AGO",
+    unread: true,
+  },
+  {
+    id: "n-tyler-like",
+    kind: "comment-like",
+    actorName: "Tyler Mills",
+    actorSeed: "tyler-mills",
+    body: "liked your comment on Golden Hour.",
+    ago: "2 D AGO",
+    unread: false,
+  },
+  {
+    id: "n-velour-trend",
+    kind: "trending",
+    actorName: "Velour",
+    actorSeed: "velour",
+    body: "is trending — 3 new artists joined this week.",
+    ago: "4 D AGO",
+    unread: false,
+  },
+];
+
 export const PRODUCERS: MockProducer[] = [
   {
     handle: "mrtlman",
