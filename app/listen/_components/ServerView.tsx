@@ -138,7 +138,6 @@ export function ServerView({ producer, server }: ServerViewProps) {
               vertically. Desktop: horizontal row. ──────────────── */}
       <section
         className="relative overflow-hidden px-[18px] pb-[60px] pt-[24px] lg:px-[36px] lg:pb-[80px] lg:pt-[32px]"
-        style={{ color: "#fff" }}
       >
         {/* Background mesh — masked to fade out at the bottom. */}
         <div
@@ -204,17 +203,18 @@ export function ServerView({ producer, server }: ServerViewProps) {
                 fontSize: "clamp(28px, 6vw, 54px)",
                 lineHeight: 1.04,
                 letterSpacing: "-0.025em",
-                color: "#fff",
+                color: "var(--fg-1)",
                 margin: 0,
                 marginBottom: 14,
-                textShadow: "0 2px 14px oklch(0 0 0 / 0.3)",
               }}
             >
               {server.name}
             </h1>
 
-            {/* Producer mini-card — white text on the dark mesh.
-                Centred on mobile, left-aligned on lg+. */}
+            {/* Producer mini-card — theme-aware text tokens so the
+                light theme reads dark-on-pastel and dark mode reads
+                white-on-jewel-mesh without two hardcoded colour
+                paths. Centred on mobile, left-aligned on lg+. */}
             <div
               className="flex items-center flex-wrap justify-center lg:justify-start"
               style={{ gap: 12 }}
@@ -228,17 +228,17 @@ export function ServerView({ producer, server }: ServerViewProps) {
                 style={{
                   fontFamily: "var(--font-body)",
                   fontSize: 13.5,
-                  color: "#fff",
+                  color: "var(--fg-1)",
                 }}
               >
                 {producer.name} ·{" "}
-                <span style={{ color: "oklch(1 0 0 / 0.7)" }}>
+                <span style={{ color: "var(--fg-3)" }}>
                   @{producer.handle}
                 </span>
               </span>
               <span
                 className="t-mono-s"
-                style={{ color: "oklch(1 0 0 / 0.6)" }}
+                style={{ color: "var(--fg-3)" }}
               >
                 · {server.beats.length} BEATS
               </span>
@@ -259,9 +259,9 @@ export function ServerView({ producer, server }: ServerViewProps) {
                         width: 30,
                         height: 30,
                         borderRadius: "50%",
-                        background: "oklch(1 0 0 / 0.14)",
-                        border: "1px solid oklch(1 0 0 / 0.22)",
-                        color: "#fff",
+                        background: "var(--bg-2)",
+                        border: "1px solid var(--border-1)",
+                        color: "var(--fg-2)",
                       }}
                     >
                       <Icon
