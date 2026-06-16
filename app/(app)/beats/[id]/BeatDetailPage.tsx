@@ -32,6 +32,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { usePlayer } from "@/components/app/PlayerContext";
+import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
@@ -63,7 +64,53 @@ interface BeatDetailPageProps {
   servers: ServerRow[];
 }
 
-type Tab = "audience" | "edit";
+type Tab = "audience" | "feedback" | "edit";
+
+/**
+ * Phase 1 mock feedback — exercise the producer-side UI for shared
+ * notes before the wiring lands. Same shape Phase 3 will query off
+ * `beat_comments ⨝ contacts ⨝ profiles` for the beat's owner.
+ *
+ * Replace the const with a server-fetched array once that lands;
+ * the FeedbackTab contract (FeedbackItem[]) doesn't move.
+ */
+interface FeedbackItem {
+  id: string;
+  artistName: string;
+  artistHandle: string;
+  /** Used as the avatar seed when no upload exists yet. */
+  artistSeed: string;
+  body: string;
+  /** Display string for the time delta. Phase 3 derives via fmtAgo. */
+  ago: string;
+}
+
+const MOCK_FEEDBACK: ReadonlyArray<FeedbackItem> = [
+  {
+    id: "f-juno",
+    artistName: "juno",
+    artistHandle: "juno215",
+    artistSeed: "juno215",
+    body: "This is fire — the lead texture from 0:48 onward is exactly the vibe I'm chasing for the next EP. Any chance you have a stem-out version, or one without the wide pad?",
+    ago: "YESTERDAY",
+  },
+  {
+    id: "f-mira",
+    artistName: "Mira",
+    artistHandle: "miravocals",
+    artistSeed: "miravocals",
+    body: "Saving this one — I think I want to write to it next week. The pocket sits right under my register.",
+    ago: "3 D AGO",
+  },
+  {
+    id: "f-kai",
+    artistName: "Kai Solace",
+    artistHandle: "kaisolace",
+    artistSeed: "kaisolace",
+    body: "Bridge is heavy. Would you consider letting me license this exclusive if I cut a hook on it?",
+    ago: "1 W AGO",
+  },
+];
 
 export function BeatDetailPage({ beat, servers }: BeatDetailPageProps) {
   const router = useRouter();
@@ -254,12 +301,19 @@ export function BeatDetailPage({ beat, servers }: BeatDetailPageProps) {
         </div>
 
         {/* ============================================================
-            Tabs — Audience / Edit info
+            Tabs — Audience / Feedback / Edit info
            ============================================================ */}
-        <Tabs value={tab} onChange={setTab} audienceCount={beat.plays_count} />
+        <Tabs
+          value={tab}
+          onChange={setTab}
+          audienceCount={beat.plays_count}
+          feedbackCount={MOCK_FEEDBACK.length}
+        />
 
         {tab === "audience" ? (
           <AudienceTab beat={beat} servers={servers} />
+        ) : tab === "feedback" ? (
+          <FeedbackTab feedback={MOCK_FEEDBACK} />
         ) : (
           <EditInfoTab beat={beat} />
         )}
@@ -375,10 +429,12 @@ function Tabs({
   value,
   onChange,
   audienceCount,
+  feedbackCount,
 }: {
   value: Tab;
   onChange: (v: Tab) => void;
   audienceCount: number;
+  feedbackCount: number;
 }) {
   const items: Array<{ value: Tab; label: React.ReactNode }> = [
     {
@@ -391,6 +447,20 @@ function Tabs({
             style={{ marginLeft: 6, color: "var(--fg-4)" }}
           >
             {audienceCount}
+          </span>
+        </>
+      ),
+    },
+    {
+      value: "feedback",
+      label: (
+        <>
+          Feedback
+          <span
+            className="t-mono-s"
+            style={{ marginLeft: 6, color: "var(--fg-4)" }}
+          >
+            {feedbackCount}
           </span>
         </>
       ),
@@ -503,6 +573,123 @@ function AudienceTab({
       >
         Top fan + per-contact engagement land when the artist gate ships
         (J6) — they need real listens/likes data flowing in first.
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   FeedbackTab — notes artists shared with this beat's producer.
+   Mirrors the artist-side BeatNoteModal's "shared" path:
+   when an artist hits "Share note" on /listen, that note lands
+   here. Phase 3 wires the real `beat_comments` query; this
+   component reads from a plain array so the swap is invisible.
+   ============================================================ */
+
+function FeedbackTab({
+  feedback,
+}: {
+  feedback: ReadonlyArray<FeedbackItem>;
+}) {
+  if (feedback.length === 0) {
+    return (
+      <div
+        className="t-body"
+        style={{
+          padding: "40px 18px",
+          textAlign: "center",
+          color: "var(--fg-3)",
+          background: "var(--bg-1)",
+          border: "1px dashed var(--border-1)",
+          borderRadius: "var(--r-md)",
+        }}
+      >
+        No shared notes yet. When an artist hits&nbsp;
+        <Tag>Share note</Tag>
+        &nbsp;on this beat from their /listen panel, it lands here.
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      {feedback.map((f) => (
+        <FeedbackRow key={f.id} item={f} />
+      ))}
+      {/* Phase-3 marker so future-me knows this list is currently
+          fed from a hardcoded const in BeatDetailPage.tsx, not a
+          real query. Same banner shape as the Audience tab's. */}
+      <div
+        className="t-body-s"
+        style={{
+          marginTop: 4,
+          padding: "14px 16px",
+          textAlign: "center",
+          color: "var(--fg-3)",
+          background: "var(--bg-1)",
+          border: "1px dashed var(--border-1)",
+          borderRadius: "var(--r-md)",
+        }}
+      >
+        Mock preview — real shared notes flow from the artist
+        /listen panel into `beat_comments` once Phase 3 wires the
+        DB + DAL.
+      </div>
+    </div>
+  );
+}
+
+function FeedbackRow({ item }: { item: FeedbackItem }) {
+  return (
+    <div
+      className="flex border border-border-1 bg-bg-1"
+      style={{
+        gap: 14,
+        padding: "16px 18px",
+        borderRadius: "var(--r-md)",
+      }}
+    >
+      <Avatar name={item.artistSeed} size={40} />
+      <div className="min-w-0 flex-1">
+        <div
+          className="flex items-center flex-wrap"
+          style={{ gap: 8 }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 14.5,
+              fontWeight: 700,
+              color: "var(--fg-1)",
+            }}
+          >
+            {item.artistName}
+          </span>
+          <span
+            className="t-mono-s"
+            style={{ color: "var(--fg-3)" }}
+          >
+            @{item.artistHandle}
+          </span>
+          <span
+            className="t-mono-s"
+            style={{ color: "var(--fg-4)" }}
+          >
+            · {item.ago}
+          </span>
+        </div>
+        <p
+          style={{
+            margin: "8px 0 0",
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            lineHeight: 1.55,
+            color: "var(--fg-2)",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {item.body}
+        </p>
       </div>
     </div>
   );
