@@ -46,7 +46,12 @@ export function ArtistShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <ArtistTopbar onOpenDrawer={() => setDrawerOpen(true)} />
-        {children}
+        {/* Same 1440px content cap as the producer shell
+            (app/(app)/layout.tsx) — keeps the editorial feel
+            consistent on ultra-wide displays. */}
+        <div className="mx-auto w-full" style={{ maxWidth: 1440 }}>
+          {children}
+        </div>
       </div>
     </div>
   );
