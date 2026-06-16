@@ -343,22 +343,28 @@ export async function loadServerView(
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // Two-step instead of an embedded FK join — the embedded form
+  // requires the constraint name (`servers_owner_id_fkey`) and
+  // silently fails to null if PostgREST's schema introspection
+  // hasn't picked it up. The extra round-trip is negligible.
   const { data: serverRow } = await supabase
     .from("servers")
     .select(
       `
       id, slug, name, style_text,
       artwork_mode, accent_hue, artwork_image_url,
-      owner_id,
-      owner:profiles!servers_owner_id_fkey (
-        id, handle, name, avatar_url, socials
-      )
+      owner_id
     `,
     )
     .eq("slug", slug)
     .maybeSingle();
   if (!serverRow) return null;
-  const owner = (serverRow as { owner?: ProducerRow }).owner;
+
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("id, handle, name, avatar_url, socials")
+    .eq("id", serverRow.owner_id as string)
+    .maybeSingle<ProducerRow>();
   if (!owner) return null;
 
   const { data: myContact } = await supabase
@@ -369,28 +375,49 @@ export async function loadServerView(
     .maybeSingle<{ id: string }>();
   const contactId = myContact?.id ?? null;
 
-  const { data: serverBeats } = await supabase
+  // Same two-step pattern: pivot rows first (RLS scoped to artist),
+  // then resolve beat rows in one IN() round-trip.
+  const { data: pivotRows } = await supabase
     .from("server_beats")
-    .select(
-      `
-      position,
-      added_at,
-      beat:beats!server_beats_beat_id_fkey (
-        id, title, type, bpm, key, mood,
-        duration_seconds, audio_url, artwork_url, wave_seed,
-        created_at
-      )
-    `,
-    )
+    .select("position, added_at, beat_id")
     .eq("server_id", serverRow.id as string)
     .order("position", { ascending: true });
 
-  const beatRows = (serverBeats ?? [])
-    .map((sb) => {
-      const b = (sb as { beat?: BeatTableRow }).beat;
-      return b ? { ...b, addedAtIso: sb.added_at as string } : null;
+  const beatIdsOrdered = (pivotRows ?? []).map(
+    (p) => p.beat_id as string,
+  );
+  const addedAtByBeat = new Map(
+    (pivotRows ?? []).map((p) => [
+      p.beat_id as string,
+      p.added_at as string,
+    ]),
+  );
+
+  const { data: beatTable } = beatIdsOrdered.length
+    ? await supabase
+        .from("beats")
+        .select(
+          "id, title, type, bpm, key, mood, duration_seconds, audio_url, artwork_url, wave_seed, created_at",
+        )
+        .in("id", beatIdsOrdered)
+    : { data: [] as BeatTableRow[] };
+
+  // Preserve the pivot's `position` ordering — IN() doesn't.
+  const beatById = new Map(
+    (beatTable ?? []).map((b) => [b.id as string, b as BeatTableRow]),
+  );
+  const beatRows = beatIdsOrdered
+    .map((id) => {
+      const b = beatById.get(id);
+      if (!b) return null;
+      return {
+        ...b,
+        addedAtIso: addedAtByBeat.get(id) ?? new Date(0).toISOString(),
+      };
     })
-    .filter((x): x is BeatTableRow & { addedAtIso: string } => x !== null);
+    .filter(
+      (x): x is BeatTableRow & { addedAtIso: string } => x !== null,
+    );
 
   const beatIds = beatRows.map((b) => b.id);
 
