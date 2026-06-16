@@ -21,6 +21,7 @@ import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { Tag } from "@/components/ui/Tag";
 import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
@@ -507,9 +508,9 @@ function BeatRow({
         </div>
       </button>
 
-      {/* Title + meta — same info shape as the producer-side BeatRow:
+      {/* Title + meta — exactly the producer BeatRow's shape:
           title (+ co-producers inline) on top, then a meta row of
-          type tag + BPM · KEY + mood chips below. */}
+          type tag → "BPM · KEY · LENGTH" → mood tags. */}
       <div className="min-w-0 flex-1">
         <div
           className="flex items-center min-w-0"
@@ -539,90 +540,45 @@ function BeatRow({
         </div>
         <div
           className="flex items-center flex-wrap"
-          style={{ gap: 6, marginTop: 4 }}
+          style={{ gap: 7, marginTop: 5 }}
         >
-          {/* Type tag — accent COMP / LOOP, same DS variant as
-              producer BeatRow. */}
-          <span
-            className="inline-flex items-center"
-            style={{
-              height: 22,
-              padding: "0 8px",
-              gap: 5,
-              borderRadius: "var(--r-sm)",
-              background: "var(--accent-surface)",
-              color: "var(--accent-text)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-            }}
-          >
-            <Icon
-              name={beat.type === "loop" ? "repeat" : "waves"}
-              size={11}
-            />
-            {beat.type === "loop" ? "LOOP" : "COMP"}
+          {/* Type tag — same DS variants as producer BeatRow:
+              COMP = accent + waves, LOOP = solid + repeat. */}
+          {beat.type === "comp" && (
+            <Tag variant="accent" icon="waves">
+              COMP
+            </Tag>
+          )}
+          {beat.type === "loop" && (
+            <Tag variant="solid" icon="repeat">
+              LOOP
+            </Tag>
+          )}
+          {/* Inline meta line, duration BEFORE mood tags, joined
+              by " · " bullets — exactly the producer MetaRow. */}
+          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+            {[`${beat.bpm} BPM`, beat.key, beat.duration].join(" · ")}
           </span>
-          <span
-            className="t-mono-s"
-            style={{ color: "var(--fg-3)" }}
-          >
-            {beat.bpm} BPM
-          </span>
-          <span
-            className="t-mono-s"
-            style={{ color: "var(--fg-3)" }}
-          >
-            · {beat.key}
-          </span>
+          {/* Mood tags — DS Tag default variant (no fill, hairline
+              border + fg-3 text), same as producer. */}
           {beat.mood.map((m) => (
-            <span
-              key={m}
-              className="inline-flex items-center"
-              style={{
-                height: 22,
-                padding: "0 8px",
-                borderRadius: "var(--r-sm)",
-                background: "var(--bg-3)",
-                color: "var(--fg-2)",
-                fontFamily: "var(--font-mono)",
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              {m}
-            </span>
+            <Tag key={m}>{m}</Tag>
           ))}
         </div>
       </div>
 
-      {/* Added — same column as the producer library's ADDED. Hidden
-          under sm so the row stays usable on phones. */}
+      {/* Added — same column as the producer library's ADDED.
+          Hidden under sm so the row stays usable on phones. Duration
+          lives inline in the meta row above (no separate column). */}
       <span
         className="t-mono-s shrink-0 hidden sm:inline"
         style={{
-          color: "var(--fg-4)",
-          minWidth: 76,
+          color: "var(--fg-3)",
+          width: 90,
           textAlign: "right",
         }}
       >
         {beat.addedAt}
-      </span>
-
-      {/* Duration */}
-      <span
-        className="t-mono-s shrink-0"
-        style={{
-          color: "var(--fg-3)",
-          minWidth: 36,
-          textAlign: "right",
-        }}
-      >
-        {beat.duration}
       </span>
 
       {/* Private note */}
