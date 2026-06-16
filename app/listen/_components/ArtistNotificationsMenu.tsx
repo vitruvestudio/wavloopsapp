@@ -23,11 +23,16 @@
 import * as React from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import {
-  NOTIFICATIONS,
-  type ArtistNotification,
-  type ArtistNotificationKind,
-} from "../_mock";
+import type {
+  ArtistNotificationRow,
+} from "../_data";
+import { useArtistContext } from "./ArtistContext";
+
+/** Kind union — mirrors the notifications.kind text-check
+ *  constraint from migration #14. Kept local to this file (no
+ *  longer re-exported from _mock) since the artist surface now
+ *  reads from _data instead. */
+type ArtistNotificationKind = ArtistNotificationRow["kind"];
 
 /** Map every notification kind to its trailing-line icon. Keys
  *  match the notifications.kind text-check constraint. */
