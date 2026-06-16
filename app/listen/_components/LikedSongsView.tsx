@@ -18,7 +18,14 @@ import { usePlayer } from "@/components/app/PlayerContext";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
-import { likedBeats, type MockBeat, type MockProducer, type MockServer } from "../_mock";
+import {
+  likedBeats,
+  type BeatNote,
+  type BeatNoteVisibility,
+  type MockBeat,
+  type MockProducer,
+  type MockServer,
+} from "../_mock";
 import { BeatNoteModal } from "./BeatNoteModal";
 import { toPlayerBeat } from "./toPlayerBeat";
 
@@ -34,10 +41,16 @@ export function LikedSongsView() {
   /** Local override map for the like state — toggling off removes
    *  the row from the visible list. Phase 3 deletes the likes row. */
   const [unliked, setUnliked] = React.useState<Record<string, boolean>>({});
-  /** Per-beat private notes, keyed by beat id (mirrors ServerView). */
-  const [notes, setNotes] = React.useState<Record<string, string>>({});
-  /** Beat whose note modal is open. */
-  const [noteFor, setNoteFor] = React.useState<MockBeat | null>(null);
+  /** Per-beat notes, keyed by beat id. Same dual-visibility shape
+   *  as ServerView — private notes stay with the artist, shared
+   *  notes reach the producer who owns the beat. */
+  const [notes, setNotes] = React.useState<Record<string, BeatNote>>(
+    {},
+  );
+  /** Entry (producer + beat) whose note modal is open. Keeping the
+   *  whole entry rather than just the beat means the modal can show
+   *  the right producer @handle on the share-with copy. */
+  const [noteFor, setNoteFor] = React.useState<LikedEntry | null>(null);
 
   // Playback comes from the global PlayerContext (mounted in
   // ArtistShell) — the dock is the source of truth for which beat
@@ -53,8 +66,8 @@ export function LikedSongsView() {
     setUnliked((prev) => ({ ...prev, [id]: !prev[id] }));
   const togglePlay = (beat: MockBeat) =>
     player.toggle(toPlayerBeat(beat));
-  const saveNote = (id: string, next: string) =>
-    setNotes((prev) => ({ ...prev, [id]: next }));
+  const saveNote = (id: string, text: string, visibility: BeatNoteVisibility) =>
+    setNotes((prev) => ({ ...prev, [id]: { text, visibility } }));
 
   return (
     <main className="flex-1 min-w-0">
@@ -174,11 +187,15 @@ export function LikedSongsView() {
                 key={entry.beat.id}
                 index={i + 1}
                 entry={entry}
-                noteCount={notes[entry.beat.id]?.length ? 1 : 0}
+                noteVisibility={
+                  notes[entry.beat.id]?.text?.trim()
+                    ? notes[entry.beat.id].visibility
+                    : null
+                }
                 playing={playingId === entry.beat.id}
                 onTogglePlay={() => togglePlay(entry.beat)}
                 onToggleLike={() => toggleLike(entry.beat.id)}
-                onOpenNote={() => setNoteFor(entry.beat)}
+                onOpenNote={() => setNoteFor(entry)}
               />
             ))}
           </>
@@ -187,11 +204,15 @@ export function LikedSongsView() {
 
       {noteFor && (
         <BeatNoteModal
-          beat={noteFor}
-          initialNote={notes[noteFor.id] ?? ""}
+          beat={noteFor.beat}
+          initialNote={notes[noteFor.beat.id]?.text ?? ""}
+          initialVisibility={
+            notes[noteFor.beat.id]?.visibility ?? "private"
+          }
+          producerHandle={noteFor.producer.handle}
           onClose={() => setNoteFor(null)}
-          onSave={(next) => {
-            saveNote(noteFor.id, next);
+          onSave={(text, visibility) => {
+            saveNote(noteFor.beat.id, text, visibility);
             setNoteFor(null);
           }}
         />
@@ -243,7 +264,7 @@ function TableHeader() {
 interface LikedRowProps {
   index: number;
   entry: LikedEntry;
-  noteCount: number;
+  noteVisibility: BeatNoteVisibility | null;
   playing: boolean;
   onTogglePlay: () => void;
   onToggleLike: () => void;
@@ -253,7 +274,7 @@ interface LikedRowProps {
 function LikedRow({
   index,
   entry,
-  noteCount,
+  noteVisibility,
   playing,
   onTogglePlay,
   onToggleLike,
@@ -412,7 +433,11 @@ function LikedRow({
             borderRadius: "var(--r-sm)",
             background: "transparent",
             color:
-              noteCount > 0 ? "var(--accent)" : "var(--fg-4)",
+              noteVisibility === "shared"
+                ? "var(--accent)"
+                : noteVisibility === "private"
+                  ? "var(--fg-2)"
+                  : "var(--fg-4)",
           }}
         >
           <Icon name="message" size={16} />

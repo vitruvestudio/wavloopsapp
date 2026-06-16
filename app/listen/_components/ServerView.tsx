@@ -25,7 +25,13 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
-import type { MockBeat, MockProducer, MockServer } from "../_mock";
+import type {
+  BeatNote,
+  BeatNoteVisibility,
+  MockBeat,
+  MockProducer,
+  MockServer,
+} from "../_mock";
 import {
   bannerGradient,
   BANNER_FADE_MASK,
@@ -122,10 +128,13 @@ export function ServerView({ producer, server }: ServerViewProps) {
   const [overrides, setOverrides] = React.useState<
     Record<string, { liked?: boolean; listened?: boolean }>
   >({});
-  /** Per-beat private notes, keyed by beat id. Empty string = no note.
-   *  Phase 3 will swap for a beat_notes table scoped to the artist's
-   *  contact id. */
-  const [notes, setNotes] = React.useState<Record<string, string>>({});
+  /** Per-beat notes, keyed by beat id. The artist picks visibility
+   *  inside the modal — private notes stay local to them, shared
+   *  notes reach the producer (Phase 3 splits at the DB:
+   *  beat_notes vs. beat_comments). */
+  const [notes, setNotes] = React.useState<Record<string, BeatNote>>(
+    {},
+  );
   /** Beat whose note modal is currently open; null = closed. */
   const [noteFor, setNoteFor] = React.useState<MockBeat | null>(null);
 
@@ -438,7 +447,11 @@ export function ServerView({ producer, server }: ServerViewProps) {
             <BeatRow
               key={b.id}
               beat={b}
-              hasNote={Boolean((notes[b.id] ?? "").trim())}
+              noteVisibility={
+                notes[b.id]?.text?.trim()
+                  ? notes[b.id].visibility
+                  : null
+              }
               playing={playingId === b.id}
               onTogglePlay={() => togglePlay(b)}
               onToggleLike={() => toggleLike(b.id)}
@@ -452,10 +465,17 @@ export function ServerView({ producer, server }: ServerViewProps) {
       {noteFor && (
         <BeatNoteModal
           beat={noteFor}
-          initialNote={notes[noteFor.id] ?? ""}
+          initialNote={notes[noteFor.id]?.text ?? ""}
+          initialVisibility={
+            notes[noteFor.id]?.visibility ?? "private"
+          }
+          producerHandle={producer.handle}
           onClose={() => setNoteFor(null)}
-          onSave={(next) =>
-            setNotes((cur) => ({ ...cur, [noteFor.id]: next }))
+          onSave={(text, visibility) =>
+            setNotes((cur) => ({
+              ...cur,
+              [noteFor.id]: { text, visibility },
+            }))
           }
         />
       )}
@@ -505,7 +525,7 @@ function FilterChip({
 
 function BeatRow({
   beat,
-  hasNote,
+  noteVisibility,
   playing,
   onTogglePlay,
   onToggleLike,
@@ -513,9 +533,12 @@ function BeatRow({
   onOpenNote,
 }: {
   beat: MockBeat;
-  /** True when the artist has saved a private note for this beat —
-   *  drives the small accent dot on the message icon. */
-  hasNote: boolean;
+  /** Visibility of the saved note, or null when no note exists.
+   *  Drives the message icon's colour:
+   *    null    → fg-4    (no note)
+   *    private → fg-2    (artist has a note, but it's just for them)
+   *    shared  → accent  (note was sent to the producer) */
+  noteVisibility: BeatNoteVisibility | null;
   playing: boolean;
   onTogglePlay: () => void;
   onToggleLike: () => void;
@@ -644,10 +667,19 @@ function BeatRow({
         {beat.addedAt}
       </span>
 
-      {/* Private note */}
+      {/* Note button — three-state colour (no note / private /
+          shared) so the artist can tell at a glance whether a beat
+          carries something they wrote, and whether that something
+          went to the producer. */}
       <button
         type="button"
-        aria-label="Private note"
+        aria-label={
+          noteVisibility === "shared"
+            ? "Open note (shared with producer)"
+            : noteVisibility === "private"
+              ? "Open note (private)"
+              : "Open note"
+        }
         onClick={onOpenNote}
         className="relative inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
         style={{
@@ -656,11 +688,16 @@ function BeatRow({
           borderRadius: "var(--r-sm)",
           border: "none",
           background: "transparent",
-          color: hasNote ? "var(--accent-text)" : "var(--fg-4)",
+          color:
+            noteVisibility === "shared"
+              ? "var(--accent-text)"
+              : noteVisibility === "private"
+                ? "var(--fg-2)"
+                : "var(--fg-4)",
         }}
       >
         <Icon name="message" size={16} />
-        {hasNote && (
+        {noteVisibility === "shared" && (
           <span
             style={{
               position: "absolute",

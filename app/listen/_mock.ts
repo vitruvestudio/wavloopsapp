@@ -125,6 +125,27 @@ export interface MockProducer {
   servers: MockServer[];
 }
 
+/**
+ * Visibility a beat note carries:
+ *   - "private" → only the artist sees it (the producer never gets
+ *     it; safer fail-mode for new notes, hence the default).
+ *   - "shared"  → the producer who owns the beat sees it on their
+ *     side (Phase 3: lands as a row in `beat_comments` keyed by
+ *     beat_id + artist contact_id; the producer's beat-detail page
+ *     surfaces it under a "Feedback" tab).
+ *
+ * The visibility ships with every note draft so the artist's
+ * choice survives the round-trip. Switching visibility on an
+ * existing note in the modal counts as dirty — saving re-files the
+ * same text under the new bucket.
+ */
+export type BeatNoteVisibility = "private" | "shared";
+
+export interface BeatNote {
+  text: string;
+  visibility: BeatNoteVisibility;
+}
+
 export interface ArtistAccount {
   handle: string;
   /** Display name shown in the account-menu header (the bolded

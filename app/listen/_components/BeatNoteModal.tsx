@@ -1,15 +1,24 @@
 /**
- * BeatNoteModal — private note an artist attaches to a beat.
+ * BeatNoteModal — note an artist attaches to a beat, with a
+ * Private vs. Share-with-producer toggle.
  *
  * Opens from the message icon on a BeatRow. Title block shows the
- * beat cover + name + mono kicker (YOUR PRIVATE NOTE · BPM · KEY).
- * Body is a single textarea; below it a "ONLY VISIBLE TO YOU"
- * reminder so the artist doesn't mistake it for a public comment to
- * the producer.
+ * beat cover + name + a dynamic mono kicker that reads the chosen
+ * visibility back to the artist ("YOUR PRIVATE NOTE" vs. "SHARING
+ * WITH @MRTLMAN"). Body is a single textarea, then a segmented
+ * Visibility control, then a reminder line that reflects the
+ * current choice.
  *
- * Phase 1: note value lives in the parent component's local state
- * (ServerView holds a Record<beatId, string>). Phase 3 will swap
- * for a `beat_notes` table scoped to (contact_id, beat_id).
+ * Default visibility is "private" — safer fail mode (an artist who
+ * doesn't touch the control never accidentally publishes a note
+ * the producer can read).
+ *
+ * Phase 1: visibility + text live in the parent component's local
+ * state (Record<beatId, BeatNote>). Phase 3 splits them at the DB:
+ *   - private → beat_notes scoped to (contact_id, beat_id)
+ *   - shared  → beat_comments visible to the beat's producer
+ * Same modal contract either way — the producer-facing wiring
+ * lands in a separate commit.
  */
 
 "use client";
@@ -19,23 +28,34 @@ import { Button } from "@/components/ui/Button";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import type { MockBeat } from "../_mock";
+import type { BeatNoteVisibility, MockBeat } from "../_mock";
 
 interface BeatNoteModalProps {
   beat: MockBeat;
-  /** Current saved note value for this beat (empty string when none). */
+  /** Current saved note text for this beat (empty string when none). */
   initialNote: string;
+  /** Current saved visibility for this beat. Defaults to private
+   *  for new notes when the parent passes "private". */
+  initialVisibility: BeatNoteVisibility;
+  /** The producer's @handle — interpolated into the "share" copy
+   *  ("SHARING WITH @MRTLMAN") so the artist sees exactly who will
+   *  receive the note. */
+  producerHandle: string;
   onClose: () => void;
-  onSave: (next: string) => void;
+  onSave: (text: string, visibility: BeatNoteVisibility) => void;
 }
 
 export function BeatNoteModal({
   beat,
   initialNote,
+  initialVisibility,
+  producerHandle,
   onClose,
   onSave,
 }: BeatNoteModalProps) {
   const [draft, setDraft] = React.useState(initialNote);
+  const [visibility, setVisibility] =
+    React.useState<BeatNoteVisibility>(initialVisibility);
 
   // Lock body scroll + close on Escape.
   React.useEffect(() => {
@@ -52,17 +72,34 @@ export function BeatNoteModal({
   }, [onClose]);
 
   const submit = () => {
-    onSave(draft.trim());
+    onSave(draft.trim(), visibility);
     onClose();
   };
 
-  const dirty = draft !== initialNote;
+  const isShared = visibility === "shared";
+  const dirty =
+    draft !== initialNote || visibility !== initialVisibility;
+
+  const handleUpper = producerHandle.toUpperCase();
+  const kicker = isShared
+    ? `SHARING WITH @${handleUpper} · ${beat.bpm} BPM · ${beat.key}`
+    : `YOUR PRIVATE NOTE · ${beat.bpm} BPM · ${beat.key}`;
+  const reminder = isShared ? (
+    <>
+      <Icon name="users" size={11} />@{handleUpper} WILL SEE THIS NOTE
+    </>
+  ) : (
+    <>
+      <Icon name="lock" size={11} />
+      ONLY VISIBLE TO YOU
+    </>
+  );
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Private note for ${beat.title}`}
+      aria-label={`Note for ${beat.title}`}
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ padding: 18 }}
     >
@@ -103,7 +140,7 @@ export function BeatNoteModal({
               borderRadius: "var(--r-sm)",
             }}
           >
-            <CoverArt fill seed={beat.artSeed} />
+            <CoverArt fill seed={beat.artSeed} src={beat.coverUrl} />
           </div>
           <div className="min-w-0 flex-1">
             <div
@@ -119,9 +156,12 @@ export function BeatNoteModal({
             </div>
             <div
               className="t-mono-s truncate"
-              style={{ color: "var(--fg-3)", marginTop: 3 }}
+              style={{
+                color: isShared ? "var(--accent-text)" : "var(--fg-3)",
+                marginTop: 3,
+              }}
             >
-              YOUR PRIVATE NOTE · {beat.bpm} BPM · {beat.key}
+              {kicker}
             </div>
           </div>
           <IconButton
@@ -141,7 +181,11 @@ export function BeatNoteModal({
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write a note — ideas, lyrics, where this fits, follow-up with the producer…"
+            placeholder={
+              isShared
+                ? "Talk to the producer — what's hitting, what's missing, what you'd want changed."
+                : "Write a note — ideas, lyrics, where this fits, follow-up to yourself…"
+            }
             rows={6}
             className="w-full bg-bg-inset border border-border-2 text-fg-1 outline-none placeholder:text-fg-4 transition-all duration-fast focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-ring)]"
             style={{
@@ -155,16 +199,55 @@ export function BeatNoteModal({
             }}
             autoFocus
           />
+
+          {/* Visibility selector — segmented control. Two big
+              hit-targets so the choice is unambiguous, not a sneaky
+              toggle the artist could miss. */}
           <div
-            className="t-mono-s inline-flex items-center"
+            className="t-mono-s"
             style={{
-              marginTop: 10,
-              gap: 6,
+              marginTop: 16,
+              marginBottom: 8,
               color: "var(--fg-3)",
             }}
           >
-            <Icon name="lock" size={11} />
-            ONLY VISIBLE TO YOU
+            VISIBILITY
+          </div>
+          <div
+            className="grid grid-cols-2"
+            style={{
+              gap: 8,
+            }}
+          >
+            <VisibilityChoice
+              icon="lock"
+              label="Private note"
+              sub="Only you"
+              active={!isShared}
+              onClick={() => setVisibility("private")}
+            />
+            <VisibilityChoice
+              icon="users"
+              label="Share with producer"
+              sub={`@${producerHandle} sees it`}
+              active={isShared}
+              onClick={() => setVisibility("shared")}
+            />
+          </div>
+
+          {/* Reminder line — colour + icon track the current
+              choice so the artist always sees what's about to ship. */}
+          <div
+            className="t-mono-s inline-flex items-center"
+            style={{
+              marginTop: 14,
+              gap: 6,
+              color: isShared
+                ? "var(--accent-text)"
+                : "var(--fg-3)",
+            }}
+          >
+            {reminder}
           </div>
         </div>
 
@@ -188,10 +271,84 @@ export function BeatNoteModal({
             disabled={!dirty}
             className="!h-[36px]"
           >
-            Save note
+            {isShared ? "Share note" : "Save note"}
           </Button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** Single tile in the Visibility segmented control. Active tile
+ *  picks up the accent surface + a coloured icon square so the
+ *  current choice is hard to miss. */
+function VisibilityChoice({
+  icon,
+  label,
+  sub,
+  active,
+  onClick,
+}: {
+  icon: "lock" | "users";
+  label: string;
+  sub: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="flex items-center cursor-pointer transition-colors duration-fast"
+      style={{
+        gap: 12,
+        padding: "10px 12px",
+        borderRadius: "var(--r-md)",
+        border: active
+          ? "1px solid var(--accent)"
+          : "1px solid var(--border-2)",
+        background: active ? "var(--accent-surface)" : "var(--bg-1)",
+        color: "var(--fg-1)",
+        textAlign: "left",
+      }}
+    >
+      <div
+        className="flex items-center justify-center shrink-0"
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "var(--r-sm)",
+          background: active ? "var(--accent)" : "var(--bg-3)",
+          color: active ? "#fff" : "var(--fg-2)",
+        }}
+      >
+        <Icon name={icon} size={15} />
+      </div>
+      <div className="min-w-0">
+        <div
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {label}
+        </div>
+        <div
+          className="truncate"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 10.5,
+            color: "var(--fg-3)",
+            letterSpacing: "0.04em",
+            marginTop: 2,
+          }}
+        >
+          {sub}
+        </div>
+      </div>
+    </button>
   );
 }
