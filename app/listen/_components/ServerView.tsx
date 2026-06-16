@@ -178,7 +178,11 @@ export function ServerView({ producer, server }: ServerViewProps) {
             >
               {server.artSeeds.slice(0, 4).map((seed, i) => (
                 <div key={i} className="relative overflow-hidden">
-                  <CoverArt fill seed={seed} />
+                  <CoverArt
+                    fill
+                    seed={seed}
+                    src={server.artUrls?.[i]}
+                  />
                 </div>
               ))}
             </div>
@@ -486,7 +490,7 @@ function BeatRow({
           padding: 0,
         }}
       >
-        <CoverArt fill seed={beat.artSeed} />
+        <CoverArt fill seed={beat.artSeed} src={beat.coverUrl} />
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{

@@ -37,6 +37,10 @@ export interface MockBeat {
   commentCount: number;
   /** Used to seed the generative CoverArt fallback. */
   artSeed: string;
+  /** Optional uploaded artwork URL. When set, the row's CoverArt
+   *  renders this image instead of the seeded gradient — used by
+   *  Phase 1 to feel out real-cover density on the mockup. */
+  coverUrl?: string;
   /** When true the beat shows up in the NEW filter. */
   isNew?: boolean;
 }
@@ -48,8 +52,31 @@ export interface MockServer {
   unread: number;
   /** First 4 cover seeds for the banner mosaic. */
   artSeeds: string[];
+  /** Optional 4 uploaded cover URLs for the banner mosaic. When
+   *  set, the banner renders these images instead of seeded
+   *  gradients — Phase 1 mockup only. */
+  artUrls?: string[];
   beats: MockBeat[];
 }
+
+/**
+ * Real cover URLs uploaded to the `beat-covers` Supabase bucket
+ * by Theo's producer account. Used in Phase 1 to populate the
+ * mockup with actual artwork (vs the seeded gradients) so we can
+ * judge how the page reads at real density. Phase 3 derives this
+ * from `beats.cover_url` per row instead.
+ */
+const SUPA_PUBLIC =
+  "https://sgowrqzkdugbarfbvlqk.supabase.co/storage/v1/object/public/beat-covers/a067e12a-3dc4-4899-b09e-5252bb534f75";
+const COVER_POOL = [
+  `${SUPA_PUBLIC}/7fdcbdf8-cdbd-4a78-b7ae-a585545e06d9.jpg`,
+  `${SUPA_PUBLIC}/3769e218-62f2-4673-9465-c5d4bd09381b.jpg`,
+  `${SUPA_PUBLIC}/0de55c9b-b930-402c-a196-a76fa97b11a0.jpg`,
+  `${SUPA_PUBLIC}/60691d19-c8b3-448c-a4a3-be0945d2cbeb.jpg`,
+];
+/** Round-robin pick from the cover pool — keeps each row visually
+ *  distinct without us hand-mapping 15 beats to 4 images. */
+const cover = (i: number) => COVER_POOL[i % COVER_POOL.length];
 
 export interface MockProducer {
   handle: string;
@@ -93,6 +120,7 @@ export const PRODUCERS: MockProducer[] = [
         styleText: "R&B · Soul",
         unread: 0,
         artSeeds: ["v1", "v2", "v3", "v4"],
+        artUrls: COVER_POOL,
         beats: [
           {
             id: "v-golden-hour",
@@ -107,6 +135,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: true,
             commentCount: 0,
             artSeed: "golden-hour",
+            coverUrl: cover(0),
           },
           {
             id: "v-afterglow",
@@ -121,6 +150,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "afterglow",
+            coverUrl: cover(1),
           },
           {
             id: "v-velvet-room",
@@ -135,6 +165,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "velvet-room",
+            coverUrl: cover(2),
           },
           {
             id: "v-cold-water",
@@ -150,6 +181,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 1,
             artSeed: "cold-water",
+            coverUrl: cover(3),
           },
           {
             id: "v-saint",
@@ -164,6 +196,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "saint",
+            coverUrl: cover(4),
           },
         ],
       },
@@ -173,6 +206,7 @@ export const PRODUCERS: MockProducer[] = [
         styleText: "Trap · Dark",
         unread: 2,
         artSeeds: ["an1", "an2", "an3", "an4"],
+        artUrls: [COVER_POOL[1], COVER_POOL[2], COVER_POOL[3], COVER_POOL[0]],
         beats: [
           {
             id: "an-midnight-drive",
@@ -187,6 +221,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "midnight-drive",
+            coverUrl: cover(5),
             isNew: true,
           },
           {
@@ -203,6 +238,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "paper-planes",
+            coverUrl: cover(6),
             isNew: true,
           },
           {
@@ -218,6 +254,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: true,
             commentCount: 0,
             artSeed: "neon-rain",
+            coverUrl: cover(7),
           },
           {
             id: "an-no-ceilings",
@@ -232,6 +269,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: true,
             commentCount: 0,
             artSeed: "no-ceilings",
+            coverUrl: cover(8),
           },
         ],
       },
@@ -252,6 +290,7 @@ export const PRODUCERS: MockProducer[] = [
         styleText: "Drill · UK",
         unread: 1,
         artSeeds: ["uk1", "uk2", "uk3", "uk4"],
+        artUrls: [COVER_POOL[2], COVER_POOL[3], COVER_POOL[0], COVER_POOL[1]],
         beats: [
           {
             id: "uk-london-bridge",
@@ -266,6 +305,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "london-bridge",
+            coverUrl: cover(9),
             isNew: true,
           },
           {
@@ -281,6 +321,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "roadman",
+            coverUrl: cover(10),
           },
         ],
       },
@@ -302,6 +343,7 @@ export const PRODUCERS: MockProducer[] = [
         styleText: "Lo-fi · Ambient",
         unread: 0,
         artSeeds: ["nt1", "nt2", "nt3", "nt4"],
+        artUrls: [COVER_POOL[3], COVER_POOL[0], COVER_POOL[1], COVER_POOL[2]],
         beats: [
           {
             id: "nt-sakura-nights",
@@ -316,6 +358,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "sakura",
+            coverUrl: cover(11),
           },
           {
             id: "nt-crystal-sky",
@@ -330,6 +373,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "crystal",
+            coverUrl: cover(12),
           },
           {
             id: "nt-digital-dreams",
@@ -344,6 +388,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "digital",
+            coverUrl: cover(13),
           },
           {
             id: "nt-skyline",
@@ -358,6 +403,7 @@ export const PRODUCERS: MockProducer[] = [
             listened: false,
             commentCount: 0,
             artSeed: "skyline",
+            coverUrl: cover(14),
           },
         ],
       },
