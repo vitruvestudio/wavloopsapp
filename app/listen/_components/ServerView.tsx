@@ -25,41 +25,12 @@ import { Tag } from "@/components/ui/Tag";
 import { hashSeed } from "@/lib/seed";
 import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
+import {
+  bannerGradient,
+  BANNER_FADE_MASK,
+  BANNER_GLOW_MASK,
+} from "./banner";
 import { BeatNoteModal } from "./BeatNoteModal";
-
-/** Single-hue glow that anchors the banner — one dominant colour,
- *  with small adjacent-hue variants for depth. Used by the COLOR
- *  artwork mode (driven by servers.accent_hue), and as the fallback
- *  for AUTO when there's no cover URL yet. Chroma stays moderate
- *  (0.10-0.14) so the result feels premium rather than saturated. */
-function bannerGradient(baseHue: number): string {
-  // Adjacent hues, ±20° max from the base, for tonal variation
-  // without colour clashes.
-  const h2 = (baseHue + 15) % 360;
-  const h3 = (baseHue - 25 + 360) % 360;
-  return [
-    // Main glow — large, centred toward the upper half, this is
-    // the dominant colour signature.
-    `radial-gradient(ellipse 80% 70% at 50% 20%, oklch(0.42 0.14 ${baseHue}) 0%, transparent 70%)`,
-    // Subtle wash on the right edge, slightly warmer.
-    `radial-gradient(ellipse 50% 60% at 95% 30%, oklch(0.38 0.13 ${h2}) 0%, transparent 60%)`,
-    // Cooler shoulder on the left, anchors the composition.
-    `radial-gradient(ellipse 45% 55% at 5% 35%, oklch(0.28 0.10 ${h3}) 0%, transparent 55%)`,
-  ].join(", ");
-}
-
-/** Mask that fades the gradient out at the bottom 35% so it bleeds
- *  into the page background instead of stopping with a hard line. */
-const BANNER_FADE_MASK =
-  "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)";
-
-/** Same radial soft-glow shape the COLOR mesh uses for its main
- *  blob (centred upper-half, fades out toward the edges). Applied
- *  as a mask to the AUTO / IMAGE backdrops so they read as the
- *  same premium tinted-cloud shape as the COLOR mesh — not a
- *  full-bleed photo. */
-const BANNER_GLOW_MASK =
-  "radial-gradient(ellipse 90% 80% at 50% 20%, black 0%, black 45%, transparent 90%)";
 
 /** Banner backdrop dispatcher — mirrors the producer's choice in
  *  the Create Server form (servers.artwork_mode):

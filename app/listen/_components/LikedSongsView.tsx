@@ -18,7 +18,14 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { likedBeats, type MockBeat, type MockProducer, type MockServer } from "../_mock";
+import { bannerGradient, BANNER_FADE_MASK } from "./banner";
 import { BeatNoteModal } from "./BeatNoteModal";
+
+/** Hue 285° — exactly the dominant tone of the heart cover card
+ *  (`linear-gradient(135°, oklch(0.58 0.22 285), oklch(0.46 0.18 305))`).
+ *  Using it as the banner hue keeps the colour cloud behind the
+ *  header in lock-step with the card itself. */
+const LIKED_BANNER_HUE = 285;
 
 type LikedEntry = {
   producer: MockProducer;
@@ -54,11 +61,26 @@ export function LikedSongsView() {
       {/* ── Header — accent heart card + eyebrow + title + play
               all. Same outer rhythm as ServerView's banner
               (mobile stack, desktop row) so the two pages feel
-              like the same surface. ──────────────────────────── */}
-      <section className="px-[18px] pt-[24px] pb-[40px] lg:px-[36px] lg:pt-[32px] lg:pb-[56px]">
+              like the same surface. Backdrop mesh uses the hue
+              of the heart card so the colour cloud and the card
+              read as one composition. ───────────────────────── */}
+      <section
+        className="relative overflow-hidden px-[18px] pt-[24px] pb-[40px] lg:px-[36px] lg:pt-[32px] lg:pb-[56px]"
+      >
+        {/* Single-hue mesh, hue 285° matches the heart card. */}
         <div
-          className="flex flex-col items-center text-center lg:flex-row lg:items-end lg:text-left"
-          style={{ gap: 22 }}
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background: bannerGradient(LIKED_BANNER_HUE),
+            WebkitMaskImage: BANNER_FADE_MASK,
+            maskImage: BANNER_FADE_MASK,
+            zIndex: 0,
+          }}
+        />
+        <div
+          className="relative flex flex-col items-center text-center lg:flex-row lg:items-end lg:text-left"
+          style={{ gap: 22, zIndex: 1 }}
         >
           {/* Heart cover — single solid accent-gradient card with a
               white heart glyph, exactly mirroring the producer-side
