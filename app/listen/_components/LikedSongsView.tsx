@@ -14,11 +14,13 @@
 "use client";
 
 import * as React from "react";
+import { usePlayer } from "@/components/app/PlayerContext";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { likedBeats, type MockBeat, type MockProducer, type MockServer } from "../_mock";
 import { BeatNoteModal } from "./BeatNoteModal";
+import { toPlayerBeat } from "./toPlayerBeat";
 
 type LikedEntry = {
   producer: MockProducer;
@@ -36,16 +38,21 @@ export function LikedSongsView() {
   const [notes, setNotes] = React.useState<Record<string, string>>({});
   /** Beat whose note modal is open. */
   const [noteFor, setNoteFor] = React.useState<MockBeat | null>(null);
-  /** Currently-playing beat id (one-at-a-time). */
-  const [playingId, setPlayingId] = React.useState<string | null>(null);
+
+  // Playback comes from the global PlayerContext (mounted in
+  // ArtistShell) — the dock is the source of truth for which beat
+  // is current, so the row's play overlay just mirrors it.
+  const player = usePlayer();
+  const playingId =
+    player.current && player.playing ? player.current.id : null;
 
   const visible = all.filter((e) => !unliked[e.beat.id]);
   const count = visible.length;
 
   const toggleLike = (id: string) =>
     setUnliked((prev) => ({ ...prev, [id]: !prev[id] }));
-  const togglePlay = (id: string) =>
-    setPlayingId((cur) => (cur === id ? null : id));
+  const togglePlay = (beat: MockBeat) =>
+    player.toggle(toPlayerBeat(beat));
   const saveNote = (id: string, next: string) =>
     setNotes((prev) => ({ ...prev, [id]: next }));
 
@@ -129,11 +136,16 @@ export function LikedSongsView() {
             </div>
           </div>
 
-          {/* Play all — disabled when empty. */}
+          {/* Play all — kicks off the dock on the first liked
+              beat. Disabled when the list is empty. */}
           <button
             type="button"
             aria-label="Play all liked"
             disabled={count === 0}
+            onClick={() => {
+              const first = visible[0]?.beat;
+              if (first) togglePlay(first);
+            }}
             className="shrink-0 grid place-items-center cursor-pointer"
             style={{
               width: 56,
@@ -164,7 +176,7 @@ export function LikedSongsView() {
                 entry={entry}
                 noteCount={notes[entry.beat.id]?.length ? 1 : 0}
                 playing={playingId === entry.beat.id}
-                onTogglePlay={() => togglePlay(entry.beat.id)}
+                onTogglePlay={() => togglePlay(entry.beat)}
                 onToggleLike={() => toggleLike(entry.beat.id)}
                 onOpenNote={() => setNoteFor(entry.beat)}
               />

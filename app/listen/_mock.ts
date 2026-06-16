@@ -41,6 +41,12 @@ export interface MockBeat {
    *  renders this image instead of the seeded gradient — used by
    *  Phase 1 to feel out real-cover density on the mockup. */
   coverUrl?: string;
+  /** Optional audio source used by the PlayerDock when this beat
+   *  is selected. Phase 1 round-robins a small pool of demo MP3s
+   *  so the dock UX (play/pause/seek/progress) is testable end-to-
+   *  end before the real `beats.audio_url` signed-URL pipeline lands
+   *  in Phase 3. */
+  audioUrl?: string;
   /** When true the beat shows up in the NEW filter. */
   isNew?: boolean;
 }
@@ -91,6 +97,22 @@ const COVER_POOL = [
 /** Round-robin pick from the cover pool — keeps each row visually
  *  distinct without us hand-mapping 15 beats to 4 images. */
 const cover = (i: number) => COVER_POOL[i % COVER_POOL.length];
+
+/**
+ * Demo MP3 pool used as `audioUrl` on the mock beats. SoundHelix's
+ * permissively-licensed examples have been the de-facto "demo audio"
+ * for browser players for over a decade — reliable, CORS-friendly,
+ * no auth. Phase 3 swaps these for signed URLs minted off
+ * `beats.audio_url` (private `beat-audio` Supabase bucket); the
+ * PlayerContext contract already supports any HTTPS source.
+ */
+const AUDIO_POOL = [
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+];
+const audio = (i: number) => AUDIO_POOL[i % AUDIO_POOL.length];
 
 export interface MockProducer {
   handle: string;
@@ -236,6 +258,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "golden-hour",
             coverUrl: cover(0),
+            audioUrl: audio(0),
           },
           {
             id: "v-afterglow",
@@ -251,6 +274,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "afterglow",
             coverUrl: cover(1),
+            audioUrl: audio(1),
           },
           {
             id: "v-velvet-room",
@@ -266,6 +290,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "velvet-room",
             coverUrl: cover(2),
+            audioUrl: audio(2),
           },
           {
             id: "v-cold-water",
@@ -282,6 +307,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 1,
             artSeed: "cold-water",
             coverUrl: cover(3),
+            audioUrl: audio(3),
           },
           {
             id: "v-saint",
@@ -297,6 +323,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "saint",
             coverUrl: cover(4),
+            audioUrl: audio(4),
           },
         ],
       },
@@ -324,6 +351,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "midnight-drive",
             coverUrl: cover(5),
+            audioUrl: audio(5),
             isNew: true,
           },
           {
@@ -341,6 +369,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "paper-planes",
             coverUrl: cover(6),
+            audioUrl: audio(6),
             isNew: true,
           },
           {
@@ -357,6 +386,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "neon-rain",
             coverUrl: cover(7),
+            audioUrl: audio(7),
           },
           {
             id: "an-no-ceilings",
@@ -372,6 +402,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "no-ceilings",
             coverUrl: cover(8),
+            audioUrl: audio(8),
           },
         ],
       },
@@ -411,6 +442,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "london-bridge",
             coverUrl: cover(9),
+            audioUrl: audio(9),
             isNew: true,
           },
           {
@@ -427,6 +459,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "roadman",
             coverUrl: cover(10),
+            audioUrl: audio(10),
           },
         ],
       },
@@ -468,6 +501,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "sakura",
             coverUrl: cover(11),
+            audioUrl: audio(11),
           },
           {
             id: "nt-crystal-sky",
@@ -483,6 +517,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "crystal",
             coverUrl: cover(12),
+            audioUrl: audio(12),
           },
           {
             id: "nt-digital-dreams",
@@ -498,6 +533,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "digital",
             coverUrl: cover(13),
+            audioUrl: audio(13),
           },
           {
             id: "nt-skyline",
@@ -513,6 +549,7 @@ export const PRODUCERS: MockProducer[] = [
             commentCount: 0,
             artSeed: "skyline",
             coverUrl: cover(14),
+            audioUrl: audio(14),
           },
         ],
       },

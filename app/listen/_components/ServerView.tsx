@@ -18,6 +18,7 @@
 "use client";
 
 import * as React from "react";
+import { usePlayer } from "@/components/app/PlayerContext";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -31,6 +32,7 @@ import {
   BANNER_GLOW_MASK,
 } from "./banner";
 import { BeatNoteModal } from "./BeatNoteModal";
+import { toPlayerBeat } from "./toPlayerBeat";
 
 /** Banner backdrop dispatcher — mirrors the producer's choice in
  *  the Create Server form (servers.artwork_mode):
@@ -109,7 +111,12 @@ interface ServerViewProps {
 
 export function ServerView({ producer, server }: ServerViewProps) {
   const [filter, setFilter] = React.useState<Filter>("all");
-  const [playingId, setPlayingId] = React.useState<string | null>(null);
+  // Playback state is owned by the global PlayerContext (mounted in
+  // ArtistShell) so the dock can survive route changes and other
+  // pages can observe the same currently-playing beat.
+  const player = usePlayer();
+  const playingId =
+    player.current && player.playing ? player.current.id : null;
   // Local override of the mock liked/listened state — toggling on
   // a row updates this map and the row re-renders.
   const [overrides, setOverrides] = React.useState<
@@ -155,10 +162,13 @@ export function ServerView({ producer, server }: ServerViewProps) {
       },
     }));
 
-  const togglePlay = (id: string) => {
-    setPlayingId((cur) => (cur === id ? null : id));
-    // Auto-mark listened on first play.
-    if (playingId !== id) toggleListened(id);
+  const togglePlay = (beat: MockBeat) => {
+    // Auto-mark listened the FIRST time the artist hits play on a
+    // given beat — same semantic as before, just gated on whether
+    // the global player is already on this beat.
+    const isCurrent = player.current?.id === beat.id;
+    if (!isCurrent) toggleListened(beat.id);
+    player.toggle(toPlayerBeat(beat));
   };
 
   const styleTags = server.styleText
@@ -335,7 +345,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
             aria-label={`Play all ${server.name}`}
             onClick={() => {
               const first = visible[0];
-              if (first) togglePlay(first.id);
+              if (first) togglePlay(first);
             }}
             className="shrink-0 inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105 w-[56px] h-[56px] lg:w-[64px] lg:h-[64px]"
             style={{
@@ -430,7 +440,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
               beat={b}
               hasNote={Boolean((notes[b.id] ?? "").trim())}
               playing={playingId === b.id}
-              onTogglePlay={() => togglePlay(b.id)}
+              onTogglePlay={() => togglePlay(b)}
               onToggleLike={() => toggleLike(b.id)}
               onToggleListened={() => toggleListened(b.id)}
               onOpenNote={() => setNoteFor(b)}
