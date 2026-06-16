@@ -136,11 +136,18 @@ export function ServerDetailPage({
   // What we COPY and what the open/preview button OPENS: the URL
   // for the current environment, so dev clicks land on
   // localhost:3000/s/<slug> rather than 404-ing on wavloops.co.
-  // Falls back to the production URL during SSR.
-  const artistUrlOpenable =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/s/${server.slug}`
-      : `https://wavloops.co/s/${server.slug}`;
+  //
+  // SSR + first client paint render the same wavloops.co URL so
+  // hydration matches; an effect swaps it to window.location.origin
+  // after mount. Branching on `typeof window` at render time would
+  // emit different markup on the server vs. the client and trip a
+  // React hydration mismatch.
+  const [artistUrlOpenable, setArtistUrlOpenable] = React.useState(
+    `https://wavloops.co/s/${server.slug}`,
+  );
+  React.useEffect(() => {
+    setArtistUrlOpenable(`${window.location.origin}/s/${server.slug}`);
+  }, [server.slug]);
 
   const copyLink = React.useCallback(async () => {
     try {
