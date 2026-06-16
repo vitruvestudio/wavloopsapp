@@ -55,24 +55,26 @@ export function LikedSongsView() {
               all. Backdrop is the design-system's spec'd vertical
               wash: top → bottom from --accent-surface (16% in
               dark, 10% in light — auto-adapts via the token) to
-              transparent at 70% of the box height. The wash and
-              the heart card both lean on the same accent indigo,
-              so the page reads as one composition. ─────────── */}
+              transparent at 70% of the box height. The wash is
+              applied to the section itself which then breaks out
+              of the 1440 column via the negative-margin trick so
+              it bleeds to the visible column edges; equal positive
+              paddings pull the inner content back to its original
+              alignment. ──────────────────────────────────────── */}
       <section
-        className="relative overflow-hidden px-[18px] pt-[24px] pb-[40px] lg:px-[36px] lg:pt-[32px] lg:pb-[56px]"
+        className="relative pt-[24px] pb-[40px] lg:pt-[32px] lg:pb-[56px]"
+        style={{
+          marginLeft: "calc(50% - 50vw)",
+          marginRight: "calc(50% - 50vw)",
+          paddingLeft: "calc(50vw - 50%)",
+          paddingRight: "calc(50vw - 50%)",
+          background:
+            "linear-gradient(180deg, var(--accent-surface), transparent 70%)",
+        }}
       >
         <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(180deg, var(--accent-surface), transparent 70%)",
-            zIndex: 0,
-          }}
-        />
-        <div
-          className="relative flex flex-col items-center text-center lg:flex-row lg:items-end lg:text-left"
-          style={{ gap: 22, zIndex: 1 }}
+          className="flex flex-col items-center text-center lg:flex-row lg:items-end lg:text-left px-[18px] lg:px-[36px]"
+          style={{ gap: 22 }}
         >
           {/* Heart cover — brand-fixed 140° diagonal from the
               indigo accent to a violet/magenta (per the design

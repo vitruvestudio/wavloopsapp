@@ -44,7 +44,10 @@ export function ArtistShell({ children }: { children: React.ReactNode }) {
         drawerOpen={drawerOpen}
         onCloseDrawer={() => setDrawerOpen(false)}
       />
-      <div className="flex-1 min-w-0 flex flex-col">
+      {/* `overflow-x-hidden` lets pages full-bleed inside this
+          column (via the `margin-left: calc(50% - 50vw)` trick)
+          without spawning a horizontal scrollbar. */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
         <ArtistTopbar onOpenDrawer={() => setDrawerOpen(true)} />
         {/* Same 1440px content cap as the producer shell
             (app/(app)/layout.tsx) — keeps the editorial feel
