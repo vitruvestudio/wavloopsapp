@@ -163,12 +163,15 @@ export function ArtistAccountMenu() {
 
           {/* Log out — Phase 2 wired to signOutArtistAction, which
               clears the session and lands on /auth/magic. Lives in
-              its own <form> so the server action runs cleanly. */}
+              its own <form> so the server action runs cleanly.
+              No onClick here on purpose: calling setOpen(false)
+              schedules a re-render that unmounts the form mid-
+              dispatch, which can cancel the action. The redirect
+              from the action tears the menu down naturally. */}
           <form action={signOutArtistAction}>
             <button
               type="submit"
               role="menuitem"
-              onClick={() => setOpen(false)}
               className="flex w-full items-center transition-colors duration-fast"
               style={{
                 height: 38,

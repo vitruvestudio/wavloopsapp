@@ -160,10 +160,17 @@ export async function signInWithMagicLinkAction(
 
 /** Sign-out variant for the artist surface — redirects to
  *  /auth/magic instead of /auth so the same user doesn't get
- *  thrown at the producer password form. */
+ *  thrown at the producer password form.
+ *
+ *  `scope: "local"` only clears the session cookies on this device,
+ *  no round-trip to Supabase to revoke the refresh token globally.
+ *  That's what we want here — log-out should be instant and never
+ *  fail because of a network blip. If we ever need to nuke every
+ *  device for a user (e.g. "log out everywhere" admin action), call
+ *  signOut() without scope. */
 export async function signOutArtistAction() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
   revalidatePath("/", "layout");
   redirect("/auth/magic");
 }
