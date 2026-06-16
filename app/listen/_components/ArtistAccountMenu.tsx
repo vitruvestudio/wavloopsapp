@@ -23,6 +23,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { signOutArtistAction } from "@/app/auth/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ARTIST } from "../_mock";
@@ -160,35 +161,39 @@ export function ArtistAccountMenu() {
             }}
           />
 
-          {/* Log out — Phase 1 stub (artist auth lands in Phase 2). */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-            className="flex w-full items-center transition-colors duration-fast"
-            style={{
-              height: 38,
-              padding: "0 10px",
-              gap: 11,
-              borderRadius: "var(--r-sm)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--danger)",
-              fontFamily: "var(--font-body)",
-              fontSize: 14,
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background =
-                "var(--danger-surface)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <Icon name="log-out" size={17} />
-            Log out
-          </button>
+          {/* Log out — Phase 2 wired to signOutArtistAction, which
+              clears the session and lands on /auth/magic. Lives in
+              its own <form> so the server action runs cleanly. */}
+          <form action={signOutArtistAction}>
+            <button
+              type="submit"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center transition-colors duration-fast"
+              style={{
+                height: 38,
+                padding: "0 10px",
+                gap: 11,
+                borderRadius: "var(--r-sm)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--danger)",
+                fontFamily: "var(--font-body)",
+                fontSize: 14,
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background =
+                  "var(--danger-surface)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Icon name="log-out" size={17} />
+              Log out
+            </button>
+          </form>
         </div>
       )}
     </div>

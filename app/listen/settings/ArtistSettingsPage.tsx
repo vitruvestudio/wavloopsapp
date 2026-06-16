@@ -19,6 +19,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { signOutArtistAction } from "@/app/auth/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
@@ -209,35 +210,35 @@ function SettingsNav({
           margin: "10px 0",
         }}
       />
-      {/* Log out — Phase 1 stub (artist auth lands in Phase 2). */}
-      <button
-        type="button"
-        onClick={() => {
-          /* no-op for Phase 1 */
-        }}
-        className="inline-flex items-center cursor-pointer transition-colors duration-fast shrink-0"
-        style={{
-          gap: 10,
-          padding: "10px 14px",
-          borderRadius: "var(--r-md)",
-          border: "none",
-          background: "transparent",
-          color: "var(--danger)",
-          fontFamily: "var(--font-body)",
-          fontSize: 14,
-          fontWeight: 500,
-          textAlign: "left",
-        }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.background = "var(--danger-surface)")
-        }
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.background = "transparent")
-        }
-      >
-        <Icon name="log-out" size={16} />
-        Log out
-      </button>
+      {/* Log out — Phase 2 wired to signOutArtistAction. Lives in
+          its own <form> so the server action runs cleanly. */}
+      <form action={signOutArtistAction} style={{ display: "contents" }}>
+        <button
+          type="submit"
+          className="inline-flex items-center cursor-pointer transition-colors duration-fast shrink-0"
+          style={{
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: "var(--r-md)",
+            border: "none",
+            background: "transparent",
+            color: "var(--danger)",
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            fontWeight: 500,
+            textAlign: "left",
+          }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.background = "var(--danger-surface)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.background = "transparent")
+          }
+        >
+          <Icon name="log-out" size={16} />
+          Log out
+        </button>
+      </form>
     </nav>
   );
 }
