@@ -73,20 +73,32 @@ export async function updateProfileAction(
 
   // 2) UPDATE the profile in place. RLS via the profiles_update_own
   // policy gates ownership.
-  const { error: updateErr } = await supabase
+  // UPSERT (not UPDATE) so a user who skipped the onboarding wizard
+  // and landed straight on /settings still gets a profile row on
+  // their first save. UPDATE on zero rows is silent success in
+  // Postgres, which used to make the form look like it "saved
+  // nothing": action returned ok, UI flashed Saved, refresh fetched
+  // profile = null, form re-rendered empty.
+  // onConflict on user_id matches saveProfileAction (onboarding).
+  // profiles_insert_own + profiles_update_own RLS gate ownership
+  // on both branches.
+  const { error: upsertErr } = await supabase
     .from("profiles")
-    .update({
-      name: payload.name.trim() || null,
-      bio: payload.bio.trim() || null,
-      socials: payload.socials,
-      certifications: payload.certifications,
-      placements: payload.placements,
-      ...(avatarUpdate ?? {}),
-    })
-    .eq("user_id", user.id);
+    .upsert(
+      {
+        user_id: user.id,
+        name: payload.name.trim() || null,
+        bio: payload.bio.trim() || null,
+        socials: payload.socials,
+        certifications: payload.certifications,
+        placements: payload.placements,
+        ...(avatarUpdate ?? {}),
+      },
+      { onConflict: "user_id" },
+    );
 
-  if (updateErr) {
-    return { error: updateErr.message };
+  if (upsertErr) {
+    return { error: upsertErr.message };
   }
 
   revalidatePath("/settings", "page");
