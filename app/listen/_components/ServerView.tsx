@@ -27,24 +27,20 @@ import { PLATFORM_ICON } from "@/lib/socials";
 import type { MockBeat, MockProducer, MockServer } from "../_mock";
 import { BeatNoteModal } from "./BeatNoteModal";
 
-/** Single-hue glow that anchors the banner — one dominant colour
- *  derived from the slug, with small adjacent-hue variants for
- *  depth. Much more cohesive than the previous 4-clashing-hues
- *  mesh: the eye reads it as "this pack's colour" rather than a
- *  rainbow club poster. Chroma stays moderate (0.10-0.14) so the
- *  result feels premium rather than saturated.
- *  Phase 3 will swap this for real palette extraction off the
- *  cover image bytes. */
-function bannerGradient(seed: string): string {
-  const base = hashSeed(seed) % 360;
+/** Single-hue glow that anchors the banner — one dominant colour,
+ *  with small adjacent-hue variants for depth. Used by the COLOR
+ *  artwork mode (driven by servers.accent_hue), and as the fallback
+ *  for AUTO when there's no cover URL yet. Chroma stays moderate
+ *  (0.10-0.14) so the result feels premium rather than saturated. */
+function bannerGradient(baseHue: number): string {
   // Adjacent hues, ±20° max from the base, for tonal variation
   // without colour clashes.
-  const h2 = (base + 15) % 360;
-  const h3 = (base - 25 + 360) % 360;
+  const h2 = (baseHue + 15) % 360;
+  const h3 = (baseHue - 25 + 360) % 360;
   return [
     // Main glow — large, centred toward the upper half, this is
     // the dominant colour signature.
-    `radial-gradient(ellipse 80% 70% at 50% 20%, oklch(0.42 0.14 ${base}) 0%, transparent 70%)`,
+    `radial-gradient(ellipse 80% 70% at 50% 20%, oklch(0.42 0.14 ${baseHue}) 0%, transparent 70%)`,
     // Subtle wash on the right edge, slightly warmer.
     `radial-gradient(ellipse 50% 60% at 95% 30%, oklch(0.38 0.13 ${h2}) 0%, transparent 60%)`,
     // Cooler shoulder on the left, anchors the composition.
@@ -56,6 +52,86 @@ function bannerGradient(seed: string): string {
  *  into the page background instead of stopping with a hard line. */
 const BANNER_FADE_MASK =
   "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)";
+
+/** Banner backdrop dispatcher — mirrors the producer's choice in
+ *  the Create Server form (servers.artwork_mode):
+ *    IMAGE → full-bleed blur of the uploaded artwork, scaled up so
+ *            the blur edges don't show through.
+ *    AUTO  → same treatment on the first cover URL (Spotify-style
+ *            "this pack's colour" derived from the actual artwork);
+ *            falls back to a slug-seeded hue mesh if no cover is
+ *            attached yet.
+ *    COLOR → hue mesh built from accent_hue.
+ *  Every mode shares the same bottom mask so the banner fades into
+ *  the page background without a hard line. */
+function BannerBackground({ server }: { server: MockServer }) {
+  // IMAGE — producer-uploaded artwork, heavily blurred.
+  if (server.artworkMode === "image" && server.artworkImageUrl) {
+    return (
+      <>
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${server.artworkImageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(60px) saturate(1.5)",
+            transform: "scale(1.25)",
+            WebkitMaskImage: BANNER_FADE_MASK,
+            maskImage: BANNER_FADE_MASK,
+            zIndex: 0,
+          }}
+        />
+        {/* Soft top-down vignette so the title stays legible
+            against any colour the image happens to carry. */}
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, oklch(0 0 0 / 0.25), transparent 55%)",
+            zIndex: 0,
+          }}
+        />
+      </>
+    );
+  }
+  // AUTO — pull colour from the first cover URL.
+  if (server.artworkMode === "auto" && server.artUrls?.[0]) {
+    return (
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url(${server.artUrls[0]})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "blur(70px) saturate(1.6)",
+          transform: "scale(1.3)",
+          WebkitMaskImage: BANNER_FADE_MASK,
+          maskImage: BANNER_FADE_MASK,
+          zIndex: 0,
+        }}
+      />
+    );
+  }
+  // COLOR (or AUTO fallback) — hue mesh.
+  const hue =
+    server.accentHue ?? hashSeed(server.slug) % 360;
+  return (
+    <div
+      aria-hidden
+      className="absolute inset-0"
+      style={{
+        background: bannerGradient(hue),
+        WebkitMaskImage: BANNER_FADE_MASK,
+        maskImage: BANNER_FADE_MASK,
+        zIndex: 0,
+      }}
+    />
+  );
+}
 
 type Filter = "all" | "new" | "liked";
 
@@ -140,17 +216,9 @@ export function ServerView({ producer, server }: ServerViewProps) {
       <section
         className="relative overflow-hidden px-[18px] pb-[60px] pt-[24px] lg:px-[36px] lg:pb-[80px] lg:pt-[32px]"
       >
-        {/* Background mesh — masked to fade out at the bottom. */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background: bannerGradient(server.slug),
-            WebkitMaskImage: BANNER_FADE_MASK,
-            maskImage: BANNER_FADE_MASK,
-            zIndex: 0,
-          }}
-        />
+        {/* Background — mode-aware (auto / color / image), masked
+            to fade out at the bottom. */}
+        <BannerBackground server={server} />
 
         <div
           className="relative flex flex-col items-center text-center lg:flex-row lg:items-center lg:text-left"

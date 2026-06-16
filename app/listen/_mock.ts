@@ -56,6 +56,20 @@ export interface MockServer {
    *  set, the banner renders these images instead of seeded
    *  gradients — Phase 1 mockup only. */
   artUrls?: string[];
+  /** How the banner background renders — exactly mirrors the
+   *  producer's choice in the Create Server form
+   *  (servers.artwork_mode in the DB):
+   *    "auto"  → derive from the beat covers (blurred mosaic backdrop)
+   *    "color" → single-hue mesh built from `accentHue`
+   *    "image" → full-bleed blur of the producer's uploaded artwork
+   *  Phase 3 reads this straight off the row. */
+  artworkMode: "auto" | "color" | "image";
+  /** 0..360 OKLCH hue used when artworkMode === "color". Same shape
+   *  as servers.accent_hue. */
+  accentHue?: number;
+  /** Producer-uploaded artwork URL used when artworkMode === "image".
+   *  Same shape as servers.artwork_image_url. */
+  artworkImageUrl?: string;
   beats: MockBeat[];
 }
 
@@ -121,6 +135,9 @@ export const PRODUCERS: MockProducer[] = [
         unread: 0,
         artSeeds: ["v1", "v2", "v3", "v4"],
         artUrls: COVER_POOL,
+        // Producer picked COLOR (warm rose ≈ 20°) for the R&B vibe.
+        artworkMode: "color",
+        accentHue: 20,
         beats: [
           {
             id: "v-golden-hour",
@@ -207,6 +224,8 @@ export const PRODUCERS: MockProducer[] = [
         unread: 2,
         artSeeds: ["an1", "an2", "an3", "an4"],
         artUrls: [COVER_POOL[1], COVER_POOL[2], COVER_POOL[3], COVER_POOL[0]],
+        // Producer left AUTO — banner pulls colour from the covers.
+        artworkMode: "auto",
         beats: [
           {
             id: "an-midnight-drive",
@@ -291,6 +310,9 @@ export const PRODUCERS: MockProducer[] = [
         unread: 1,
         artSeeds: ["uk1", "uk2", "uk3", "uk4"],
         artUrls: [COVER_POOL[2], COVER_POOL[3], COVER_POOL[0], COVER_POOL[1]],
+        // Producer picked COLOR — deep red (≈ 0°) for the drill energy.
+        artworkMode: "color",
+        accentHue: 0,
         beats: [
           {
             id: "uk-london-bridge",
@@ -344,6 +366,10 @@ export const PRODUCERS: MockProducer[] = [
         unread: 0,
         artSeeds: ["nt1", "nt2", "nt3", "nt4"],
         artUrls: [COVER_POOL[3], COVER_POOL[0], COVER_POOL[1], COVER_POOL[2]],
+        // Producer uploaded a custom artwork — IMAGE mode uses it
+        // full-bleed (heavily blurred) as the banner backdrop.
+        artworkMode: "image",
+        artworkImageUrl: COVER_POOL[3],
         beats: [
           {
             id: "nt-sakura-nights",
