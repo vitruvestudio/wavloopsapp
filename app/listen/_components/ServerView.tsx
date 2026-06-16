@@ -178,17 +178,31 @@ export function ServerView({ producer, server }: ServerViewProps) {
               content so the mask only affects the colour cloud,
               not the title / artwork / play button.
 
+              Section uses the same negative-margin full-bleed trick
+              as the Liked Songs hero: it breaks out of the 1440
+              column to span the visible column width, then equal
+              positive paddings pull the inner content back to its
+              original column alignment. The BannerBackground div
+              still fills the section via inset-0 — it just covers
+              a wider area now.
+
               Mobile: stack mosaic, title block, play button
               vertically. Desktop: horizontal row. ──────────────── */}
       <section
-        className="relative overflow-hidden px-[18px] pb-[60px] pt-[24px] lg:px-[36px] lg:pb-[80px] lg:pt-[32px]"
+        className="relative pb-[60px] pt-[24px] lg:pb-[80px] lg:pt-[32px]"
+        style={{
+          marginLeft: "calc(50% - 50vw)",
+          marginRight: "calc(50% - 50vw)",
+          paddingLeft: "calc(50vw - 50%)",
+          paddingRight: "calc(50vw - 50%)",
+        }}
       >
         {/* Background — mode-aware (auto / color / image), masked
             to fade out at the bottom. */}
         <BannerBackground server={server} />
 
         <div
-          className="relative flex flex-col items-center text-center lg:flex-row lg:items-center lg:text-left"
+          className="relative flex flex-col items-center text-center lg:flex-row lg:items-center lg:text-left px-[18px] lg:px-[36px]"
           style={{ gap: 22, zIndex: 1 }}
         >
           {/* 4-cover mosaic — slightly smaller on mobile so the
