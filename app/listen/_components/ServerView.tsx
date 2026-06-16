@@ -507,23 +507,64 @@ function BeatRow({
         </div>
       </button>
 
-      {/* Title + meta */}
+      {/* Title + meta — same info shape as the producer-side BeatRow:
+          title (+ co-producers inline) on top, then a meta row of
+          type tag + BPM · KEY + mood chips below. */}
       <div className="min-w-0 flex-1">
         <div
-          className="truncate"
-          style={{
-            fontFamily: "var(--font-body)",
-            fontSize: 14.5,
-            fontWeight: 600,
-            color: "var(--fg-1)",
-          }}
+          className="flex items-center min-w-0"
+          style={{ gap: 8 }}
         >
-          {beat.title}
+          <span
+            className="truncate"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: "var(--fg-1)",
+            }}
+          >
+            {beat.title}
+          </span>
+          {beat.coProducers && beat.coProducers.length > 0 && (
+            <span
+              className="t-mono-s truncate"
+              style={{ color: "var(--fg-3)" }}
+            >
+              {beat.coProducers
+                .map((p) => p.toUpperCase())
+                .join(" · ")}
+            </span>
+          )}
         </div>
         <div
           className="flex items-center flex-wrap"
-          style={{ gap: 8, marginTop: 4 }}
+          style={{ gap: 6, marginTop: 4 }}
         >
+          {/* Type tag — accent COMP / LOOP, same DS variant as
+              producer BeatRow. */}
+          <span
+            className="inline-flex items-center"
+            style={{
+              height: 22,
+              padding: "0 8px",
+              gap: 5,
+              borderRadius: "var(--r-sm)",
+              background: "var(--accent-surface)",
+              color: "var(--accent-text)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            <Icon
+              name={beat.type === "loop" ? "repeat" : "waves"}
+              size={11}
+            />
+            {beat.type === "loop" ? "LOOP" : "COMP"}
+          </span>
           <span
             className="t-mono-s"
             style={{ color: "var(--fg-3)" }}
@@ -541,15 +582,15 @@ function BeatRow({
               key={m}
               className="inline-flex items-center"
               style={{
-                height: 20,
+                height: 22,
                 padding: "0 8px",
                 borderRadius: "var(--r-sm)",
-                background: "var(--bg-2)",
+                background: "var(--bg-3)",
                 color: "var(--fg-2)",
                 fontFamily: "var(--font-mono)",
                 fontSize: 10,
                 fontWeight: 600,
-                letterSpacing: "0.08em",
+                letterSpacing: "0.1em",
                 textTransform: "uppercase",
               }}
             >

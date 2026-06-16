@@ -16,10 +16,17 @@
 export interface MockBeat {
   id: string;
   title: string;
+  /** Composition (a complete beat) vs Loop (a short cyclable section).
+   *  Same semantic as the producer-side BeatRow's COMP / LOOP tag. */
+  type: "comp" | "loop";
   bpm: number;
   key: string;
   mood: string[];
   duration: string;
+  /** Optional co-producer credits — same shape as
+   *  beats.co_producers on the producer side. Rendered inline after
+   *  the title in caps mono. */
+  coProducers?: string[];
   liked: boolean;
   listened: boolean;
   commentCount: number;
@@ -88,6 +95,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 78,
             key: "C MIN",
             mood: ["R&B", "Soul"],
+            type: "comp",
             duration: "3:10",
             liked: true,
             listened: true,
@@ -100,6 +108,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 96,
             key: "F# MAJ",
             mood: ["R&B", "Vocal"],
+            type: "comp",
             duration: "3:24",
             liked: false,
             listened: false,
@@ -112,6 +121,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 90,
             key: "D MIN",
             mood: ["R&B"],
+            type: "comp",
             duration: "3:02",
             liked: false,
             listened: false,
@@ -121,9 +131,11 @@ export const PRODUCERS: MockProducer[] = [
           {
             id: "v-cold-water",
             title: "Cold Water",
+            type: "comp",
             bpm: 84,
             key: "BB MIN",
             mood: ["Soul", "Keys"],
+            coProducers: ["Metro"],
             duration: "2:58",
             liked: false,
             listened: false,
@@ -136,6 +148,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 75,
             key: "G MAJ",
             mood: ["Soul"],
+            type: "comp",
             duration: "3:33",
             liked: false,
             listened: false,
@@ -157,6 +170,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 142,
             key: "F MIN",
             mood: ["Trap", "Dark"],
+            type: "comp",
             duration: "2:48",
             liked: false,
             listened: false,
@@ -167,9 +181,11 @@ export const PRODUCERS: MockProducer[] = [
           {
             id: "an-paper-planes",
             title: "Paper Planes",
+            type: "loop",
             bpm: 144,
             key: "A MIN",
             mood: ["Trap"],
+            coProducers: ["Wheezy"],
             duration: "2:35",
             liked: false,
             listened: false,
@@ -183,6 +199,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 138,
             key: "E MIN",
             mood: ["Trap", "Dark"],
+            type: "comp",
             duration: "2:44",
             liked: false,
             listened: true,
@@ -192,6 +209,7 @@ export const PRODUCERS: MockProducer[] = [
           {
             id: "an-no-ceilings",
             title: "No Ceilings",
+            type: "loop",
             bpm: 130,
             key: "G# MIN",
             mood: ["Drill"],
@@ -227,6 +245,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 144,
             key: "G MIN",
             mood: ["Drill"],
+            type: "comp",
             duration: "2:18",
             liked: false,
             listened: false,
@@ -240,6 +259,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 142,
             key: "C MIN",
             mood: ["Drill", "UK"],
+            type: "comp",
             duration: "2:33",
             liked: false,
             listened: false,
@@ -273,6 +293,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 88,
             key: "A MIN",
             mood: ["Lo-fi", "Ambient"],
+            type: "comp",
             duration: "3:45",
             liked: false,
             listened: false,
@@ -285,6 +306,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 72,
             key: "D MAJ",
             mood: ["Lo-fi"],
+            type: "comp",
             duration: "4:02",
             liked: false,
             listened: false,
@@ -297,6 +319,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 90,
             key: "F MIN",
             mood: ["Ambient"],
+            type: "comp",
             duration: "3:33",
             liked: false,
             listened: false,
@@ -309,6 +332,7 @@ export const PRODUCERS: MockProducer[] = [
             bpm: 80,
             key: "C MAJ",
             mood: ["Lo-fi", "Vapor"],
+            type: "comp",
             duration: "3:28",
             liked: false,
             listened: false,
