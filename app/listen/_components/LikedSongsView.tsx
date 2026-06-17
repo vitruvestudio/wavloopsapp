@@ -19,24 +19,53 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import {
-  likedBeats,
-  type BeatNote,
-  type BeatNoteVisibility,
-  type MockBeat,
-  type MockProducer,
-  type MockServer,
+  saveBeatNoteAction,
+  toggleLikeAction,
+} from "../actions";
+import type {
+  ArtistLikedEntry,
+  ArtistServerViewBeat,
+} from "../_data";
+import type {
+  BeatNote,
+  BeatNoteVisibility,
 } from "../_mock";
 import { BeatNoteModal } from "./BeatNoteModal";
-import { toPlayerBeat } from "./toPlayerBeat";
+import { toPlayerBeat as toPlayerBeatMock } from "./toPlayerBeat";
+import type { MockBeat } from "../_mock";
 
-type LikedEntry = {
-  producer: MockProducer;
-  server: MockServer;
-  beat: MockBeat;
-};
+type LikedEntry = ArtistLikedEntry;
 
-export function LikedSongsView() {
-  const all = likedBeats();
+/** Inline shim so the existing dock contract (Beat from
+ *  PlayerContext + toPlayerBeat which expects MockBeat) keeps
+ *  working without a wider refactor — the real-data beat has the
+ *  same shape minus a few mock-only flags. */
+function toMockBeat(b: ArtistServerViewBeat): MockBeat {
+  return {
+    id: b.id,
+    title: b.title,
+    type: b.type,
+    bpm: b.bpm,
+    key: b.key,
+    mood: b.mood,
+    duration: b.duration,
+    addedAt: b.addedAt,
+    liked: b.liked,
+    listened: b.listened,
+    commentCount: b.latestCommentBody ? 1 : 0,
+    artSeed: b.artSeed,
+    coverUrl: b.coverUrl ?? undefined,
+    audioUrl: b.audioUrl ?? undefined,
+    isNew: b.isNew,
+  };
+}
+
+interface LikedSongsViewProps {
+  entries: ArtistLikedEntry[];
+}
+
+export function LikedSongsView({ entries }: LikedSongsViewProps) {
+  const all = entries;
 
   /** Local override map for the like state — toggling off removes
    *  the row from the visible list. Phase 3 deletes the likes row. */
@@ -62,12 +91,30 @@ export function LikedSongsView() {
   const visible = all.filter((e) => !unliked[e.beat.id]);
   const count = visible.length;
 
-  const toggleLike = (id: string) =>
-    setUnliked((prev) => ({ ...prev, [id]: !prev[id] }));
-  const togglePlay = (beat: MockBeat) =>
-    player.toggle(toPlayerBeat(beat));
-  const saveNote = (id: string, text: string, visibility: BeatNoteVisibility) =>
+  const toggleLike = (beatId: string, slug: string) => {
+    // Optimistic: hide the row immediately, then persist the
+    // delete. Rollback if the action errors so the row reappears.
+    setUnliked((prev) => ({ ...prev, [beatId]: true }));
+    void toggleLikeAction(slug, beatId, true).then((r) => {
+      if (!r.ok) {
+        setUnliked((prev) => ({ ...prev, [beatId]: false }));
+        console.warn("[toggleLikeAction]", r.error);
+      }
+    });
+  };
+  const togglePlay = (beat: ArtistServerViewBeat) =>
+    player.toggle(toPlayerBeatMock(toMockBeat(beat)));
+  const saveNote = (
+    id: string,
+    text: string,
+    visibility: BeatNoteVisibility,
+    slug: string,
+  ) => {
     setNotes((prev) => ({ ...prev, [id]: { text, visibility } }));
+    void saveBeatNoteAction(slug, id, text, visibility).then((r) => {
+      if (!r.ok) console.warn("[saveBeatNoteAction]", r.error);
+    });
+  };
 
   return (
     <main className="flex-1 min-w-0">
@@ -194,7 +241,7 @@ export function LikedSongsView() {
                 }
                 playing={playingId === entry.beat.id}
                 onTogglePlay={() => togglePlay(entry.beat)}
-                onToggleLike={() => toggleLike(entry.beat.id)}
+                onToggleLike={() => toggleLike(entry.beat.id, entry.server.slug)}
                 onOpenNote={() => setNoteFor(entry)}
               />
             ))}
@@ -212,7 +259,7 @@ export function LikedSongsView() {
           producerHandle={noteFor.producer.handle}
           onClose={() => setNoteFor(null)}
           onSave={(text, visibility) => {
-            saveNote(noteFor.beat.id, text, visibility);
+            saveNote(noteFor.beat.id, text, visibility, noteFor.server.slug);
             setNoteFor(null);
           }}
         />

@@ -578,3 +578,150 @@ function fmtAgo(iso: string): string {
 function isWithin7d(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < 7 * 86400000;
 }
+
+/* ============================================================
+   Per-route DAL — Liked Songs aggregate.
+   ============================================================ */
+
+export interface ArtistLikedEntry {
+  producer: {
+    profileId: string;
+    handle: string;
+    name: string;
+    avatarUrl: string | null;
+    socials: Record<string, string>;
+  };
+  /** Server context for THIS like. slug drives the unlike action's
+   *  per-server contact lookup; name appears in the "FROM SERVER"
+   *  column. */
+  server: { slug: string; name: string };
+  beat: ArtistServerViewBeat;
+}
+
+/** Cross-producer "Liked Songs" feed. Empty array when the user
+ *  has no likes or no session — keeps the page render trivial. */
+export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // 1. Every contact this artist owns (one per producer).
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("id")
+    .eq("auth_user_id", user.id);
+  if (!contacts?.length) return [];
+  const contactIds = contacts.map((c) => c.id as string);
+
+  // 2. Their likes, newest first.
+  const { data: likes } = await supabase
+    .from("likes")
+    .select("beat_id, server_id, liked_at")
+    .in("contact_id", contactIds)
+    .order("liked_at", { ascending: false });
+  if (!likes?.length) return [];
+
+  // 3. Resolve the joined tables. RLS already scopes the artist to
+  //    rows they can read (servers / beats / profiles via the
+  //    helpers added in migrations #16/#17).
+  const beatIds = Array.from(new Set(likes.map((l) => l.beat_id as string)));
+  const serverIds = Array.from(
+    new Set(likes.map((l) => l.server_id as string)),
+  );
+  const [beatsRes, serversRes] = await Promise.all([
+    supabase
+      .from("beats")
+      .select(
+        "id, title, type, bpm, key, mood, duration_seconds, audio_url, artwork_url, wave_seed, created_at",
+      )
+      .in("id", beatIds),
+    supabase
+      .from("servers")
+      .select("id, slug, name, owner_id")
+      .in("id", serverIds),
+  ]);
+  const beatById = new Map(
+    (beatsRes.data ?? []).map((b) => [b.id as string, b as BeatTableRow]),
+  );
+  const serverById = new Map(
+    (serversRes.data ?? []).map((s) => [
+      s.id as string,
+      s as { id: string; slug: string; name: string; owner_id: string },
+    ]),
+  );
+  const ownerIds = Array.from(
+    new Set(
+      [...serverById.values()].map((s) => s.owner_id as string),
+    ),
+  );
+  const { data: producersData } = ownerIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, handle, name, avatar_url, socials")
+        .in("id", ownerIds)
+    : { data: [] as ProducerRow[] };
+  const producerById = new Map(
+    (producersData ?? []).map((p) => [p.id as string, p as ProducerRow]),
+  );
+
+  // 4. Sign every audio path in one round-trip — same trick as
+  //    loadServerView. Filter null paths so we don't ask Storage
+  //    for "".
+  const audioPaths = [...beatById.values()]
+    .map((b) => b.audio_url)
+    .filter((p): p is string => !!p);
+  const signedRes = audioPaths.length
+    ? await supabase.storage
+        .from("beat-audio")
+        .createSignedUrls(audioPaths, 3600)
+    : { data: [] as Array<{ path: string; signedUrl: string }> };
+  const signedByPath = new Map(
+    (signedRes.data ?? []).map((r) => [r.path, r.signedUrl]),
+  );
+
+  // 5. Build entries in the order the likes came back.
+  const entries: ArtistLikedEntry[] = [];
+  for (const like of likes) {
+    const beat = beatById.get(like.beat_id as string);
+    const server = serverById.get(like.server_id as string);
+    if (!beat || !server) continue;
+    const producer = producerById.get(server.owner_id);
+    if (!producer) continue;
+
+    entries.push({
+      server: { slug: server.slug, name: server.name },
+      producer: {
+        profileId: producer.id,
+        handle: producer.handle ?? "producer",
+        name: producer.name ?? producer.handle ?? "Producer",
+        avatarUrl: producer.avatar_url,
+        socials: producer.socials ?? {},
+      },
+      beat: {
+        id: beat.id,
+        title: beat.title,
+        type: (beat.type ?? "comp") as "comp" | "loop",
+        bpm: beat.bpm ?? 0,
+        key: beat.key ?? "",
+        mood: beat.mood ?? [],
+        duration: fmtSeconds(beat.duration_seconds ?? 0),
+        addedAt: fmtAgo(like.liked_at as string),
+        addedAtIso: like.liked_at as string,
+        liked: true, // by definition — it's in the likes feed
+        listened: false, // not surfaced on the liked view
+        noteBody: "",
+        latestCommentBody: "",
+        artSeed: beat.wave_seed,
+        coverUrl: beat.artwork_url ?? null,
+        audioUrl: beat.audio_url
+          ? (signedByPath.get(beat.audio_url) ?? null)
+          : null,
+        isNew: false,
+        position: entries.length,
+      },
+    });
+  }
+  return entries;
+}
