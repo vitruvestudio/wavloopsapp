@@ -107,7 +107,8 @@ export function LibraryFilters({
      in Supabase Dashboard → Database → Replication. */
   React.useEffect(() => {
     let pending: ReturnType<typeof setTimeout> | null = null;
-    const refresh = () => {
+    const refresh = (table: string) => () => {
+      console.log(`[realtime] ${table} event received → refresh`);
       if (pending) clearTimeout(pending);
       pending = setTimeout(() => router.refresh(), 300);
     };
@@ -116,14 +117,16 @@ export function LibraryFilters({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "listens" },
-        refresh,
+        refresh("listens"),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "likes" },
-        refresh,
+        refresh("likes"),
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[realtime] channel status:", status);
+      });
     return () => {
       if (pending) clearTimeout(pending);
       supabase.removeChannel(channel);
