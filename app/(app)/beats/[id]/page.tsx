@@ -18,6 +18,25 @@ import type {
   ServerRow,
 } from "@/lib/supabase/database.types";
 
+/** Relative-time stringifier used to pre-render the feedback
+ *  rows' timestamps server-side. Matches the format the mock
+ *  feedback used ("YESTERDAY", "3 D AGO", "1 W AGO"). */
+function fmtAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "JUST NOW";
+  if (min < 60) return `${min} MIN AGO`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} H AGO`;
+  const d = Math.round(h / 24);
+  if (d === 1) return "YESTERDAY";
+  if (d < 7) return `${d} D AGO`;
+  const w = Math.round(d / 7);
+  if (w < 5) return `${w} W AGO`;
+  const mo = Math.round(d / 30);
+  return `${mo} MO AGO`;
+}
+
 interface BeatPageProps {
   params: Promise<{ id: string }>;
 }
@@ -39,7 +58,7 @@ export default async function BeatPage({ params }: BeatPageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [beatRes, membershipRes] = await Promise.all([
+  const [beatRes, membershipRes, commentsRes] = await Promise.all([
     supabase
       .from("beats_with_stats")
       .select("*")
@@ -49,6 +68,17 @@ export default async function BeatPage({ params }: BeatPageProps) {
       .from("server_beats")
       .select("servers(*)")
       .eq("beat_id", id),
+    // Shared-note feed for the Feedback tab. RLS via
+    // beat_comments_producer_read scopes this to the owner's
+    // beats only — the producer's session never sees other
+    // producers' rows. Newest first; pagination ships later if
+    // the volume grows.
+    supabase
+      .from("beat_comments")
+      .select("id, user_id, body, created_at")
+      .eq("beat_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   const beat = beatRes.data as BeatWithStatsRow | null;
@@ -61,5 +91,47 @@ export default async function BeatPage({ params }: BeatPageProps) {
     .map((r) => r.servers)
     .filter((s): s is ServerRow => Boolean(s));
 
-  return <BeatDetailPage beat={beat} servers={servers} />;
+  // Resolve every comment author's display data. artist_profiles
+  // may be null for first-sign-in artists; in that case we fall
+  // back to a stable string so the row still renders. A proper
+  // RPC that exposes auth.users.email-local-part ships in a later
+  // commit — auth.users isn't queryable client-side without service
+  // role and we don't want to plumb that through here.
+  const rawComments = commentsRes.data ?? [];
+  const userIds = Array.from(
+    new Set(rawComments.map((c) => c.user_id as string)),
+  );
+  const { data: profilesData } = userIds.length
+    ? await supabase
+        .from("artist_profiles")
+        .select("user_id, display_name, avatar_url")
+        .in("user_id", userIds)
+    : { data: [] as Array<{ user_id: string; display_name: string | null; avatar_url: string | null }> };
+  const profileByUser = new Map(
+    (profilesData ?? []).map((p) => [
+      p.user_id as string,
+      p as { display_name: string | null; avatar_url: string | null },
+    ]),
+  );
+
+  const feedback = rawComments.map((c) => {
+    const profile = profileByUser.get(c.user_id as string);
+    const displayName = profile?.display_name ?? "Listener";
+    // Avatar seed is stable per user even without a display_name —
+    // use the user id so two unprofiled listeners get distinct
+    // initials gradients instead of colliding on "Listener".
+    const seed = profile?.display_name ?? (c.user_id as string);
+    return {
+      id: c.id as string,
+      artistName: displayName,
+      artistHandle: displayName.toLowerCase().replace(/\s+/g, ""),
+      artistSeed: seed,
+      body: c.body as string,
+      ago: fmtAgo(c.created_at as string),
+    };
+  });
+
+  return (
+    <BeatDetailPage beat={beat} servers={servers} feedback={feedback} />
+  );
 }

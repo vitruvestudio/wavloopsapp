@@ -62,18 +62,15 @@ import {
 interface BeatDetailPageProps {
   beat: BeatWithStatsRow;
   servers: ServerRow[];
+  /** Server-fetched shared notes from beat_comments — replaces
+   *  the prior feedback constant. */
+  feedback: ReadonlyArray<FeedbackItem>;
 }
 
 type Tab = "audience" | "feedback" | "edit";
 
-/**
- * Phase 1 mock feedback — exercise the producer-side UI for shared
- * notes before the wiring lands. Same shape Phase 3 will query off
- * `beat_comments ⨝ contacts ⨝ profiles` for the beat's owner.
- *
- * Replace the const with a server-fetched array once that lands;
- * the FeedbackTab contract (FeedbackItem[]) doesn't move.
- */
+/** Shape rendered by the FeedbackTab. Populated by the server
+ *  page from beat_comments ⨝ artist_profiles. */
 interface FeedbackItem {
   id: string;
   artistName: string;
@@ -81,41 +78,47 @@ interface FeedbackItem {
   /** Used as the avatar seed when no upload exists yet. */
   artistSeed: string;
   body: string;
-  /** Display string for the time delta. Phase 3 derives via fmtAgo. */
+  /** Pre-computed relative-time string ("3 D AGO"). */
   ago: string;
 }
 
-const MOCK_FEEDBACK: ReadonlyArray<FeedbackItem> = [
-  {
-    id: "f-juno",
-    artistName: "juno",
-    artistHandle: "juno215",
-    artistSeed: "juno215",
-    body: "This is fire — the lead texture from 0:48 onward is exactly the vibe I'm chasing for the next EP. Any chance you have a stem-out version, or one without the wide pad?",
-    ago: "YESTERDAY",
-  },
-  {
-    id: "f-mira",
-    artistName: "Mira",
-    artistHandle: "miravocals",
-    artistSeed: "miravocals",
-    body: "Saving this one — I think I want to write to it next week. The pocket sits right under my register.",
-    ago: "3 D AGO",
-  },
-  {
-    id: "f-kai",
-    artistName: "Kai Solace",
-    artistHandle: "kaisolace",
-    artistSeed: "kaisolace",
-    body: "Bridge is heavy. Would you consider letting me license this exclusive if I cut a hook on it?",
-    ago: "1 W AGO",
-  },
-];
-
-export function BeatDetailPage({ beat, servers }: BeatDetailPageProps) {
+export function BeatDetailPage({
+  beat,
+  servers,
+  feedback,
+}: BeatDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
   const supabase = React.useMemo(() => createClient(), []);
+
+  /* Realtime — push refreshes when a new shared comment lands on
+     this beat. Same pattern as the Library page: filtered to THIS
+     beat so we don't refresh on unrelated activity, debounced so
+     bursts collapse into one router.refresh. */
+  React.useEffect(() => {
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => router.refresh(), 300);
+    };
+    const channel = supabase
+      .channel(`beat-feedback:${beat.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "beat_comments",
+          filter: `beat_id=eq.${beat.id}`,
+        },
+        refresh,
+      )
+      .subscribe();
+    return () => {
+      if (pending) clearTimeout(pending);
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, router, beat.id]);
 
   const [tab, setTab] = React.useState<Tab>("audience");
 
@@ -307,13 +310,13 @@ export function BeatDetailPage({ beat, servers }: BeatDetailPageProps) {
           value={tab}
           onChange={setTab}
           audienceCount={beat.plays_count}
-          feedbackCount={MOCK_FEEDBACK.length}
+          feedbackCount={feedback.length}
         />
 
         {tab === "audience" ? (
           <AudienceTab beat={beat} servers={servers} />
         ) : tab === "feedback" ? (
-          <FeedbackTab feedback={MOCK_FEEDBACK} />
+          <FeedbackTab feedback={feedback} />
         ) : (
           <EditInfoTab beat={beat} />
         )}
@@ -615,25 +618,6 @@ function FeedbackTab({
       {feedback.map((f) => (
         <FeedbackRow key={f.id} item={f} />
       ))}
-      {/* Phase-3 marker so future-me knows this list is currently
-          fed from a hardcoded const in BeatDetailPage.tsx, not a
-          real query. Same banner shape as the Audience tab's. */}
-      <div
-        className="t-body-s"
-        style={{
-          marginTop: 4,
-          padding: "14px 16px",
-          textAlign: "center",
-          color: "var(--fg-3)",
-          background: "var(--bg-1)",
-          border: "1px dashed var(--border-1)",
-          borderRadius: "var(--r-md)",
-        }}
-      >
-        Mock preview — real shared notes flow from the artist
-        /listen panel into `beat_comments` once Phase 3 wires the
-        DB + DAL.
-      </div>
     </div>
   );
 }
