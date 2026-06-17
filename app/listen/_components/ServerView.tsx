@@ -37,6 +37,11 @@ import {
   BANNER_FADE_MASK,
   BANNER_GLOW_MASK,
 } from "./banner";
+import {
+  markListenedAction,
+  saveBeatNoteAction,
+  toggleLikeAction,
+} from "../actions";
 import { BeatNoteModal } from "./BeatNoteModal";
 import { toPlayerBeat } from "./toPlayerBeat";
 
@@ -156,12 +161,34 @@ export function ServerView({ producer, server }: ServerViewProps) {
     return true;
   });
 
-  const toggleLike = (id: string) =>
+  const toggleLike = (id: string) => {
+    // Optimistic: flip the local override immediately, fire the
+    // server action; if it errors we roll back and surface no UI
+    // (rare — RLS or network blip). revalidatePath on success
+    // refreshes the server-rendered numbers.
+    const prevLiked =
+      overrides[id]?.liked ??
+      beats.find((b) => b.id === id)?.liked ??
+      false;
     setOverrides((prev) => ({
       ...prev,
-      [id]: { ...prev[id], liked: !(prev[id]?.liked ?? beats.find((b) => b.id === id)?.liked ?? false) },
+      [id]: { ...prev[id], liked: !prevLiked },
     }));
+    void toggleLikeAction(server.slug, id, prevLiked).then((r) => {
+      if (!r.ok) {
+        // Roll back on failure so the heart matches reality.
+        setOverrides((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], liked: prevLiked },
+        }));
+        console.warn("[toggleLikeAction]", r.error);
+      }
+    });
+  };
 
+  // Toggle is local-only — the eye is a "hide from NEW" gesture,
+  // not a "delete my listens history" gesture. Auto-listen is what
+  // writes to the DB (see togglePlay below).
   const toggleListened = (id: string) =>
     setOverrides((prev) => ({
       ...prev,
@@ -176,7 +203,16 @@ export function ServerView({ producer, server }: ServerViewProps) {
     // given beat — same semantic as before, just gated on whether
     // the global player is already on this beat.
     const isCurrent = player.current?.id === beat.id;
-    if (!isCurrent) toggleListened(beat.id);
+    if (!isCurrent) {
+      toggleListened(beat.id);
+      // Persist a `listens` row. completion_pct is omitted at
+      // play-start; a follow-up "did they actually finish it"
+      // signal can write a second row later. Errors logged only —
+      // we don't want a flaky network to undo the play feeling.
+      void markListenedAction(server.slug, beat.id).then((r) => {
+        if (!r.ok) console.warn("[markListenedAction]", r.error);
+      });
+    }
     player.toggle(toPlayerBeat(beat));
   };
 
@@ -471,12 +507,22 @@ export function ServerView({ producer, server }: ServerViewProps) {
           }
           producerHandle={producer.handle}
           onClose={() => setNoteFor(null)}
-          onSave={(text, visibility) =>
+          onSave={(text, visibility) => {
+            // Optimistic local update so the row icon flips
+            // colour immediately even if the network is slow.
             setNotes((cur) => ({
               ...cur,
               [noteFor.id]: { text, visibility },
-            }))
-          }
+            }));
+            void saveBeatNoteAction(
+              server.slug,
+              noteFor.id,
+              text,
+              visibility,
+            ).then((r) => {
+              if (!r.ok) console.warn("[saveBeatNoteAction]", r.error);
+            });
+          }}
         />
       )}
     </main>
