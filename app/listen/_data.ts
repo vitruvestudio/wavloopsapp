@@ -341,14 +341,13 @@ export async function loadServerView(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  console.log("[loadServerView] slug=", slug, "user=", user?.id ?? "null");
   if (!user) return null;
 
   // Two-step instead of an embedded FK join — the embedded form
   // requires the constraint name (`servers_owner_id_fkey`) and
   // silently fails to null if PostgREST's schema introspection
   // hasn't picked it up. The extra round-trip is negligible.
-  const serverRes = await supabase
+  const { data: serverRow } = await supabase
     .from("servers")
     .select(
       `
@@ -359,28 +358,14 @@ export async function loadServerView(
     )
     .eq("slug", slug)
     .maybeSingle();
-  console.log(
-    "[loadServerView] server",
-    serverRes.data ? "FOUND" : "null",
-    "error=",
-    serverRes.error,
-  );
-  if (!serverRes.data) return null;
-  const serverRow = serverRes.data;
+  if (!serverRow) return null;
 
-  const ownerRes = await supabase
+  const { data: owner } = await supabase
     .from("profiles")
     .select("id, handle, name, avatar_url, socials")
     .eq("id", serverRow.owner_id as string)
     .maybeSingle<ProducerRow>();
-  console.log(
-    "[loadServerView] owner",
-    ownerRes.data ? "FOUND" : "null",
-    "error=",
-    ownerRes.error,
-  );
-  if (!ownerRes.data) return null;
-  const owner = ownerRes.data;
+  if (!owner) return null;
 
   const { data: myContact } = await supabase
     .from("contacts")
