@@ -95,6 +95,41 @@ export function LibraryFilters({
   const router = useRouter();
   const supabase = React.useMemo(() => createClient(), []);
 
+  /* Realtime — push refreshes when any artist activity lands on
+     the producer's beats. The Supabase channel relays
+     postgres_changes events that pass the table's RLS (producer
+     only sees rows on their own server), so we don't need a
+     server-id filter here. A short debounce groups bursts (e.g.
+     a play immediately followed by a like) into a single
+     router.refresh so we don't thrash the server fetch.
+
+     Requires Realtime to be enabled on the listens + likes tables
+     in Supabase Dashboard → Database → Replication. */
+  React.useEffect(() => {
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => router.refresh(), 300);
+    };
+    const channel = supabase
+      .channel("library-engagement")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "listens" },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "likes" },
+        refresh,
+      )
+      .subscribe();
+    return () => {
+      if (pending) clearTimeout(pending);
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, router]);
+
   const openBeat = React.useCallback(
     (beat: BeatWithStatsRow) => router.push(`/beats/${beat.id}`),
     [router],
