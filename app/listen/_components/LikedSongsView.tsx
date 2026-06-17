@@ -92,14 +92,13 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
   const count = visible.length;
 
   const toggleLike = (beatId: string, slug: string) => {
-    // Optimistic: hide the row immediately, then persist the
-    // delete. Rollback if the action errors so the row reappears.
+    // Optimistic: hide the row immediately. Action is authoritative
+    // and idempotent — it reads the DB and deletes the like (or no-
+    // ops if it's already gone). revalidate refreshes /listen/liked
+    // on the next navigation in.
     setUnliked((prev) => ({ ...prev, [beatId]: true }));
-    void toggleLikeAction(slug, beatId, true).then((r) => {
-      if (!r.ok) {
-        setUnliked((prev) => ({ ...prev, [beatId]: false }));
-        console.warn("[toggleLikeAction]", r.error);
-      }
+    void toggleLikeAction(slug, beatId).then((r) => {
+      if (!r.ok) console.warn("[toggleLikeAction]", r.error);
     });
   };
   const togglePlay = (beat: ArtistServerViewBeat) =>

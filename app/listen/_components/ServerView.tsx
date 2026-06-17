@@ -162,10 +162,16 @@ export function ServerView({ producer, server }: ServerViewProps) {
   });
 
   const toggleLike = (id: string) => {
-    // Optimistic: flip the local override immediately, fire the
-    // server action; if it errors we roll back and surface no UI
-    // (rare — RLS or network blip). revalidatePath on success
-    // refreshes the server-rendered numbers.
+    // Optimistic flip on the override, then fire the action. The
+    // action is authoritative — it reads the DB and either deletes
+    // or inserts based on what's there, never failing on a stale
+    // client state. revalidatePath() inside the action refreshes
+    // the server-rendered beats, which propagates the new liked
+    // value to this component on the next render — even if the
+    // optimistic override is now wrong, the re-render's
+    // beats[i].liked wins via the override fallback (override
+    // only sticks while the user keeps clicking; the fresh server
+    // data is the truth on quiet states).
     const prevLiked =
       overrides[id]?.liked ??
       beats.find((b) => b.id === id)?.liked ??
@@ -174,15 +180,8 @@ export function ServerView({ producer, server }: ServerViewProps) {
       ...prev,
       [id]: { ...prev[id], liked: !prevLiked },
     }));
-    void toggleLikeAction(server.slug, id, prevLiked).then((r) => {
-      if (!r.ok) {
-        // Roll back on failure so the heart matches reality.
-        setOverrides((prev) => ({
-          ...prev,
-          [id]: { ...prev[id], liked: prevLiked },
-        }));
-        console.warn("[toggleLikeAction]", r.error);
-      }
+    void toggleLikeAction(server.slug, id).then((r) => {
+      if (!r.ok) console.warn("[toggleLikeAction]", r.error);
     });
   };
 

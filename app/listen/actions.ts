@@ -65,24 +65,33 @@ async function resolveCtx(slug: string): Promise<ServerCtx | null> {
    Like
    ============================================================ */
 
-/** Toggles the like state for (contact, beat). `currentlyLiked` is
- *  the client's last-rendered value so the action knows whether to
- *  INSERT or DELETE without an extra round-trip. */
+/** Toggles the like state for (contact, beat). Authoritative —
+ *  the action reads the current DB state itself instead of
+ *  trusting a `currentlyLiked` flag from the client, so a stale
+ *  local UI (or a duplicate click) can never desync into a unique-
+ *  constraint violation. Idempotent: clicking like on an already-
+ *  liked beat returns ok with no change. */
 export async function toggleLikeAction(
   slug: string,
   beatId: string,
-  currentlyLiked: boolean,
+  _ignored?: boolean,
 ): Promise<ActionResult> {
   const ctx = await resolveCtx(slug);
   if (!ctx) return { ok: false, error: "Not signed in or not a contact." };
   const supabase = await createClient();
 
-  if (currentlyLiked) {
+  const { data: existing } = await supabase
+    .from("likes")
+    .select("id")
+    .eq("contact_id", ctx.contactId)
+    .eq("beat_id", beatId)
+    .maybeSingle<{ id: string }>();
+
+  if (existing) {
     const { error } = await supabase
       .from("likes")
       .delete()
-      .eq("contact_id", ctx.contactId)
-      .eq("beat_id", beatId);
+      .eq("id", existing.id);
     if (error) return { ok: false, error: error.message };
   } else {
     const { error } = await supabase.from("likes").insert({
