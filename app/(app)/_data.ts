@@ -15,6 +15,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/current";
 
 export interface ProducerViewer {
   userId: string;
@@ -70,11 +71,11 @@ export interface ProducerNotifications {
 }
 
 export async function loadProducerViewer(): Promise<ProducerViewer | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getCurrentUser is per-request memoized via React.cache, so the
+  // shell layout + every page-level guard share one round-trip.
+  const user = await getCurrentUser();
   if (!user) return null;
+  const supabase = await createClient();
 
   const [profileRes, artistRes] = await Promise.all([
     supabase
@@ -124,11 +125,9 @@ function initialsOf(name: string): string {
  *  session case (the proxy already gated that) — return empty
  *  instead. */
 export async function loadProducerNotifications(): Promise<ProducerNotifications> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return { items: [], unreadCount: 0 };
+  const supabase = await createClient();
 
   const { data: rows } = await supabase
     .from("notifications")

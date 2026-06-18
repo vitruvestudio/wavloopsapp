@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import type {
   BeatWithStatsRow,
   ServerRow,
@@ -33,22 +34,10 @@ export default async function LibraryPage() {
   const supabase = await createClient();
 
   // Resolve the producer's profile id so every query below can
-  // scope strictly to rows they own. Without this, the laxer
-  // `beats_public_select` RLS (which lets visitors of public
-  // gate pages see beats anonymously) would leak other producers'
-  // beats into the current producer's Library. The owner-side
-  // filtering is the producer-level fence.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // scope strictly to rows they own. getCurrentProducerProfileId
+  // is cache()'d per request, so the shell layout, this page,
+  // and any deeper component all share one Supabase round-trip.
+  const profileId = await getCurrentProducerProfileId();
   // No producer profile (artist-only user landing here by URL) →
   // return an empty library, never another producer's catalogue.
   if (!profileId) {

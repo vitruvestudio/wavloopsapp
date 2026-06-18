@@ -12,6 +12,7 @@
 
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import { BeatDetailPage } from "./BeatDetailPage";
 import type {
   BeatWithStatsRow,
@@ -58,22 +59,8 @@ export default async function BeatPage({ params }: BeatPageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
-  // Producer profile fence — without explicit owner filtering the
-  // beats_artist_read policy lets a multi-role user open the
-  // producer-side beat detail page for a beat they only have
-  // artist access to (via server_contacts). That would expose
-  // the Feedback / Audience tabs of someone else's beat.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // Producer profile fence + cached resolver.
+  const profileId = await getCurrentProducerProfileId();
   if (!profileId) notFound();
 
   const [beatRes, membershipRes, commentsRes, listensRes, likesRes] =

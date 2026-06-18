@@ -23,6 +23,7 @@ import { ServerCard, type BeatCover } from "@/components/app/ServerCard";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import type { ServerWithStatsRow } from "@/lib/supabase/database.types";
 
 /** Row shape returned by the `server_beats → beats` join below. The
@@ -37,22 +38,9 @@ interface ServerBeatJoinRow {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  // Same owner-scoped fence as /library — the public-select RLS
-  // on `servers` + `server_beats` leaks any public server's
-  // membership rows to every authenticated user. Filter on
-  // owner_id explicitly so a producer never sees another
-  // producer's servers in their dashboard.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // Owner-scoped fence + cached profile resolver shared with the
+  // shell layout — see lib/supabase/current.ts.
+  const profileId = await getCurrentProducerProfileId();
 
   // Parallel: the producer's servers (with stats) + the join that
   // gives us each beat's cover for the mosaic.

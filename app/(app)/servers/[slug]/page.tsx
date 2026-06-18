@@ -17,6 +17,10 @@
 
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentProducerProfileId,
+  getCurrentUser,
+} from "@/lib/supabase/current";
 import { ServerDetailPage } from "./ServerDetailPage";
 import type {
   BeatWithStatsRow,
@@ -32,23 +36,8 @@ export default async function ServerPage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
 
-  // Producer profile fence — without this, the servers_artist_read
-  // policy (which lets an invited artist see the server row) lets
-  // a multi-role user open /servers/<slug> for a server they only
-  // have artist-level access to. That exposes the producer-side
-  // server admin UI (beat library picker, address book picker,
-  // etc.) for a server they don't own.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // Producer profile fence + cached resolver.
+  const profileId = await getCurrentProducerProfileId();
   if (!profileId) notFound();
 
   const serverRes = await supabase
@@ -65,10 +54,10 @@ export default async function ServerPage({ params }: PageProps) {
     pivotRes,
     contactsRes,
     likesCountRes,
-    userRes,
     libraryRes,
     allServersRes,
     addressBookRes,
+    user,
   ] = await Promise.all([
     supabase
       .from("server_beats")
@@ -95,7 +84,6 @@ export default async function ServerPage({ params }: PageProps) {
       .from("likes")
       .select("*", { count: "exact", head: true })
       .eq("server_id", server.id),
-    supabase.auth.getUser(),
     // The producer's full library — used to populate the
     // "Add beats" modal. Owner-scoped explicitly so the
     // multi-role artist-leak path can't seed it with another
@@ -123,6 +111,7 @@ export default async function ServerPage({ params }: PageProps) {
       .eq("owner_id", profileId)
       .order("last_active_at", { ascending: false })
       .returns<ContactRow[]>(),
+    getCurrentUser(),
   ]);
 
   // Re-order beats to match the pivot's position order — `.in()` on
@@ -189,7 +178,7 @@ export default async function ServerPage({ params }: PageProps) {
       contacts={contacts}
       pending={pending}
       likesCount={likesCountRes.count ?? 0}
-      userId={userRes.data.user?.id ?? ""}
+      userId={user?.id ?? ""}
       library={libraryRes.data ?? []}
       allServers={allServersRes.data ?? []}
       addressBook={addressBookRes.data ?? []}

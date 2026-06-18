@@ -283,3 +283,13 @@
   }
 }
 
+
+/* ============================================================
+   Skeleton pulse — used by loading.tsx files across the app.
+   Soft opacity flicker rather than a moving gradient so the
+   animation stays cheap on low-end devices.
+   ============================================================ */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}

@@ -21,6 +21,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import { ContactsPage } from "./ContactsPage";
 
 export const metadata = { title: "Contacts" };
@@ -66,24 +67,9 @@ export interface ServerStub {
 export default async function ContactsRoute() {
   const supabase = await createClient();
 
-  // Resolve the producer's profile id up front so every query
-  // below can scope to rows they own. Without this, the
-  // contacts_artist_read RLS (which lets an artist see their
-  // own contact row across producers) lets a multi-role user
-  // see their own contact entry in their producer Contacts
-  // page — even when the row was created by ANOTHER producer.
-  // Same fence pattern as /library and /dashboard.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // Owner-scoped fence — see lib/supabase/current.ts for the
+  // per-request cache wrapping the auth + profile lookup.
+  const profileId = await getCurrentProducerProfileId();
   if (!profileId) {
     return <ContactsPage contacts={[]} allServers={[]} />;
   }

@@ -17,6 +17,10 @@
 
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentProducerProfileId,
+  getCurrentUser,
+} from "@/lib/supabase/current";
 import { CreateServerPage } from "../../new/CreateServerPage";
 import type {
   BeatWithStatsRow,
@@ -35,19 +39,10 @@ export default async function EditServerPage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
 
-  // Producer profile fence — same pattern as /servers/[slug].
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle<{ id: string }>()
-    : { data: null };
-  const profileId = profile?.id ?? null;
+  // Producer profile fence + cached resolver.
+  const profileId = await getCurrentProducerProfileId();
   if (!profileId) notFound();
+  const user = await getCurrentUser();
 
   const serverRes = await supabase
     .from("servers_with_stats")
@@ -71,13 +66,12 @@ export default async function EditServerPage({ params }: PageProps) {
       .order("created_at", { ascending: false })
       .returns<BeatWithStatsRow[]>(),
   ]);
-  const userRes = { data: { user } };
 
   const existingBeatIds = (pivotRes.data ?? []).map((r) => r.beat_id);
 
   return (
     <CreateServerPage
-      userId={userRes.data.user?.id ?? ""}
+      userId={user?.id ?? ""}
       beats={libraryRes.data ?? []}
       existing={existing}
       existingBeatIds={existingBeatIds}
