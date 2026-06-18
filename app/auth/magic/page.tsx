@@ -1,45 +1,36 @@
 /**
- * /auth/magic — passwordless artist sign-in.
+ * /auth/magic — legacy alias.
  *
- * Form is split into MagicLinkScreen.tsx (client) so the page can
- * stay server-rendered and export metadata cleanly.
+ * V1 had a dedicated passwordless page for artists at /auth/magic
+ * alongside a producer /auth (email+password). V2 unified both
+ * surfaces on /auth with explicit role selection, so anything
+ * that used to land here just forwards on to /auth with
+ * `?as=artist` preserved + any other query params (sent, email,
+ * next, error, requested).
  *
- * Server-side search params:
- *   ?sent=1       → render the "Check your inbox" success state
- *   ?email=<x>    → display the email in the success state
- *   ?next=<path>  → carried into the form so the post-auth redirect
- *                   lands the user where they came from
- *   ?error=<msg>  → pre-fill the form's error slot (from callback)
- *   ?requested=1  → came from a gate-form submit. SentState shows
- *                   "request was also submitted" copy alongside
- *                   the standard "check your inbox" message.
+ * Kept as a redirect rather than deleted because:
+ *   - the artist sign-out flow used to bounce here
+ *   - any stale browser tab or bookmark keeps working
+ *   - old magic-link emails sitting in inboxes still resolve
  */
 
-import type { Metadata } from "next";
-import { MagicLinkScreen } from "./MagicLinkScreen";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Sign in to Wavloops",
-  description: "We'll email you a one-tap link. No password to remember.",
-};
-
-export default async function MagicLinkPage({
+export default async function MagicLinkRedirect({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const first = (k: string) => {
-    const v = params[k];
-    return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
-  };
-  return (
-    <MagicLinkScreen
-      sent={first("sent") === "1"}
-      sentEmail={first("email")}
-      initialError={first("error")}
-      next={first("next") || "/listen"}
-      requested={first("requested") === "1"}
-    />
-  );
+  const qs = new URLSearchParams();
+  // Anyone who lands here was using the artist surface — preserve
+  // that intent so the unified /auth doesn't bounce them back to
+  // the choose-role step.
+  qs.set("as", "artist");
+  for (const [k, v] of Object.entries(params)) {
+    if (k === "as") continue;
+    const str = Array.isArray(v) ? v[0] : v;
+    if (typeof str === "string" && str.length > 0) qs.set(k, str);
+  }
+  redirect(`/auth?${qs.toString()}`);
 }

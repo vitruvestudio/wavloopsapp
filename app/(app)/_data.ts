@@ -25,6 +25,10 @@ export interface ProducerViewer {
    *  Pre-computed server-side so AccountMenu doesn't have to know
    *  the rules. */
   avatarLabel: string;
+  /** True when this user ALSO has an artist_profiles row — i.e.
+   *  multi-role. AccountMenu uses this to surface the
+   *  "Switch to Artist view" item. */
+  hasArtistProfile: boolean;
 }
 
 /* ============================================================
@@ -72,11 +76,23 @@ export async function loadProducerViewer(): Promise<ProducerViewer | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, avatar_url")
-    .eq("user_id", user.id)
-    .maybeSingle<{ name: string | null; avatar_url: string | null }>();
+  const [profileRes, artistRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("name, avatar_url")
+      .eq("user_id", user.id)
+      .maybeSingle<{ name: string | null; avatar_url: string | null }>(),
+    // Parallel check for the user's artist_profiles row — a non-null
+    // display_name means they've also been through the artist
+    // onboarding, so we surface the switcher in AccountMenu.
+    supabase
+      .from("artist_profiles")
+      .select("display_name")
+      .eq("user_id", user.id)
+      .maybeSingle<{ display_name: string | null }>(),
+  ]);
+  const profile = profileRes.data;
+  const artist = artistRes.data;
 
   const email = user.email ?? "";
   const localPart = email.split("@")[0] || "Producer";
@@ -88,6 +104,9 @@ export async function loadProducerViewer(): Promise<ProducerViewer | null> {
     displayName,
     avatarUrl: profile?.avatar_url ?? null,
     avatarLabel: initialsOf(displayName),
+    hasArtistProfile: Boolean(
+      artist?.display_name && artist.display_name.trim().length > 0,
+    ),
   };
 }
 

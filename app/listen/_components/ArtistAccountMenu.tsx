@@ -24,6 +24,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { signOutArtistAction } from "@/app/auth/actions";
+import { switchToProducerViewAction } from "@/app/auth/mode-switch";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useArtistContext } from "./ArtistContext";
@@ -160,6 +161,44 @@ export function ArtistAccountMenu() {
               {it.label}
             </Link>
           ))}
+
+          {/* Role switcher — only when the user actually has an
+              onboarded producer profile, so artists-pure don't see
+              a "Switch to Producer view" they can't act on. */}
+          {viewer.hasProducerProfile && (
+            <>
+              <div
+                aria-hidden
+                style={{
+                  height: 1,
+                  background: "var(--border-1)",
+                  margin: "6px 0",
+                }}
+              />
+              <form action={switchToProducerViewAction}>
+                <button
+                  type="submit"
+                  role="menuitem"
+                  className="flex w-full items-center text-fg-2 transition-colors duration-fast hover:bg-bg-3 hover:text-fg-1"
+                  style={{
+                    height: 38,
+                    padding: "0 10px",
+                    gap: 11,
+                    borderRadius: "var(--r-sm)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 14,
+                    textAlign: "left",
+                  }}
+                >
+                  <Icon name="library" size={17} />
+                  Switch to Producer view
+                </button>
+              </form>
+            </>
+          )}
 
           <div
             aria-hidden

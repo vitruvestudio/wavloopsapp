@@ -34,6 +34,10 @@ export interface ArtistViewer {
   bio: string;
   socials: Record<string, string>;
   notifPrefs: ArtistNotifPrefs;
+  /** True when this user ALSO has a producer profiles row with an
+   *  onboarded_at stamp — i.e. multi-role. ArtistAccountMenu uses
+   *  this to surface the "Switch to Producer view" item. */
+  hasProducerProfile: boolean;
 }
 
 export interface ArtistNotifPrefs {
@@ -114,9 +118,15 @@ export async function loadArtistContext(): Promise<ArtistContext | null> {
   if (!user) return null;
 
   // Fan out: profile, contacts (with producer + servers), liked
-  // count, latest notifications.
-  const [profileRes, contactsRes, likedRes, notifsRes] =
-    await Promise.all([
+  // count, latest notifications, producer-side profile check
+  // (for the AccountMenu switcher when the user has both roles).
+  const [
+    profileRes,
+    contactsRes,
+    likedRes,
+    notifsRes,
+    producerProfileRes,
+  ] = await Promise.all([
       supabase
         .from("artist_profiles")
         .select(
@@ -166,6 +176,15 @@ export async function loadArtistContext(): Promise<ArtistContext | null> {
         .eq("recipient_user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(20),
+      // Producer-side profile check. `onboarded_at` is the signal
+      // that distinguishes "completed the producer onboarding"
+      // from "row exists but is stub" — the latter shouldn't
+      // surface a switcher.
+      supabase
+        .from("profiles")
+        .select("onboarded_at")
+        .eq("user_id", user.id)
+        .maybeSingle<{ onboarded_at: string | null }>(),
     ]);
 
   // ── Viewer ──────────────────────────────────────────────
@@ -184,6 +203,7 @@ export async function loadArtistContext(): Promise<ArtistContext | null> {
     notifPrefs: mergeNotifPrefs(
       profile?.notif_prefs as Partial<ArtistNotifPrefs> | null,
     ),
+    hasProducerProfile: Boolean(producerProfileRes.data?.onboarded_at),
   };
 
   // ── Producers (grouped from contacts) ───────────────────

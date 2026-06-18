@@ -1,19 +1,25 @@
 /**
- * Auth server actions — email/password sign-in + sign-up + sign-out.
+ * Auth server actions — passwordless only.
+ *
+ * Wavloops V2 auth model:
+ *   - Magic-link via Resend SMTP (primary path)
+ *   - Google OAuth via Supabase provider (1-tap, requires
+ *     Google Cloud + Supabase dashboard config)
+ *   - NO password. Drop signInWithPassword + signUp completely.
+ *
+ * Producer / Artist intent is captured at signup-time via a `role`
+ * field that travels through the magic-link as `?as=producer|artist`
+ * on the callback URL. The callback then routes the user to the
+ * correct onboarding (5-step producer wizard or 1-step artist
+ * setup) on first login, and to /dashboard or /listen on later
+ * logins.
  *
  * Shape is what React 19's `useActionState` expects:
  *   (prevState, formData) => Promise<state>
  *
- * On success the action calls `redirect()`, which throws an internal
- * NEXT_REDIRECT error — never reaches `return state`. So the only return
- * path is the error case, surfaced to the form as `{ error: string }`.
- *
- * Heads-up for V1 testing:
- *   Supabase ships with "Confirm email" turned ON by default. With it on,
- *   signUp does NOT create a session — the user has to click the email
- *   link first. For sprint iteration speed, disable it at:
- *     Supabase dashboard → Authentication → Sign In / Up → Email →
- *     "Confirm email" toggle OFF. Re-enable before going live.
+ * On success the action calls `redirect()` (NEXT_REDIRECT throw) —
+ * never reaches `return state`. So the only return path is the
+ * error case, surfaced to the form as `{ error: string }`.
  */
 
 "use server";
@@ -28,69 +34,143 @@ export interface AuthState {
   error: string | null;
 }
 
-export async function signInAction(
+export type AuthRole = "producer" | "artist";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Resolve the public origin from the request's `origin` header,
+ *  with NEXT_PUBLIC_SITE_URL as a fallback for deploys behind a
+ *  proxy that strips the header. Localhost is the final fallback
+ *  so dev never crashes on a missing env var. */
+async function resolveOrigin(): Promise<string> {
+  const h = await headers();
+  return (
+    h.get("origin") ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000"
+  );
+}
+
+/** Build the callback URL Supabase embeds in the magic-link email.
+ *  `next` is where the user lands after token exchange (default
+ *  decided by callback). `as` carries the chosen role through so
+ *  the callback can pick the right onboarding on first login. */
+function buildCallbackUrl(
+  origin: string,
+  next: string | null,
+  role: AuthRole | null,
+): string {
+  const url = new URL(`${origin}/auth/callback`);
+  if (next) url.searchParams.set("next", next);
+  if (role) url.searchParams.set("as", role);
+  return url.toString();
+}
+
+/* ============================================================
+   Magic-link request — primary auth path.
+
+   Used by:
+     - /auth (Producer or Artist card → email form)
+     - Gate flow fallback (kept inside requestGateAccessAction)
+   ============================================================ */
+
+export async function requestMagicLinkAction(
   _prev: AuthState | null,
   formData: FormData,
 ): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const next = String(formData.get("next") ?? "").trim() || null;
+  const roleRaw = String(formData.get("role") ?? "").trim();
+  const role: AuthRole | null =
+    roleRaw === "producer" || roleRaw === "artist" ? roleRaw : null;
 
-  if (!email || !password) {
-    return { error: "Email and password are required." };
+  if (!email) return { error: "Email is required." };
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Please enter a valid email." };
   }
 
+  const origin = await resolveOrigin();
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  // DEPLOY NOTE: every origin used here must be in the Supabase
+  // project's Auth → URL Configuration → Redirect URLs allowlist
+  // (http://localhost:3000 + https://wavloops.co). Otherwise the
+  // magic-link bounces to a Supabase error page.
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: buildCallbackUrl(origin, next, role),
+      shouldCreateUser: true,
+    },
+  });
+
+  if (error) return { error: error.message };
+
+  // Land on the "Check your inbox" success state (same /auth route,
+  // sent=1 toggles SentState in AuthScreen).
+  const qs = new URLSearchParams({ sent: "1", email });
+  if (next) qs.set("next", next);
+  if (role) qs.set("as", role);
+  redirect(`/auth?${qs.toString()}`);
+}
+
+/* ============================================================
+   Google OAuth — 1-tap sign-in.
+
+   Requires:
+     - Google Cloud Console OAuth app (client ID + secret)
+     - Supabase Dashboard → Authentication → Providers → Google
+       (enabled, client ID/secret pasted in, redirect URLs
+       allowlisted: https://<project>.supabase.co/auth/v1/callback)
+
+   Until those two are configured, this action returns a friendly
+   error instead of throwing — UI keeps the button enabled so users
+   know it's coming, but the flow is harmless.
+   ============================================================ */
+
+export async function signInWithGoogleAction(
+  _prev: AuthState | null,
+  formData: FormData,
+): Promise<AuthState> {
+  const next = String(formData.get("next") ?? "").trim() || null;
+  const roleRaw = String(formData.get("role") ?? "").trim();
+  const role: AuthRole | null =
+    roleRaw === "producer" || roleRaw === "artist" ? roleRaw : null;
+
+  const origin = await resolveOrigin();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: buildCallbackUrl(origin, next, role),
+      // Skip Google's account-selector when the user is already
+      // signed in to a single Google account → 1 tap, not 2.
+      queryParams: { prompt: "select_account" },
+    },
+  });
 
   if (error) {
-    // Friendlier copy than Supabase's raw messages.
-    if (error.message.toLowerCase().includes("invalid")) {
-      return { error: "Email or password is incorrect." };
+    if (error.message.toLowerCase().includes("provider is not enabled")) {
+      return {
+        error:
+          "Google sign-in isn't enabled yet. Use the email magic-link instead.",
+      };
     }
     return { error: error.message };
   }
 
-  revalidatePath("/", "layout");
-  redirect("/dashboard");
+  if (data?.url) {
+    redirect(data.url);
+  }
+  return { error: "Could not start Google sign-in. Try the magic-link." };
 }
 
-export async function signUpAction(
-  _prev: AuthState | null,
-  formData: FormData,
-): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-
-  if (!email || !password) {
-    return { error: "Email and password are required." };
-  }
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  // If Supabase email confirmation is OFF, a session is returned and we
-  // can take them straight to onboarding. If it's ON, no session is set
-  // and they need to verify before logging in.
-  if (!data.session) {
-    return {
-      error:
-        "Check your inbox to confirm your email, then come back and log in.",
-    };
-  }
-
-  revalidatePath("/", "layout");
-  // Post-signup, route to the producer profile setup wizard.
-  // Once we wire the profiles table, /dashboard will start checking
-  // `onboarded_at` and bounce users here automatically if it's null.
-  redirect("/onboarding");
-}
+/* ============================================================
+   Producer sign-out — clears session + bounces to /auth.
+   ============================================================ */
 
 export async function signOutAction() {
   const supabase = await createClient();
@@ -99,64 +179,20 @@ export async function signOutAction() {
   redirect("/auth");
 }
 
-/* ============================================================
-   Artist auth — passwordless magic link.
-
-   Producer auth (above) is email+password landing at /dashboard.
-   Artists never set a password — they paste their email into
-   /auth/magic (or into a server's gate page), receive a one-tap
-   link, and land in /listen.
-
-   The link target is /auth/callback (route handler) which
-   exchanges the code for a session and runs
-   bind_artist_contacts() so the freshly-authed user immediately
-   sees every producer that already had them on file.
-   ============================================================ */
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export async function signInWithMagicLinkAction(
-  _prev: AuthState | null,
-  formData: FormData,
-): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const next = String(formData.get("next") ?? "/listen");
-
-  if (!email) return { error: "Email is required." };
-  if (!EMAIL_RE.test(email)) {
-    return { error: "Please enter a valid email." };
-  }
-
-  // Resolve the public origin to build the redirect URL Supabase
-  // will embed in the email. `headers()` is async in Next 16. We
-  // prefer the request's `origin` header; in deploys behind a proxy
-  // that strips it, fall back to NEXT_PUBLIC_SITE_URL.
-  const h = await headers();
-  const origin =
-    h.get("origin") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000";
-
+/** Sign-out variant for the artist surface — bounces back to /auth
+ *  (the unified entry) instead of a dead /auth/magic.
+ *
+ *  `scope: "local"` only clears the session cookies on this device,
+ *  no round-trip to Supabase to revoke the refresh token globally.
+ *  That's what we want here — log-out should be instant and never
+ *  fail because of a network blip. If we ever need to nuke every
+ *  device for a user (e.g. "log out everywhere" admin action), call
+ *  signOut() without scope. */
+export async function signOutArtistAction() {
   const supabase = await createClient();
-  // DEPLOY NOTE: every origin used here must be added to the
-  // Supabase project's Auth → URL Configuration → Redirect URLs
-  // allowlist (e.g. http://localhost:3000 + https://wavloops.co).
-  // Otherwise the magic link bounces to a Supabase error page.
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      shouldCreateUser: true,
-    },
-  });
-
-  if (error) return { error: error.message };
-
-  const qs = new URLSearchParams({ sent: "1", email });
-  if (next !== "/listen") qs.set("next", next);
-  redirect(`/auth/magic?${qs.toString()}`);
+  await supabase.auth.signOut({ scope: "local" });
+  revalidatePath("/", "layout");
+  redirect("/auth");
 }
 
 /* ============================================================
@@ -172,14 +208,9 @@ export async function signInWithMagicLinkAction(
           - signed in → redirect /s/<slug> (private) or /listen/<slug> (public).
           - anon     → also send a magic-link via signInWithOtp so
                        the artist can verify their email and come back
-                       in once approved. Redirect to /auth/magic?
-                       requested=1 so SentState shows the
-                       contextualized "request submitted" copy.
-
-   Phase 3.9.3 refactor: this used to defer the request creation
-   until the magic-link callback ran, which meant the producer
-   didn't see anything until the artist verified. Now the producer
-   sees the funnel immediately.
+                       in once approved. Redirect to /auth?sent=1
+                       (and ?requested=1 for private servers so the
+                       SentState shows the contextualized copy).
    ============================================================ */
 
 export async function requestGateAccessAction(
@@ -213,10 +244,7 @@ export async function requestGateAccessAction(
   }
 
   // Step 1 — write the pending row + producer notification NOW,
-  // before the email-verification round-trip. This is the whole
-  // point of moving away from claim_server_access in the callback:
-  // the producer's Requests tab fires the moment the artist hits
-  // "Request access", not after they click an email.
+  // before the email-verification round-trip.
   const { data: submitRes, error: submitErr } = await supabase.rpc(
     "submit_access_request",
     { p_slug: slug, p_email: email, p_social: social || null },
@@ -237,8 +265,6 @@ export async function requestGateAccessAction(
   const wasNew = !!submit.was_new;
 
   // Step 2 — fire the producer email on freshly-pending requests.
-  // Idempotent gate (was_new) prevents duplicate emails when an
-  // artist double-submits the gate form.
   if (wasNew && visibility === "private") {
     try {
       const { data: gateRows } = await supabase.rpc("get_server_for_gate", {
@@ -251,9 +277,6 @@ export async function requestGateAccessAction(
           producer_name?: string | null;
         }> | null
       )?.[0];
-      // Phase 3.9.7.2 — producer prefs gate. The RPC bundles
-      // email + flags so a single round-trip tells us both
-      // "where to send" and "should we send".
       const { data: targetData } = await supabase.rpc(
         "get_server_owner_notif_target",
         { p_slug: slug },
@@ -286,10 +309,6 @@ export async function requestGateAccessAction(
 
   // Step 3 — branch on auth state for the redirect.
   if (user) {
-    // Already signed in: skip the magic-link round-trip entirely.
-    // Public → straight to /listen; private → back to the gate
-    // where the page renders the MembershipPendingCard from the
-    // server_contacts row we just inserted.
     revalidatePath("/", "layout");
     redirect(visibility === "private" ? `/s/${slug}` : `/listen/${slug}`);
   }
@@ -297,20 +316,15 @@ export async function requestGateAccessAction(
   // Anon visitor: send the magic-link so they can verify their
   // email + come back to listen after the producer approves.
   // bind_artist_contacts in /auth/callback will tie auth_user_id
-  // onto the contact row we just created.
-  const h = await headers();
-  const origin =
-    h.get("origin") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000";
+  // onto the contact row we just created. The intent here is
+  // implicitly "artist" — the user came in through a producer's
+  // gate page and is here to listen.
+  const origin = await resolveOrigin();
   const next = visibility === "private" ? `/s/${slug}` : `/listen/${slug}`;
-  const callback = new URL(`${origin}/auth/callback`);
-  callback.searchParams.set("next", next);
-
   const { error: otpErr } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: callback.toString(),
+      emailRedirectTo: buildCallbackUrl(origin, next, "artist"),
       shouldCreateUser: true,
     },
   });
@@ -319,27 +333,8 @@ export async function requestGateAccessAction(
   // ?requested=1 ONLY for private servers (pending status). For
   // public servers the row was created with status='granted' — the
   // magic-link is just email verification, not an access request,
-  // so the SentState should show the standard "Check your inbox"
-  // copy. Setting requested=1 everywhere mislabels public claims
-  // as "Request submitted" and confuses the artist.
-  const qs = new URLSearchParams({ sent: "1", email, next });
+  // so the SentState shows the standard "Check your inbox" copy.
+  const qs = new URLSearchParams({ sent: "1", email, next, as: "artist" });
   if (visibility === "private") qs.set("requested", "1");
-  redirect(`/auth/magic?${qs.toString()}`);
-}
-
-/** Sign-out variant for the artist surface — redirects to
- *  /auth/magic instead of /auth so the same user doesn't get
- *  thrown at the producer password form.
- *
- *  `scope: "local"` only clears the session cookies on this device,
- *  no round-trip to Supabase to revoke the refresh token globally.
- *  That's what we want here — log-out should be instant and never
- *  fail because of a network blip. If we ever need to nuke every
- *  device for a user (e.g. "log out everywhere" admin action), call
- *  signOut() without scope. */
-export async function signOutArtistAction() {
-  const supabase = await createClient();
-  await supabase.auth.signOut({ scope: "local" });
-  revalidatePath("/", "layout");
-  redirect("/auth/magic");
+  redirect(`/auth?${qs.toString()}`);
 }

@@ -8,15 +8,20 @@
  *      tokens pile up and the user gets silently logged out across
  *      tabs.
  *
- *   2. Optimistic route protection. Two surfaces, two flows:
+ *   2. Optimistic route protection. V2 has a single unified auth
+ *      page `/auth` that handles both producer + artist signups
+ *      (role selected via 2 cards). So the routing is:
  *
- *      Producer surface (email + password)
  *        - Anon → producer (app) route → redirect to /auth
+ *        - Anon → /listen/*            → redirect to /auth?as=artist&next=…
  *        - Auth → /auth                → redirect to /dashboard
  *
- *      Artist surface (passwordless magic link)
- *        - Anon → /listen/*    → redirect to /auth/magic?next=…
- *        - Auth → /auth/magic  → redirect to /listen
+ *      Sprint C will replace the dumb "logged-in → /dashboard"
+ *      redirect with profile-aware routing (check whether the user
+ *      has `profiles`, `artist_profiles`, or both, then route +
+ *      restore last-used mode from cookie). For now we keep the
+ *      producer-first default and let server components nudge
+ *      artists toward /listen on a per-route basis.
  *
  *      /auth/callback is excluded — the route handler needs to run
  *      with whatever auth state the user is currently in so it can
@@ -77,8 +82,11 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isProducerAuthRoute = pathname === "/auth";
-  const isArtistAuthRoute = pathname === "/auth/magic";
+  // /auth is the unified entry. /auth/magic is the legacy alias
+  // that redirects to /auth?as=artist — skip the proxy guard
+  // there because the redirect runs server-side before any
+  // session check would matter.
+  const isAuthRoute = pathname === "/auth";
   const isAppRoute = APP_ROUTE_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
@@ -90,15 +98,18 @@ export async function proxy(request: NextRequest) {
   if (!user && isAppRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
+    url.search = "";
     return NextResponse.redirect(url);
   }
-  // Anon → artist route ⇒ kick to /auth/magic. Carry the original
-  // path + query as `next` so the callback can land them back where
-  // they tried to go.
+  // Anon → artist route ⇒ kick to /auth with `as=artist`
+  // pre-selected (the user landed somewhere artist-shaped, so
+  // we skip the role chooser). `next` carries the original path
+  // so the callback can land them back where they tried to go.
   if (!user && isArtistRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/magic";
+    url.pathname = "/auth";
     url.search = "";
+    url.searchParams.set("as", "artist");
     url.searchParams.set(
       "next",
       `${pathname}${request.nextUrl.search}`,
@@ -107,18 +118,19 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Logged-in gates ──────────────────────────────────────
-  // Logged-in → /auth (producer login) ⇒ /dashboard.
-  if (user && isProducerAuthRoute) {
+  // Logged-in → /auth ⇒ restore the last used mode from the
+  // wlp_last_mode cookie ("producer" → /dashboard, "artist" →
+  // /listen). Without a cookie, default to /dashboard. This is
+  // an optimistic shortcut: server components in /dashboard
+  // and /listen run their own checks and bounce to the right
+  // onboarding if the matching profile row is missing.
+  //
+  // /auth/callback is intentionally NOT gated — that route runs
+  // the OTP exchange and may not yet have a session at entry.
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
-  // Logged-in → /auth/magic (artist login) ⇒ /listen.
-  // /auth/callback is intentionally NOT gated — that route runs the
-  // OTP exchange and may not yet have a session at entry time.
-  if (user && isArtistAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/listen";
+    const lastMode = request.cookies.get("wlp_last_mode")?.value;
+    url.pathname = lastMode === "artist" ? "/listen" : "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }

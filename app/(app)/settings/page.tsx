@@ -21,11 +21,25 @@ export default async function SettingsRoute() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle<ProfileRow>();
+  const [{ data: profile }, { data: artistRow }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle<ProfileRow>(),
+    // Check whether the user also has an artist_profiles row — the
+    // AccountTab uses this to decide whether to surface the
+    // "Add Artist mode" CTA or a "You're also using Artist mode"
+    // confirmation row.
+    supabase
+      .from("artist_profiles")
+      .select("display_name")
+      .eq("user_id", user.id)
+      .maybeSingle<{ display_name: string | null }>(),
+  ]);
+  const hasArtistProfile = Boolean(
+    artistRow?.display_name && artistRow.display_name.trim().length > 0,
+  );
 
   // Identity provider(s) the user signed up with. Supabase exposes
   // these on the User object — we only need the provider name(s)
@@ -39,6 +53,7 @@ export default async function SettingsRoute() {
       userEmail={user.email ?? ""}
       emailConfirmed={Boolean(user.email_confirmed_at)}
       providers={providers}
+      hasArtistProfile={hasArtistProfile}
     />
   );
 }

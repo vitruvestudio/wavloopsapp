@@ -17,6 +17,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
@@ -44,6 +45,10 @@ interface SettingsPageProps {
   emailConfirmed: boolean;
   /** Auth identity providers (e.g. ["google"], ["email"]). */
   providers: string[];
+  /** True when the user also has an onboarded artist_profiles row.
+   *  Drives the "Add Artist mode" / "Also using Artist mode" UI
+   *  inside the Account tab. */
+  hasArtistProfile: boolean;
 }
 
 /** Suggestions for the certifications TagInput — mirrors the
@@ -79,6 +84,7 @@ export function SettingsPage({
   userEmail,
   emailConfirmed,
   providers,
+  hasArtistProfile,
 }: SettingsPageProps) {
   const [tab, setTab] = React.useState<TabKey>("profile");
 
@@ -105,6 +111,7 @@ export function SettingsPage({
               email={userEmail}
               emailConfirmed={emailConfirmed}
               providers={providers}
+              hasArtistProfile={hasArtistProfile}
             />
           ) : tab === "notifications" ? (
             <NotificationsTab initialPrefs={profile?.notif_prefs} />
@@ -721,10 +728,12 @@ function AccountTab({
   email,
   emailConfirmed,
   providers,
+  hasArtistProfile,
 }: {
   email: string;
   emailConfirmed: boolean;
   providers: string[];
+  hasArtistProfile: boolean;
 }) {
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);
@@ -876,6 +885,44 @@ function AccountTab({
           </div>
         </div>
       </SectionCard>
+
+      {/* Other modes — contextual CTA to add the second role. Hidden
+          for users who already have both, since the AccountMenu
+          switcher is the better surface once both exist. */}
+      {!hasArtistProfile && (
+        <SectionCard kicker="OTHER MODES" title="Pick beats too?">
+          <div className="flex flex-col" style={{ gap: 14 }}>
+            <p
+              className="t-body"
+              style={{ color: "var(--fg-3)", margin: 0, lineHeight: 1.55 }}
+            >
+              Activate Artist mode to receive packs from other producers,
+              save your favorites, and send back feedback — all from the
+              same account, with a one-click switcher.
+            </p>
+            <Link
+              href="/onboarding/artist"
+              className="inline-flex items-center cursor-pointer transition-colors duration-fast self-start"
+              style={{
+                gap: 8,
+                padding: "10px 18px",
+                height: 40,
+                borderRadius: "var(--r-md)",
+                border: "1px solid var(--accent)",
+                background: "var(--accent-surface)",
+                color: "var(--accent-text)",
+                fontFamily: "var(--font-body)",
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              <Icon name="play" size={15} />
+              Add Artist mode
+            </Link>
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }
