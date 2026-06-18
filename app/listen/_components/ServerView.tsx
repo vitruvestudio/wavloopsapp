@@ -225,7 +225,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
   );
 
   return (
-    <main className="flex-1 min-w-0">
+    <main className="flex-1 min-w-0" style={{ overflowX: "clip" }}>
       {/* ── Banner — deep jewel-toned mesh radiating from the top,
               fading INTO the page bg at the bottom (no hard line).
               The gradient lives on an absolute layer behind the
