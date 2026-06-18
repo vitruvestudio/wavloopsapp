@@ -225,6 +225,30 @@ const DATA_URL = /^data:([^;]+);base64,(.+)$/;
  *  in on the next read. revalidates layout-wide because the
  *  display_name flows into the producer-side Feedback tab too
  *  via the artist_profiles join in beats/[id]/page.tsx. */
+/** Marks every unread notification for the authed artist as
+ *  read in DB. Used by the topbar bell's MARK ALL READ link.
+ *  Returns ok=true even when no rows are touched (already-zero
+ *  is a successful no-op). */
+export async function markAllArtistNotifsReadAction(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("recipient_user_id", user.id)
+    .eq("read", false);
+  if (error) return { ok: false, error: error.message };
+
+  // Refresh the artist shell so the bell badge picks up the new
+  // unreadCount on next render.
+  revalidatePath("/listen", "layout");
+  return { ok: true };
+}
+
 export async function updateArtistProfileAction(
   payload: UpdateArtistProfilePayload,
 ): Promise<ActionResult> {

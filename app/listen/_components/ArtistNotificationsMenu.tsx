@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { createClient } from "@/lib/supabase/client";
+import { markAllArtistNotifsReadAction } from "../actions";
 import type {
   ArtistNotificationRow,
 } from "../_data";
@@ -158,20 +159,29 @@ export function ArtistNotificationsMenu({
 
   if (!open) return null;
 
-  const markAllRead = () =>
+  const markAllRead = () => {
+    // Optimistic local update so the dropdown visually clears
+    // instantly. The server action persists in DB + revalidates
+    // the shell layout so the bell badge re-renders to 0 on the
+    // next pass.
     setItems((cur) => cur.map((n) => ({ ...n, read: true })));
+    void markAllArtistNotifsReadAction().then((r) => {
+      if (!r.ok) console.warn("[markAllArtistNotifsRead]", r.error);
+    });
+  };
 
   return (
     <div
       ref={menuRef}
       role="dialog"
       aria-label="Notifications"
+      // Below sm: pin to the viewport instead of the bell's
+      // narrow position-relative wrapper. Without this, the
+      // `right: 0; width: 380` combo on a 36px parent renders
+      // the menu off the left edge of a 375px iPhone viewport.
+      className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px]"
       style={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        right: 0,
-        width: 380,
-        maxWidth: "calc(100vw - 32px)",
+        maxWidth: "100vw",
         maxHeight: "min(72vh, 560px)",
         overflowY: "auto",
         background: "var(--bg-1)",

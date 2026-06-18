@@ -160,12 +160,12 @@ export function ProducerNotificationsMenu({ open, onClose }: MenuProps) {
       ref={menuRef}
       role="dialog"
       aria-label="Notifications"
+      // Below sm: pin to the viewport. The bell button's narrow
+      // position-relative wrapper would otherwise overflow the
+      // viewport with a 380px-wide menu.
+      className="fixed left-2 right-2 top-[60px] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[380px]"
       style={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        right: 0,
-        width: 380,
-        maxWidth: "calc(100vw - 32px)",
+        maxWidth: "100vw",
         maxHeight: "min(72vh, 560px)",
         overflowY: "auto",
         background: "var(--bg-1)",
