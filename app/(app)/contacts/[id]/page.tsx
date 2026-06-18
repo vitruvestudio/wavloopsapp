@@ -62,12 +62,30 @@ export default async function ContactRoute({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
+  // Producer profile fence — without this, the contacts_artist_read
+  // RLS lets a multi-role user open /contacts/<their-own-id> even
+  // when the row was created by another producer, exposing the
+  // detail page UI for a contact they don't own.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+  if (!profileId) notFound();
+
   const contactRes = await supabase
     .from("contacts")
     .select(
       "id, owner_id, email, name, phone, socials, avatar_url, roles, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
     )
     .eq("id", id)
+    .eq("owner_id", profileId)
     .maybeSingle<ContactJoinRow>();
 
   const contact = contactRes.data;
@@ -92,6 +110,7 @@ export default async function ContactRoute({ params }: PageProps) {
     supabase
       .from("servers")
       .select("id, name, slug")
+      .eq("owner_id", profileId)
       .order("name", { ascending: true })
       .returns<Array<{ id: string; name: string; slug: string }>>(),
   ]);

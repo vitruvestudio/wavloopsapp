@@ -35,15 +35,30 @@ export default async function EditServerPage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
 
+  // Producer profile fence — same pattern as /servers/[slug].
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+  if (!profileId) notFound();
+
   const serverRes = await supabase
     .from("servers_with_stats")
     .select("*")
     .eq("slug", slug)
+    .eq("owner_id", profileId)
     .maybeSingle<ServerWithStatsRow>();
   const existing = serverRes.data;
   if (!existing) notFound();
 
-  const [pivotRes, libraryRes, userRes] = await Promise.all([
+  const [pivotRes, libraryRes] = await Promise.all([
     supabase
       .from("server_beats")
       .select("beat_id, position")
@@ -52,10 +67,11 @@ export default async function EditServerPage({ params }: PageProps) {
     supabase
       .from("beats_with_stats")
       .select("*")
+      .eq("owner_id", profileId)
       .order("created_at", { ascending: false })
       .returns<BeatWithStatsRow[]>(),
-    supabase.auth.getUser(),
   ]);
+  const userRes = { data: { user } };
 
   const existingBeatIds = (pivotRes.data ?? []).map((r) => r.beat_id);
 

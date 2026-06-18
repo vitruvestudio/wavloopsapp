@@ -20,14 +20,26 @@ export const metadata = {
 export default async function NewServerPage() {
   const supabase = await createClient();
 
-  const [{ data: { user } }, beatsRes] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("beats_with_stats")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .returns<BeatWithStatsRow[]>(),
-  ]);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+
+  const beatsRes = profileId
+    ? await supabase
+        .from("beats_with_stats")
+        .select("*")
+        .eq("owner_id", profileId)
+        .order("created_at", { ascending: false })
+        .returns<BeatWithStatsRow[]>()
+    : { data: [] as BeatWithStatsRow[] };
 
   return (
     <CreateServerPage

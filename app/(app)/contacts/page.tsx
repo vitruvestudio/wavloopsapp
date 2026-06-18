@@ -66,19 +66,49 @@ export interface ServerStub {
 export default async function ContactsRoute() {
   const supabase = await createClient();
 
+  // Resolve the producer's profile id up front so every query
+  // below can scope to rows they own. Without this, the
+  // contacts_artist_read RLS (which lets an artist see their
+  // own contact row across producers) lets a multi-role user
+  // see their own contact entry in their producer Contacts
+  // page — even when the row was created by ANOTHER producer.
+  // Same fence pattern as /library and /dashboard.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+  if (!profileId) {
+    return <ContactsPage contacts={[]} allServers={[]} />;
+  }
+
   const [contactsRes, listensRes, likesRes, serversRes] = await Promise.all([
     supabase
       .from("contacts")
       .select(
         "id, email, name, phone, socials, avatar_url, roles, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
       )
+      .eq("owner_id", profileId)
       .order("last_active_at", { ascending: false })
       .returns<ContactJoinRow[]>(),
-    supabase.from("listens").select("contact_id"),
-    supabase.from("likes").select("contact_id"),
+    supabase
+      .from("listens")
+      .select("contact_id, contacts!inner(owner_id)")
+      .eq("contacts.owner_id", profileId),
+    supabase
+      .from("likes")
+      .select("contact_id, contacts!inner(owner_id)")
+      .eq("contacts.owner_id", profileId),
     supabase
       .from("servers")
       .select("id, name, slug")
+      .eq("owner_id", profileId)
       .order("name", { ascending: true })
       .returns<ServerStub[]>(),
   ]);

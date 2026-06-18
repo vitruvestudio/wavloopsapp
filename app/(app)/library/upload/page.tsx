@@ -37,13 +37,16 @@ export default async function UploadPage() {
     .from("profiles")
     .select("id, name")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .maybeSingle<{ id: string; name: string | null }>();
 
-  const { data: servers } = await supabase
-    .from("servers")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .returns<ServerRow[]>();
+  const { data: servers } = profile
+    ? await supabase
+        .from("servers")
+        .select("*")
+        .eq("owner_id", profile.id)
+        .order("created_at", { ascending: false })
+        .returns<ServerRow[]>()
+    : { data: [] as ServerRow[] };
 
   return (
     <UploadBeatPage

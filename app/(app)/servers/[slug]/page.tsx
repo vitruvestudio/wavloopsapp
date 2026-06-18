@@ -32,10 +32,30 @@ export default async function ServerPage({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
 
+  // Producer profile fence — without this, the servers_artist_read
+  // policy (which lets an invited artist see the server row) lets
+  // a multi-role user open /servers/<slug> for a server they only
+  // have artist-level access to. That exposes the producer-side
+  // server admin UI (beat library picker, address book picker,
+  // etc.) for a server they don't own.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+  if (!profileId) notFound();
+
   const serverRes = await supabase
     .from("servers_with_stats")
     .select("*")
     .eq("slug", slug)
+    .eq("owner_id", profileId)
     .maybeSingle<ServerWithStatsRow>();
 
   const server = serverRes.data;
@@ -77,10 +97,13 @@ export default async function ServerPage({ params }: PageProps) {
       .eq("server_id", server.id),
     supabase.auth.getUser(),
     // The producer's full library — used to populate the
-    // "Add beats" modal. RLS scopes it to their own beats only.
+    // "Add beats" modal. Owner-scoped explicitly so the
+    // multi-role artist-leak path can't seed it with another
+    // producer's beats.
     supabase
       .from("beats_with_stats")
       .select("*")
+      .eq("owner_id", profileId)
       .order("created_at", { ascending: false })
       .returns<BeatWithStatsRow[]>(),
     // The producer's full server list — used by the "Add artist"
@@ -89,13 +112,15 @@ export default async function ServerPage({ params }: PageProps) {
     supabase
       .from("servers")
       .select("id, name, slug")
+      .eq("owner_id", profileId)
       .order("name", { ascending: true })
       .returns<Array<{ id: string; name: string; slug: string }>>(),
     // The producer's full address book — populates the
-    // AddArtistsModal's picker. RLS scopes it to their own contacts.
+    // AddArtistsModal's picker.
     supabase
       .from("contacts")
       .select("*")
+      .eq("owner_id", profileId)
       .order("last_active_at", { ascending: false })
       .returns<ContactRow[]>(),
   ]);
