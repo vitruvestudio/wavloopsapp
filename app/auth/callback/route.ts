@@ -35,7 +35,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { LAST_MODE_COOKIE, type LastMode } from "../mode-switch";
+import { LAST_MODE_COOKIE, type LastMode } from "../mode-cookie";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 

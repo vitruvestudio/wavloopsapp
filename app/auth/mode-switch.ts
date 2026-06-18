@@ -27,9 +27,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-
-export const LAST_MODE_COOKIE = "wlp_last_mode";
-export type LastMode = "producer" | "artist";
+import { LAST_MODE_COOKIE, type LastMode } from "./mode-cookie";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
