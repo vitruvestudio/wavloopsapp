@@ -21,6 +21,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -232,22 +233,55 @@ export function ArtistNotificationsMenu({
         </button>
       </div>
 
-      {/* List */}
-      {items.length === 0 ? (
-        <div
-          className="text-center"
+      {/* List — Slack/Discord-style: only unread surface here, so
+          MARK ALL READ clears the dropdown. The /listen/notifications
+          page is the full history (read + unread). */}
+      {(() => {
+        const visible = items.filter((n) => !n.read);
+        if (visible.length === 0) {
+          return (
+            <div
+              className="text-center"
+              style={{
+                padding: "32px 18px",
+                color: "var(--fg-3)",
+                fontFamily: "var(--font-body)",
+                fontSize: 14,
+              }}
+            >
+              You&apos;re all caught up.
+            </div>
+          );
+        }
+        return visible.map((n) => <NotificationRow key={n.id} n={n} />);
+      })()}
+
+      {/* Footer link to the full history (read + unread). Sticky
+          to the bottom of the menu so the user can always jump
+          there even mid-scroll. */}
+      <div
+        className="text-center"
+        style={{
+          padding: "10px 18px",
+          borderTop: "1px solid var(--border-1)",
+          background: "var(--bg-1)",
+          position: "sticky",
+          bottom: 0,
+        }}
+      >
+        <Link
+          href="/listen/notifications"
+          onClick={onClose}
+          className="t-mono-s"
           style={{
-            padding: "32px 18px",
-            color: "var(--fg-3)",
-            fontFamily: "var(--font-body)",
-            fontSize: 14,
+            color: "var(--accent-text)",
+            letterSpacing: "0.08em",
+            textDecoration: "none",
           }}
         >
-          You&apos;re all caught up.
-        </div>
-      ) : (
-        items.map((n) => <NotificationRow key={n.id} n={n} />)
-      )}
+          VIEW ALL NOTIFICATIONS →
+        </Link>
+      </div>
     </div>
   );
 }
