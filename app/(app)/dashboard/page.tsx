@@ -37,21 +37,46 @@ interface ServerBeatJoinRow {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
+  // Same owner-scoped fence as /library — the public-select RLS
+  // on `servers` + `server_beats` leaks any public server's
+  // membership rows to every authenticated user. Filter on
+  // owner_id explicitly so a producer never sees another
+  // producer's servers in their dashboard.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+
   // Parallel: the producer's servers (with stats) + the join that
-  // gives us each beat's cover for the mosaic. RLS scopes both to
-  // the producer's own rows, so no explicit owner filter needed.
-  const [serversRes, pivotRes] = await Promise.all([
-    supabase
-      .from("servers_with_stats")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .returns<ServerWithStatsRow[]>(),
-    supabase
-      .from("server_beats")
-      .select("server_id, position, beats!inner(artwork_url, wave_seed)")
-      .order("position", { ascending: true })
-      .returns<ServerBeatJoinRow[]>(),
-  ]);
+  // gives us each beat's cover for the mosaic.
+  const [serversRes, pivotRes] = profileId
+    ? await Promise.all([
+        supabase
+          .from("servers_with_stats")
+          .select("*")
+          .eq("owner_id", profileId)
+          .order("created_at", { ascending: false })
+          .returns<ServerWithStatsRow[]>(),
+        supabase
+          .from("server_beats")
+          .select(
+            "server_id, position, beats!inner(artwork_url, wave_seed), servers!inner(owner_id)",
+          )
+          .eq("servers.owner_id", profileId)
+          .order("position", { ascending: true })
+          .returns<ServerBeatJoinRow[]>(),
+      ])
+    : [
+        { data: [] as ServerWithStatsRow[] },
+        { data: [] as ServerBeatJoinRow[] },
+      ];
 
   const list = serversRes.data ?? [];
   const activeCount = list.length;

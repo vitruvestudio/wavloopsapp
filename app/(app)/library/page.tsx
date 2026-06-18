@@ -32,20 +32,53 @@ import { UploadTrigger } from "./UploadTrigger";
 export default async function LibraryPage() {
   const supabase = await createClient();
 
+  // Resolve the producer's profile id so every query below can
+  // scope strictly to rows they own. Without this, the laxer
+  // `beats_public_select` RLS (which lets visitors of public
+  // gate pages see beats anonymously) would leak other producers'
+  // beats into the current producer's Library. The owner-side
+  // filtering is the producer-level fence.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle<{ id: string }>()
+    : { data: null };
+  const profileId = profile?.id ?? null;
+  // No producer profile (artist-only user landing here by URL) →
+  // return an empty library, never another producer's catalogue.
+  if (!profileId) {
+    return (
+      <LibraryFilters
+        beats={[]}
+        servers={[]}
+        beatServers={{}}
+        now={new Date()}
+      />
+    );
+  }
+
   const [beatsRes, serversRes, membershipsRes] = await Promise.all([
     supabase
       .from("beats_with_stats")
       .select("*")
+      .eq("owner_id", profileId)
       .order("created_at", { ascending: false })
       .returns<BeatWithStatsRow[]>(),
     supabase
       .from("servers")
       .select("*")
+      .eq("owner_id", profileId)
       .order("created_at", { ascending: false })
       .returns<ServerRow[]>(),
     supabase
       .from("server_beats")
-      .select("beat_id, server_id")
+      .select("beat_id, server_id, servers!inner(owner_id)")
+      .eq("servers.owner_id", profileId)
       .returns<Array<{ beat_id: string; server_id: string }>>(),
   ]);
 
