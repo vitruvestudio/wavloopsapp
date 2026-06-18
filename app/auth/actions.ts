@@ -38,17 +38,32 @@ export type AuthRole = "producer" | "artist";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Resolve the public origin from the request's `origin` header,
- *  with NEXT_PUBLIC_SITE_URL as a fallback for deploys behind a
- *  proxy that strips the header. Localhost is the final fallback
- *  so dev never crashes on a missing env var. */
+/** Resolve the public origin from the request, in priority order:
+ *    1. `origin` header — present on most browser requests.
+ *    2. `x-forwarded-host` / `host` — Vercel and most reverse
+ *       proxies inject these even when Origin is absent (server-
+ *       to-server hops, some Safari iOS form posts).
+ *    3. `NEXT_PUBLIC_SITE_URL` env var — last-resort runtime
+ *       config for when the request has no host info at all.
+ *    4. Localhost — dev fallback so a missing env var never
+ *       crashes the page.
+ *
+ *  Without the x-forwarded-host step, Safari mobile form posts
+ *  occasionally fell through to NEXT_PUBLIC_SITE_URL and — when
+ *  the env var hadn't propagated to the running build — all the
+ *  way to localhost. That manifested as a "can't reach the
+ *  server" screen after the Google OAuth redirect bounced back. */
 async function resolveOrigin(): Promise<string> {
   const h = await headers();
-  return (
-    h.get("origin") ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    "http://localhost:3000"
-  );
+
+  const origin = h.get("origin");
+  if (origin) return origin;
+
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (host) return `${proto}://${host}`;
+
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
 
 /** Build the callback URL Supabase embeds in the magic-link email.
