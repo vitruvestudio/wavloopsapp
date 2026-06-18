@@ -20,7 +20,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { BeatRow, type BeatRowAction } from "@/components/app/BeatRow";
 import { Avatar } from "@/components/ui/Avatar";
@@ -36,21 +36,38 @@ import type {
   ContactRow,
   ServerWithStatsRow,
 } from "@/lib/supabase/database.types";
+import { UploadModal } from "@/components/app/UploadModal";
 import { AddBeatsModal } from "./AddBeatsModal";
 import {
   addArtistsToServerAction,
   addBeatsToServerAction,
+  approveAccessRequestAction,
+  declineAccessRequestAction,
 } from "./actions";
 import { AddArtistsModal } from "./AddArtistsModal";
 import { AddContactModal } from "../../contacts/AddContactModal";
 import type { ServerStub } from "../../contacts/page";
 
-type Tab = "beats" | "artists";
+type Tab = "beats" | "artists" | "requests";
+
+/** Shape of a pending access request rendered in the Requests tab. */
+export interface PendingRequest {
+  /** ISO timestamp of when the row landed in server_contacts. */
+  requestedAt: string;
+  contact: ContactRow;
+}
 
 interface ServerDetailPageProps {
   server: ServerWithStatsRow;
   beats: BeatWithStatsRow[];
-  contacts: ContactRow[];
+  /** Granted memberships for this server. Each entry pairs the
+   *  contact with the moment they got access (server_contacts.
+   *  granted_at), so the Artists tab can show "ENTERED" relative
+   *  to per-server grant rather than the contact's first_seen_at. */
+  contacts: Array<{ contact: ContactRow; grantedAt: string }>;
+  /** Pending access requests for this server. Only ever non-empty
+   *  on private servers — public claims auto-grant. */
+  pending: PendingRequest[];
   likesCount: number;
   userId: string;
   /** Full producer library — populates the Add beats modal. */
@@ -67,27 +84,82 @@ export function ServerDetailPage({
   server,
   beats,
   contacts,
+  pending,
   likesCount,
   library,
   allServers,
   addressBook,
 }: ServerDetailPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const player = usePlayer();
   const supabase = React.useMemo(() => createClient(), []);
-  const [tab, setTab] = React.useState<Tab>("beats");
+  // Initial tab honors ?tab=… so notification deeplinks land on the
+  // right pane (notably ?tab=requests from the bell). Falls back to
+  // "beats" for the default route.
+  const initialTab: Tab = ((): Tab => {
+    const raw = searchParams.get("tab");
+    return raw === "artists" || raw === "requests" ? raw : "beats";
+  })();
+  const [tab, setTab] = React.useState<Tab>(initialTab);
   const [copied, setCopied] = React.useState(false);
   const [addBeatsOpen, setAddBeatsOpen] = React.useState(false);
   const [addBeatsPending, startAddBeats] = React.useTransition();
+  /** Upload modal — surfaced from inside AddBeatsModal when the
+   *  producer wants to upload a fresh beat instead of picking from
+   *  the existing library. AddBeats closes first so the modals
+   *  don't stack. */
+  const [uploadOpen, setUploadOpen] = React.useState(false);
   /** "Pick from address book" modal — the default flow. */
   const [addArtistsOpen, setAddArtistsOpen] = React.useState(false);
   const [addArtistsPending, startAddArtists] = React.useTransition();
   /** "Create new contact" modal — opened from inside the picker
    *  when the artist isn't in the address book yet. */
   const [createContactOpen, setCreateContactOpen] = React.useState(false);
+  /** In-flight contact id for approve/decline so the row buttons
+   *  show their spinner and disable while the action runs. The
+   *  action authoritatively writes — UI just reflects status. */
+  const [pendingActionId, setPendingActionId] = React.useState<
+    string | null
+  >(null);
+  const [, startAccessRequest] = React.useTransition();
+
+  const approveRequest = (contactId: string) => {
+    setPendingActionId(contactId);
+    startAccessRequest(async () => {
+      const result = await approveAccessRequestAction(
+        server.id,
+        contactId,
+        server.slug,
+      );
+      setPendingActionId(null);
+      if (result.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const declineRequest = (contactId: string) => {
+    setPendingActionId(contactId);
+    startAccessRequest(async () => {
+      const result = await declineAccessRequestAction(
+        server.id,
+        contactId,
+        server.slug,
+      );
+      setPendingActionId(null);
+      if (result.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
 
   const existingContactIds = React.useMemo(
-    () => new Set(contacts.map((c) => c.id)),
+    () => new Set(contacts.map((c) => c.contact.id)),
     [contacts],
   );
 
@@ -148,6 +220,51 @@ export function ServerDetailPage({
   React.useEffect(() => {
     setArtistUrlOpenable(`${window.location.origin}/s/${server.slug}`);
   }, [server.slug]);
+
+  /* Realtime — push refreshes when artists like / listen on this
+     server. Mirrors the LibraryFilters subscription but scopes
+     to this server_id to skip refreshes for activity elsewhere.
+     Debounce 300ms groups bursts (play + like) into one refresh.
+     RLS scopes the channel to rows on the producer's servers so
+     the filter is a perf-only optimisation, not a security one.
+
+     Requires Realtime + REPLICA IDENTITY FULL on listens + likes
+     (added via earlier ad-hoc SQL — see migration #23 pattern for
+     notifications). */
+  React.useEffect(() => {
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => router.refresh(), 300);
+    };
+    const channel = supabase
+      .channel(`server-engagement-${server.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "listens",
+          filter: `server_id=eq.${server.id}`,
+        },
+        refresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "likes",
+          filter: `server_id=eq.${server.id}`,
+        },
+        refresh,
+      )
+      .subscribe();
+    return () => {
+      if (pending) clearTimeout(pending);
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, router, server.id]);
 
   const copyLink = React.useCallback(async () => {
     try {
@@ -319,6 +436,8 @@ export function ServerDetailPage({
           onChange={setTab}
           beatsCount={beats.length}
           artistsCount={contacts.length}
+          pendingCount={pending.length}
+          showRequests={server.visibility === "private"}
           right={
             tab === "beats" ? (
               <Button
@@ -329,7 +448,7 @@ export function ServerDetailPage({
               >
                 Add beats
               </Button>
-            ) : (
+            ) : tab === "artists" ? (
               <div className="flex items-center" style={{ gap: 8 }}>
                 <Button
                   variant="ghost"
@@ -349,7 +468,7 @@ export function ServerDetailPage({
                   Add artist
                 </Button>
               </div>
-            )
+            ) : null
           }
         />
 
@@ -366,11 +485,19 @@ export function ServerDetailPage({
             onPlay={playBeat}
             actionsFor={actionsFor}
           />
-        ) : (
+        ) : tab === "artists" ? (
           <ArtistsTab
             contacts={contacts}
             now={now}
             onAdd={() => setAddArtistsOpen(true)}
+          />
+        ) : (
+          <RequestsTab
+            pending={pending}
+            now={now}
+            pendingActionId={pendingActionId}
+            onApprove={approveRequest}
+            onDecline={declineRequest}
           />
         )}
       </div>
@@ -416,8 +543,16 @@ export function ServerDetailPage({
           }}
           onConfirm={addBeats}
           pending={addBeatsPending}
+          onUploadRequest={() => {
+            setAddBeatsOpen(false);
+            setUploadOpen(true);
+          }}
         />
       )}
+      <UploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+      />
       {addArtistsOpen && (
         <AddArtistsModal
           serverName={server.name}
@@ -571,17 +706,32 @@ function Tabs({
   onChange,
   beatsCount,
   artistsCount,
+  pendingCount,
+  showRequests,
   right,
 }: {
   value: Tab;
   onChange: (v: Tab) => void;
   beatsCount: number;
   artistsCount: number;
+  pendingCount: number;
+  /** Only private servers get the Requests tab — public claims
+   *  auto-grant, so the tab would always be empty + irrelevant. */
+  showRequests: boolean;
   right: React.ReactNode;
 }) {
   const items: Array<{ value: Tab; label: string; count: number }> = [
     { value: "beats", label: "Beats", count: beatsCount },
     { value: "artists", label: "Artists", count: artistsCount },
+    ...(showRequests
+      ? [
+          {
+            value: "requests" as Tab,
+            label: "Requests",
+            count: pendingCount,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -682,7 +832,7 @@ function ArtistsTab({
   now,
   onAdd,
 }: {
-  contacts: ContactRow[];
+  contacts: Array<{ contact: ContactRow; grantedAt: string }>;
   now: Date;
   onAdd: () => void;
 }) {
@@ -739,7 +889,12 @@ function ArtistsTab({
 
       {/* Existing contacts */}
       {contacts.map((c) => (
-        <ContactRowItem key={c.id} contact={c} now={now} />
+        <ContactRowItem
+          key={c.contact.id}
+          contact={c.contact}
+          grantedAt={c.grantedAt}
+          now={now}
+        />
       ))}
     </div>
   );
@@ -747,9 +902,14 @@ function ArtistsTab({
 
 function ContactRowItem({
   contact,
+  grantedAt,
   now,
 }: {
   contact: ContactRow;
+  /** When this contact got access to THIS server. Used for the
+   *  "ENTERED" sub-line so the producer sees per-server grant
+   *  time rather than the contact's global first_seen_at. */
+  grantedAt: string;
   now: Date;
 }) {
   const [hovered, setHovered] = React.useState(false);
@@ -786,7 +946,7 @@ function ContactRowItem({
           className="t-mono-s truncate"
           style={{ color: "var(--fg-3)", marginTop: 3 }}
         >
-          {[contact.phone, `ENTERED ${fmtAgo(contact.first_seen_at, now)}`]
+          {[contact.phone, `ENTERED ${fmtAgo(grantedAt, now)}`]
             .filter(Boolean)
             .join(" · ")}
         </div>
@@ -816,6 +976,137 @@ function ContactRowItem({
         >
           <Icon name="mail" size={15} />
         </a>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   RequestsTab — pending access requests for a private server.
+   Producer can Approve (UPDATE status='granted') or Decline
+   (DELETE) per row. Empty state explains the tab when there's
+   nothing pending.
+   ============================================================ */
+
+function RequestsTab({
+  pending,
+  now,
+  pendingActionId,
+  onApprove,
+  onDecline,
+}: {
+  pending: PendingRequest[];
+  now: Date;
+  pendingActionId: string | null;
+  onApprove: (contactId: string) => void;
+  onDecline: (contactId: string) => void;
+}) {
+  if (pending.length === 0) {
+    return (
+      <EmptyTabState
+        icon="bell"
+        title="No pending requests"
+        body="When artists request access through your server link, they'll show up here for review."
+      />
+    );
+  }
+  return (
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      {pending.map((p) => (
+        <RequestRowItem
+          key={p.contact.id}
+          contact={p.contact}
+          requestedAt={p.requestedAt}
+          now={now}
+          working={pendingActionId === p.contact.id}
+          onApprove={() => onApprove(p.contact.id)}
+          onDecline={() => onDecline(p.contact.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RequestRowItem({
+  contact,
+  requestedAt,
+  now,
+  working,
+  onApprove,
+  onDecline,
+}: {
+  contact: ContactRow;
+  requestedAt: string;
+  now: Date;
+  working: boolean;
+  onApprove: () => void;
+  onDecline: () => void;
+}) {
+  // Surface the first social handle stored on the contact (the
+  // gate form collects this on private servers — it's the
+  // producer's vetting hook).
+  const socialEntries = Object.entries(contact.socials ?? {}).filter(
+    ([, v]) => Boolean(v),
+  );
+  return (
+    <div
+      className="flex items-center"
+      style={{
+        gap: 14,
+        padding: "14px 16px",
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--border-1)",
+        background: "var(--bg-1)",
+      }}
+    >
+      <Avatar
+        name={contact.name ?? contact.email}
+        src={contact.avatar_url}
+        size={40}
+      />
+      <div className="min-w-0 flex-1">
+        <div
+          className="truncate"
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 14.5,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {contact.email}
+        </div>
+        <div
+          className="t-mono-s truncate"
+          style={{ color: "var(--fg-3)", marginTop: 3 }}
+        >
+          {[
+            ...socialEntries.map(
+              ([k, v]) => `${k.toUpperCase()} ${v}`,
+            ),
+            `REQUESTED ${fmtAgo(requestedAt, now)}`,
+          ].join(" · ")}
+        </div>
+      </div>
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDecline}
+          disabled={working}
+          className="!h-[36px]"
+        >
+          Decline
+        </Button>
+        <Button
+          icon="check"
+          size="sm"
+          onClick={onApprove}
+          disabled={working}
+          className="!h-[36px]"
+        >
+          {working ? "…" : "Approve"}
+        </Button>
       </div>
     </div>
   );

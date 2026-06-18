@@ -38,6 +38,11 @@ interface MagicLinkScreenProps {
   sentEmail: string;
   initialError: string;
   next: string;
+  /** True when the user arrived here from a gate-form submit. The
+   *  SentState swaps in a "request submitted" framing so the artist
+   *  understands why they got a sign-in mail in addition to having
+   *  asked for access. */
+  requested: boolean;
 }
 
 export function MagicLinkScreen({
@@ -45,6 +50,7 @@ export function MagicLinkScreen({
   sentEmail,
   initialError,
   next,
+  requested,
 }: MagicLinkScreenProps) {
   const [state, formAction, pending] = useActionState<
     AuthState | null,
@@ -134,7 +140,7 @@ export function MagicLinkScreen({
           }}
         >
           {sent && sentEmail ? (
-            <SentState email={sentEmail} />
+            <SentState email={sentEmail} requested={requested} />
           ) : (
             <FormState
               formAction={formAction}
@@ -252,7 +258,13 @@ function FormState({
    SentState — "Check your inbox" confirmation.
    ============================================================ */
 
-function SentState({ email }: { email: string }) {
+function SentState({
+  email,
+  requested,
+}: {
+  email: string;
+  requested: boolean;
+}) {
   return (
     <div className="text-center">
       <div
@@ -266,7 +278,7 @@ function SentState({ email }: { email: string }) {
           margin: "0 auto 18px",
         }}
       >
-        <Icon name="mail" size={28} />
+        <Icon name={requested ? "check" : "mail"} size={28} />
       </div>
       <h1
         style={{
@@ -279,20 +291,38 @@ function SentState({ email }: { email: string }) {
           marginBottom: 10,
         }}
       >
-        Check your inbox
+        {requested ? "Request submitted" : "Check your inbox"}
       </h1>
-      <p
-        className="t-body"
-        style={{
-          color: "var(--fg-3)",
-          marginBottom: 18,
-          lineHeight: 1.55,
-        }}
-      >
-        We sent a sign-in link to{" "}
-        <strong style={{ color: "var(--fg-1)" }}>{email}</strong>. Tap
-        it on this device to land back in Wavloops.
-      </p>
+      {requested ? (
+        <p
+          className="t-body"
+          style={{
+            color: "var(--fg-3)",
+            marginBottom: 18,
+            lineHeight: 1.55,
+          }}
+        >
+          Your access request was sent to the producer. To finalize,{" "}
+          <strong style={{ color: "var(--fg-1)" }}>confirm your
+          email</strong>{" "}
+          by clicking the sign-in link we just sent to{" "}
+          <strong style={{ color: "var(--fg-1)" }}>{email}</strong>.
+          You&apos;ll get notified once they approve.
+        </p>
+      ) : (
+        <p
+          className="t-body"
+          style={{
+            color: "var(--fg-3)",
+            marginBottom: 18,
+            lineHeight: 1.55,
+          }}
+        >
+          We sent a sign-in link to{" "}
+          <strong style={{ color: "var(--fg-1)" }}>{email}</strong>. Tap
+          it on this device to land back in Wavloops.
+        </p>
+      )}
       <p
         className="t-body-s"
         style={{ color: "var(--fg-4)", marginBottom: 20 }}

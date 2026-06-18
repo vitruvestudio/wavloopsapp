@@ -42,6 +42,11 @@ interface AddBeatsModalProps {
   onConfirm: (selectedBeatIds: string[]) => void | Promise<void>;
   /** Submit-button spinner state. */
   pending?: boolean;
+  /** Optional. When provided, the modal shows an "Upload a beat"
+   *  CTA. Producer can pivot from "pick existing" to "create new"
+   *  without leaving the server context — parent closes this
+   *  modal and opens its UploadModal in the same gesture. */
+  onUploadRequest?: () => void;
 }
 
 export function AddBeatsModal({
@@ -51,6 +56,7 @@ export function AddBeatsModal({
   onClose,
   onConfirm,
   pending,
+  onUploadRequest,
 }: AddBeatsModalProps) {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [search, setSearch] = React.useState("");
@@ -210,6 +216,7 @@ export function AddBeatsModal({
             <EmptyList
               hasAny={available.length > 0}
               hasQuery={search.length > 0}
+              onUploadRequest={onUploadRequest}
             />
           ) : (
             <div className="flex flex-col" style={{ gap: 2 }}>
@@ -235,9 +242,40 @@ export function AddBeatsModal({
           className="flex items-center justify-between border-t border-border-1"
           style={{ padding: "14px 18px", gap: 12 }}
         >
-          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
-            {selected.size} SELECTED
-          </span>
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+              {selected.size} SELECTED
+            </span>
+            {onUploadRequest && (
+              <>
+                <span
+                  aria-hidden
+                  style={{
+                    width: 1,
+                    height: 18,
+                    background: "var(--border-1)",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={onUploadRequest}
+                  disabled={pending}
+                  className="t-mono-s inline-flex items-center cursor-pointer"
+                  style={{
+                    gap: 6,
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--accent-text)",
+                    letterSpacing: "0.08em",
+                    padding: 0,
+                  }}
+                >
+                  <Icon name="upload" size={13} />
+                  UPLOAD A BEAT
+                </button>
+              </>
+            )}
+          </div>
           <div className="flex items-center" style={{ gap: 8 }}>
             <Button
               variant="ghost"
@@ -269,18 +307,22 @@ export function AddBeatsModal({
 function EmptyList({
   hasAny,
   hasQuery,
+  onUploadRequest,
 }: {
   hasAny: boolean;
   hasQuery: boolean;
+  onUploadRequest?: () => void;
 }) {
   let title = "No beats to add";
   let body = "Every beat in your library is already in this server.";
+  let showUpload = false;
   if (hasQuery) {
     title = "No matches";
     body = "Nothing in your library matches that search.";
   } else if (!hasAny) {
     title = "Your library is empty";
-    body = "Upload a beat from the library page, then come back here.";
+    body = "Upload your first beat and add it to this server in one go.";
+    showUpload = true;
   }
   return (
     <div
@@ -305,6 +347,29 @@ function EmptyList({
       <div className="t-body" style={{ color: "var(--fg-3)" }}>
         {body}
       </div>
+      {showUpload && onUploadRequest && (
+        <button
+          type="button"
+          onClick={onUploadRequest}
+          className="inline-flex items-center cursor-pointer transition-colors duration-fast"
+          style={{
+            marginTop: 14,
+            gap: 8,
+            padding: "10px 18px",
+            height: 40,
+            borderRadius: "var(--r-md)",
+            border: "none",
+            background: "var(--accent)",
+            color: "#fff",
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          <Icon name="upload" size={14} />
+          Upload a beat
+        </button>
+      )}
     </div>
   );
 }

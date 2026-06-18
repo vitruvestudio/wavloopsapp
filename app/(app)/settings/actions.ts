@@ -105,3 +105,52 @@ export async function updateProfileAction(
   revalidatePath("/", "layout");
   return { error: null };
 }
+
+/* ============================================================
+   Phase 3.9.7.2 — producer notification preferences.
+   Persisted to profiles.notif_prefs (JSONB). Senders and DB
+   triggers read this column to gate in-app rows + emails.
+   ============================================================ */
+
+export interface ProducerNotifPrefs {
+  access_request: boolean;
+  likes: boolean;
+  comments: boolean;
+  email: boolean;
+  push: boolean;
+}
+
+export interface UpdateNotifPrefsResult {
+  error: string | null;
+}
+
+export async function updateProducerNotifPrefsAction(
+  prefs: ProducerNotifPrefs,
+): Promise<UpdateNotifPrefsResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You're not signed in. Refresh and try again." };
+  }
+
+  // Coerce to a clean payload — silently drop unexpected keys so a
+  // tampered client can't sneak arbitrary JSON into the column.
+  const payload = {
+    access_request: !!prefs.access_request,
+    likes: !!prefs.likes,
+    comments: !!prefs.comments,
+    email: !!prefs.email,
+    push: !!prefs.push,
+  };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ notif_prefs: payload })
+    .eq("user_id", user.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/settings", "page");
+  return { error: null };
+}

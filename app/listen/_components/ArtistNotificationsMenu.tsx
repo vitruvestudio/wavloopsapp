@@ -21,8 +21,10 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { createClient } from "@/lib/supabase/client";
 import type {
   ArtistNotificationRow,
 } from "../_data";
@@ -53,7 +55,8 @@ export function ArtistNotificationsMenu({
   open,
   onClose,
 }: ArtistNotificationsMenuProps) {
-  const { notifications } = useArtistContext();
+  const router = useRouter();
+  const { viewer, notifications } = useArtistContext();
   // Local override so MARK ALL READ is instant — the action that
   // persists the update lands with the BeatNoteModal / comments
   // wiring in a follow-up commit.
@@ -64,6 +67,62 @@ export function ArtistNotificationsMenu({
     setItems(notifications.items);
   }, [notifications.items]);
   const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Realtime — new notification rows for THIS recipient land in
+  // the artist's bell live (no manual refresh). Mirror of the
+  // producer-side ProducerNotificationsMenu subscription. We
+  // refresh the layout so the badge count + viewer context stay
+  // in sync across the rest of the shell.
+  // Realtime — best-effort live INSERT subscription. Observed
+  // unreliable on the artist's session in dev (the producer-side
+  // sub works fine with identical wiring; suspect JWT / WS auth
+  // quirk on Supabase Free Realtime). Kept as the fast path
+  // because when it works it's instant; failures are covered by
+  // the polling + visibilitychange handlers below.
+  React.useEffect(() => {
+    if (!viewer?.userId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`artist-notifs-${viewer.userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_user_id=eq.${viewer.userId}`,
+        },
+        () => router.refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [viewer?.userId, router]);
+
+  // Polling fallback — every 30s, pull fresh server data so a
+  // missed realtime event doesn't leave the bell stale forever.
+  // Cheap RSC re-render; no per-user network connection involved.
+  React.useEffect(() => {
+    const id = window.setInterval(() => router.refresh(), 30_000);
+    return () => window.clearInterval(id);
+  }, [router]);
+
+  // Catch-up on tab focus — visibilitychange re-fetches so notifs
+  // that landed while the tab was asleep / offline are picked up
+  // as soon as the artist comes back. Cheap + complements the
+  // polling for the "user just came back" case where 30s is
+  // perceptually too long.
+  React.useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [router]);
 
   // Click-outside closes — defer attaching the listener one tick so
   // the opening click on the bell button doesn't immediately fire it.

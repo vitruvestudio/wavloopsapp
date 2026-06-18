@@ -17,36 +17,62 @@
  *   - Server name (big display)
  *   - "N beats from @handle. Request access to listen." sub
  *   - Producer's social icons
- *   - Form: email + required social handle
- *   - "Request access" CTA
+ *   - Form: email (hidden when already signed in) + optional social
+ *   - "Get access" / "Request access" CTA
  *   - Footer: manual-approval line + "POWERED BY WAVLOOPS · NO
  *     ACCOUNT NEEDED"
  *
- * Submission is a stub for this pass — alerts the artist that the
- * request was received and emails the producer. The real
- * insert-into-server_contacts + producer-notification flow lands
- * next.
+ * Submission is wired to requestGateAccessAction (Phase 3.8):
+ *   - already authed → claim_server_access RPC in-line → redirect
+ *     straight to /listen/<slug>
+ *   - not authed → magic-link with claim=<slug> embedded → user
+ *     lands on /auth/magic?sent=1 confirmation
+ *
+ * The social field is collected but not yet persisted — that lands
+ * with the producer-notification flow in 3.9.
  */
 
 "use client";
 
 import * as React from "react";
+import { useActionState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 import { PLATFORM_ICON } from "@/lib/socials";
+import {
+  requestGateAccessAction,
+  type AuthState,
+} from "@/app/auth/actions";
 import type { ArtistGateData } from "./page";
 
 interface ArtistGatePageProps {
   data: ArtistGateData;
+  /** Email of the currently-authed user, or null. Drives the
+   *  "signed in as" header + hides the email field. */
+  viewerEmail: string | null;
+  /** Membership the authed viewer has on this server, if any.
+   *   - 'pending'  → already requested; show the success card
+   *                  instead of the form (the auth/callback
+   *                  redirects here after a private-server claim).
+   *   - 'granted'  → already a member; show a "you're in" card
+   *                  with a Listen CTA.
+   *   - null       → no membership row; show the form. */
+  viewerMembershipStatus: "pending" | "granted" | null;
 }
 
-export function ArtistGatePage({ data }: ArtistGatePageProps) {
+export function ArtistGatePage({
+  data,
+  viewerEmail,
+  viewerMembershipStatus,
+}: ArtistGatePageProps) {
   const [email, setEmail] = React.useState("");
   const [social, setSocial] = React.useState("");
-  const [submitted, setSubmitted] = React.useState(false);
-  const [submitting, setSubmitting] = React.useState(false);
+  const [state, formAction, pending] = useActionState<
+    AuthState | null,
+    FormData
+  >(requestGateAccessAction, null);
 
   const producerHandle =
     data.producer_handle ?? data.producer_name ?? "the producer";
@@ -58,19 +84,14 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
   // handle to vet the artist. Public servers auto-join → no friction,
   // social is optional.
   const socialRequired = data.visibility === "private";
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || submitting) return;
-    if (socialRequired && !social.trim()) return;
-    setSubmitting(true);
-    // Stub — real submission lands next. We fake the network so the
-    // success state feels real.
-    window.setTimeout(() => {
-      setSubmitting(false);
-      setSubmitted(true);
-    }, 450);
-  };
+  const isAuthed = !!viewerEmail;
+  // Disable submit until the form has the inputs the action will
+  // accept. Authed users skip the email check (action reads their
+  // session); social is still optional / required per visibility.
+  const submitDisabled =
+    pending ||
+    (!isAuthed && !email.trim()) ||
+    (socialRequired && !social.trim());
 
   const socialEntries = Object.entries(data.producer_socials ?? {}).filter(
     ([k, v]) => v && PLATFORM_ICON[k],
@@ -226,77 +247,137 @@ export function ArtistGatePage({ data }: ArtistGatePageProps) {
               naturally before the form. */}
         <ProducerBlock data={data} />
 
-        {/* Form or success card */}
-        {submitted ? (
-          <SuccessCard
-            handle={handleAt}
-            visibility={data.visibility}
-          />
+        {/* Membership-state short-circuit. When the artist already
+                has a row in server_contacts for this server, we skip
+                the form entirely:
+                - pending → "Request submitted" card (private claim
+                            redirected here from /auth/callback)
+                - granted → "You're in" card with a Listen CTA. */}
+        {viewerMembershipStatus === "pending" ? (
+          <MembershipPendingCard handle={handleAt} />
+        ) : viewerMembershipStatus === "granted" ? (
+          <MembershipGrantedCard slug={data.slug} handle={handleAt} />
         ) : (
-          <form
-            onSubmit={submit}
-            className="flex flex-col w-full"
-            style={{ gap: 14, marginTop: 6 }}
-          >
+        <form
+          action={formAction}
+          className="flex flex-col w-full"
+          style={{ gap: 14, marginTop: 6 }}
+        >
+          <input type="hidden" name="slug" value={data.slug} />
+
+          {isAuthed ? (
+            // "Signed in as" label replaces the email field — the
+            // action picks up the user from the session.
+            <div
+              className="flex items-center"
+              style={{
+                gap: 10,
+                padding: "12px 14px",
+                borderRadius: "var(--r-md)",
+                background: "oklch(1 0 0 / 0.06)",
+                border: "1px solid oklch(1 0 0 / 0.12)",
+              }}
+            >
+              <Icon
+                name="check"
+                size={16}
+                style={{ color: "oklch(0.8 0.18 145)" }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  className="t-mono-s"
+                  style={{
+                    color: "oklch(0.6 0.02 270)",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  SIGNED IN AS
+                </div>
+                <div
+                  className="truncate"
+                  style={{
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  {viewerEmail}
+                </div>
+              </div>
+            </div>
+          ) : (
             <GateField
               label="EMAIL"
               icon="mail"
               type="email"
+              name="email"
               value={email}
               onChange={setEmail}
               placeholder="you@email.com"
               required
             />
-            <GateField
-              label={
-                socialRequired
-                  ? "SOCIAL — REQUIRED"
-                  : "SOCIAL — OPTIONAL"
-              }
-              icon="link"
-              value={social}
-              onChange={setSocial}
-              placeholder="@handle (Instagram, X…)"
-              required={socialRequired}
-            />
-            <button
-              type="submit"
-              disabled={
-                !email.trim() ||
-                (socialRequired && !social.trim()) ||
-                submitting
-              }
-              className="inline-flex items-center justify-center cursor-pointer transition-all duration-fast"
+          )}
+          <GateField
+            label={
+              socialRequired
+                ? "SOCIAL — REQUIRED"
+                : "SOCIAL — OPTIONAL"
+            }
+            icon="link"
+            name="social"
+            value={social}
+            onChange={setSocial}
+            placeholder="@handle (Instagram, X…)"
+            required={socialRequired}
+          />
+
+          {state?.error && (
+            <div
+              role="alert"
+              className="t-body-s"
               style={{
-                gap: 10,
-                marginTop: 4,
-                padding: "14px 18px",
-                height: 50,
-                width: "100%",
+                padding: "10px 14px",
                 borderRadius: "var(--r-md)",
-                border: "none",
-                background: "var(--accent)",
-                color: "#fff",
-                fontFamily: "var(--font-body)",
-                fontSize: 15,
-                fontWeight: 600,
-                letterSpacing: 0,
-                opacity:
-                  !email.trim() ||
-                  (socialRequired && !social.trim()) ||
-                  submitting
-                    ? 0.5
-                    : 1,
+                background: "oklch(0.55 0.2 25 / 0.16)",
+                border: "1px solid oklch(0.6 0.22 25 / 0.5)",
+                color: "oklch(0.92 0.14 25)",
               }}
             >
-              {submitting
-                ? "Sending request…"
-                : data.visibility === "private"
-                  ? "Request access"
-                  : "Get access"}
-              {!submitting && <Icon name="arrow-right" size={16} />}
-            </button>
-          </form>
+              {state.error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitDisabled}
+            className="inline-flex items-center justify-center cursor-pointer transition-all duration-fast"
+            style={{
+              gap: 10,
+              marginTop: 4,
+              padding: "14px 18px",
+              height: 50,
+              width: "100%",
+              borderRadius: "var(--r-md)",
+              border: "none",
+              background: "var(--accent)",
+              color: "#fff",
+              fontFamily: "var(--font-body)",
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: 0,
+              opacity: submitDisabled ? 0.5 : 1,
+            }}
+          >
+            {pending
+              ? isAuthed
+                ? "Getting you in…"
+                : "Sending link…"
+              : data.visibility === "private"
+                ? "Request access"
+                : "Get access"}
+            {!pending && <Icon name="arrow-right" size={16} />}
+          </button>
+        </form>
         )}
 
         {/* Footer */}
@@ -684,6 +765,7 @@ function BeatMosaic({ data }: { data: ArtistGateData }) {
 function GateField({
   label,
   icon,
+  name,
   value,
   onChange,
   placeholder,
@@ -692,6 +774,8 @@ function GateField({
 }: {
   label: string;
   icon: IconName;
+  /** Form input name — required for server-action FormData pickup. */
+  name: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
@@ -726,6 +810,7 @@ function GateField({
           style={{ color: "oklch(0.6 0.02 270)" }}
         />
         <input
+          name={name}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -743,24 +828,25 @@ function GateField({
   );
 }
 
-/* ============================================================
-   SuccessCard
-   ============================================================ */
+/* SuccessCard removed in Phase 3.8 — submission now triggers a
+   real server action that redirects to /auth/magic?sent=1 (magic-
+   link branch) or directly to /listen/<slug> (already-authed
+   branch).
 
-function SuccessCard({
-  handle,
-  visibility,
-}: {
-  handle: string;
-  visibility: "public" | "private";
-}) {
+   Phase 3.8.5 re-introduces two membership-state cards rendered
+   in place of the form when the viewer already has a row in
+   server_contacts for this server. They cover the post-claim
+   redirect from /auth/callback (pending) and the legitimate
+   re-visit by a granted artist who clicked the share link again. */
+
+function MembershipPendingCard({ handle }: { handle: string }) {
   return (
     <div
       className="flex flex-col items-center text-center w-full"
       style={{
         gap: 10,
         marginTop: 4,
-        padding: "22px 18px",
+        padding: "26px 22px",
         borderRadius: "var(--r-md)",
         background: "oklch(1 0 0 / 0.06)",
         border: "1px solid oklch(0.6 0.16 145 / 0.5)",
@@ -769,36 +855,114 @@ function SuccessCard({
       <div
         className="flex items-center justify-center"
         style={{
-          width: 48,
-          height: 48,
+          width: 52,
+          height: 52,
           borderRadius: "50%",
           background: "oklch(0.55 0.18 145 / 0.18)",
           color: "oklch(0.8 0.18 145)",
           marginBottom: 4,
         }}
       >
-        <Icon name="check" size={22} />
+        <Icon name="check" size={24} />
       </div>
       <div
         style={{
           fontFamily: "var(--font-body)",
-          fontSize: 17,
+          fontSize: 18,
           fontWeight: 600,
           color: "#fff",
         }}
       >
-        {visibility === "private"
-          ? "Request sent"
-          : "You're in"}
+        Request submitted
       </div>
       <div
         className="t-body-s"
-        style={{ color: "oklch(0.7 0.02 270)", lineHeight: 1.5 }}
+        style={{
+          color: "oklch(0.72 0.02 270)",
+          lineHeight: 1.55,
+          maxWidth: 320,
+        }}
       >
-        {visibility === "private"
-          ? `${handle} reviews these manually. You'll get an email as soon as they approve.`
-          : `${handle} just emailed you a private link to listen. Check your inbox.`}
+        {`${handle} reviews access requests manually. You'll get an email as soon as they approve, then you can come back here to listen.`}
       </div>
+    </div>
+  );
+}
+
+function MembershipGrantedCard({
+  slug,
+  handle,
+}: {
+  slug: string;
+  handle: string;
+}) {
+  return (
+    <div
+      className="flex flex-col items-center text-center w-full"
+      style={{
+        gap: 12,
+        marginTop: 4,
+        padding: "26px 22px",
+        borderRadius: "var(--r-md)",
+        background: "oklch(1 0 0 / 0.06)",
+        border: "1px solid oklch(0.6 0.16 270 / 0.5)",
+      }}
+    >
+      <div
+        className="flex items-center justify-center"
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: "var(--accent-surface)",
+          color: "var(--accent-text)",
+          marginBottom: 4,
+        }}
+      >
+        <Icon name="check" size={24} />
+      </div>
+      <div
+        style={{
+          fontFamily: "var(--font-body)",
+          fontSize: 18,
+          fontWeight: 600,
+          color: "#fff",
+        }}
+      >
+        You&apos;re in
+      </div>
+      <div
+        className="t-body-s"
+        style={{
+          color: "oklch(0.72 0.02 270)",
+          lineHeight: 1.55,
+          maxWidth: 320,
+        }}
+      >
+        {`${handle} approved your access. Head to the server to listen.`}
+      </div>
+      <a
+        href={`/listen/${slug}`}
+        className="inline-flex items-center justify-center cursor-pointer transition-all duration-fast"
+        style={{
+          gap: 10,
+          marginTop: 6,
+          padding: "12px 18px",
+          height: 46,
+          minWidth: 200,
+          borderRadius: "var(--r-md)",
+          border: "none",
+          background: "var(--accent)",
+          color: "#fff",
+          fontFamily: "var(--font-body)",
+          fontSize: 15,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        Open server
+        <Icon name="arrow-right" size={16} />
+      </a>
     </div>
   );
 }

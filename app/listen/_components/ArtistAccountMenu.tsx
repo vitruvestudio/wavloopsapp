@@ -86,7 +86,11 @@ export function ArtistAccountMenu() {
         >
           @{viewer.handle.toUpperCase()}
         </span>
-        <Avatar name={viewer.handle} size={28} />
+        <Avatar
+          name={viewer.handle}
+          src={viewer.avatarUrl}
+          size={28}
+        />
       </button>
 
       {open && (
@@ -114,7 +118,11 @@ export function ArtistAccountMenu() {
               marginBottom: 6,
             }}
           >
-            <Avatar name={viewer.handle} size={36} />
+            <Avatar
+              name={viewer.handle}
+              src={viewer.avatarUrl}
+              size={36}
+            />
             <div className="min-w-0">
               <div
                 className="t-title truncate"

@@ -12,6 +12,8 @@
  */
 
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { PendingApprovalView } from "../_components/PendingApprovalView";
 import { ServerView } from "../_components/ServerView";
 import type {
   ArtistServerView,
@@ -31,9 +33,61 @@ interface PageProps {
 export default async function ArtistServerPage({ params }: PageProps) {
   const { slug } = await params;
   const view = await loadServerView(slug);
-  if (!view) notFound();
-  const { producer, server } = adapt(view);
-  return <ServerView producer={producer} server={server} />;
+  if (view) {
+    const { producer, server } = adapt(view);
+    return <ServerView producer={producer} server={server} />;
+  }
+  // loadServerView returned null — could be a real "no such server"
+  // OR the artist has a pending request the RLS chain (rightly)
+  // filters out. Distinguish so a pending visitor sees a friendly
+  // waiting state instead of a misleading 404.
+  return await resolveFallback(slug);
+}
+
+/** When the artist can't read the server through RLS, fall back
+ *  to a SECURITY DEFINER lookup. If a pending row exists for THIS
+ *  user, render the waiting screen; otherwise 404. */
+async function resolveFallback(slug: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) notFound();
+
+  // RLS helper 3b lets the artist read their own server_contacts
+  // rows — pending or granted. If a pending row exists, we know
+  // this slug maps to a server the artist already requested.
+  const { data: serverByGate } = await supabase.rpc(
+    "get_server_for_gate",
+    { p_slug: slug },
+  );
+  const gate = (
+    serverByGate as Array<{
+      id?: string;
+      name?: string;
+      producer_handle?: string | null;
+      producer_name?: string | null;
+      producer_avatar_url?: string | null;
+    }> | null
+  )?.[0];
+  if (!gate?.id) notFound();
+
+  const { data: membership } = await supabase
+    .from("server_contacts")
+    .select("status")
+    .eq("server_id", gate.id)
+    .maybeSingle<{ status: "pending" | "granted" }>();
+  if (membership?.status !== "pending") notFound();
+
+  return (
+    <PendingApprovalView
+      serverName={gate.name ?? "this server"}
+      producerHandle={
+        gate.producer_handle ?? gate.producer_name ?? "the producer"
+      }
+      producerAvatarUrl={gate.producer_avatar_url ?? null}
+    />
+  );
 }
 
 /** Maps the loadServerView shape onto ServerView's MockProducer /
@@ -84,6 +138,12 @@ function beatToMock(b: ArtistServerViewBeat): MockBeat {
     coverUrl: b.coverUrl ?? undefined,
     audioUrl: b.audioUrl ?? undefined,
     isNew: b.isNew,
+    // Thread the note state so BeatRow can derive noteVisibility
+    // ("shared" → accent chip + dot, "private" → bg-2 chip,
+    // null → empty). Dropping these means the message icon
+    // always reads as "no note" even after refresh.
+    noteBody: b.noteBody,
+    latestCommentBody: b.latestCommentBody,
   };
 }
 

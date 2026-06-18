@@ -20,9 +20,11 @@
 
 import * as React from "react";
 import { AccountMenu } from "@/components/app/AccountMenu";
+import { ProducerNotificationsMenu } from "@/components/app/ProducerNotificationsMenu";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { useProducerNotifications } from "@/app/(app)/_components/ProducerContext";
 
 import { useTheme } from "@/lib/use-theme";
 
@@ -33,6 +35,8 @@ interface TopBarProps {
 
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { theme, toggle } = useTheme();
+  const { unreadCount } = useProducerNotifications();
+  const [notifsOpen, setNotifsOpen] = React.useState(false);
 
   return (
     <header
@@ -114,15 +118,61 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         className="rounded-pill"
       />
 
-      {/* notifications */}
-      <IconButton
-        name="bell"
-        size={40}
-        iconSize={18}
-        label="Notifications"
-        dot
-        className="rounded-pill"
-      />
+      {/* notifications — bell + numbered badge + dropdown. Custom
+              button (vs the IconButton primitive) so the badge can
+              render a real unread count instead of just a dot.
+              Mirrors the artist-side ArtistTopbar bell pattern so
+              the two surfaces read as the same product. */}
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          aria-label={
+            unreadCount > 0
+              ? `Notifications (${unreadCount} unread)`
+              : "Notifications"
+          }
+          aria-haspopup="dialog"
+          aria-expanded={notifsOpen}
+          onClick={() => setNotifsOpen((v) => !v)}
+          className="relative inline-flex items-center justify-center cursor-pointer rounded-pill transition-colors duration-fast"
+          style={{
+            width: 40,
+            height: 40,
+            border: "none",
+            background: notifsOpen ? "var(--bg-2)" : "transparent",
+            color: "var(--fg-2)",
+          }}
+        >
+          <Icon name="bell" size={18} />
+          {unreadCount > 0 && (
+            <span
+              aria-hidden
+              className="absolute inline-flex items-center justify-center"
+              style={{
+                top: 4,
+                right: 4,
+                minWidth: 18,
+                height: 18,
+                padding: "0 5px",
+                borderRadius: 999,
+                background: "var(--accent)",
+                color: "#fff",
+                fontFamily: "var(--font-mono)",
+                fontSize: 11,
+                fontWeight: 700,
+                border: "2px solid var(--bg-0)",
+                lineHeight: 1,
+              }}
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+        <ProducerNotificationsMenu
+          open={notifsOpen}
+          onClose={() => setNotifsOpen(false)}
+        />
+      </div>
 
       {/* account pill + dropdown (Account / Settings / Upgrade / Log out) */}
       <AccountMenu />

@@ -1,0 +1,77 @@
+<!--
+  Wavloops — Supabase Auth Magic Link template.
+
+  Paste this HTML into:
+    Supabase Dashboard → Authentication → Email Templates → "Magic Link"
+
+  Suggested Subject:
+    Sign in to Wavloops
+
+  Brand stack (best-effort — strip-and-fallback in non-supporting clients):
+    Display : Unbounded
+    Body    : Hanken Grotesk
+    Mono    : JetBrains Mono
+    Accent  : #2b25ff
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+</style>
+
+<div style="background:#f5f5f7;padding:40px 16px;font-family:'Hanken Grotesk','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="560" style="max-width:560px;width:100%;margin:0 auto;background:#ffffff;border-radius:18px;border:1px solid #ececef;overflow:hidden;">
+
+    <!-- Logo header — real Wavloops wordmark from public/Photos.
+            URL hardcoded to the prod origin since this template is
+            saved server-side in Supabase Dashboard and doesn't have
+            access to NEXT_PUBLIC_SITE_URL. Update if your prod host
+            changes. -->
+    <tr>
+      <td style="padding:28px 32px 0;">
+        <a href="https://wavloops.co" style="text-decoration:none;border:none;">
+          <img src="https://wavloops.co/Photos/Logo%20Wavloop.co%20-%201.png" alt="Wavloops" width="160" style="display:block;border:0;height:auto;max-width:160px;">
+        </a>
+      </td>
+    </tr>
+
+    <!-- Hero + CTA -->
+    <tr>
+      <td style="padding:36px 32px 12px;">
+        <h1 style="margin:0 0 16px;color:#0c0c0e;font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;">
+          Sign in to Wavloops
+        </h1>
+        <p style="margin:0 0 28px;color:#5e5e6a;font-size:15px;line-height:1.55;">
+          Tap the button to land back in Wavloops. The link is single-use and expires in 60&nbsp;minutes.
+        </p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="border-radius:12px;background:#2b25ff;">
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 26px;color:#ffffff;font-family:'Hanken Grotesk','Inter',sans-serif;font-size:15px;font-weight:600;text-decoration:none;">
+                Sign in &nbsp;&rarr;
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Or paste link -->
+    <tr>
+      <td style="padding:28px 32px 24px;">
+        <div style="font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e98;line-height:1.7;word-break:break-all;">
+          Or paste this link &middot;
+          <a href="{{ .ConfirmationURL }}" style="color:#2b25ff;text-decoration:none;">{{ .ConfirmationURL }}</a>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="padding:16px 32px 24px;background:#fafafb;border-top:1px solid #ececef;">
+        <p style="margin:0;color:#8e8e98;font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;line-height:1.7;">
+          Sent to {{ .Email }} because a sign-in link was requested on Wavloops
+        </p>
+      </td>
+    </tr>
+
+  </table>
+</div>

@@ -58,13 +58,15 @@ export default async function ServerPage({ params }: PageProps) {
     // Contacts attached to THIS server, via the server_contacts
     // pivot (post-migration #7 contacts are owner-scoped, not
     // server-scoped). Each row is a contact + its membership
-    // metadata; we flatten in JS below.
+    // metadata; we flatten in JS below. status='granted' only —
+    // pending rows surface in the separate Requests tab.
     supabase
       .from("server_contacts")
       .select(
         "granted_at, contacts!inner(id, owner_id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at)",
       )
       .eq("server_id", server.id)
+      .eq("status", "granted")
       .order("granted_at", { ascending: false })
       .returns<
         Array<{ granted_at: string; contacts: ContactRow | null }>
@@ -116,15 +118,51 @@ export default async function ServerPage({ params }: PageProps) {
       .filter((b): b is BeatWithStatsRow => Boolean(b));
   }
 
-  const contacts: ContactRow[] = (contactsRes.data ?? [])
-    .map((r) => r.contacts)
-    .filter((c): c is ContactRow => c !== null);
+  // Pair each granted contact with the moment they got access to
+  // THIS server (server_contacts.granted_at). The contact-level
+  // first_seen_at is when they first entered the producer's
+  // address book — which may pre-date their access to this
+  // specific server. The Artists tab cares about the per-server
+  // grant time, so we thread granted_at through.
+  const contacts: Array<{ contact: ContactRow; grantedAt: string }> = (
+    contactsRes.data ?? []
+  )
+    .filter(
+      (r): r is { granted_at: string; contacts: ContactRow } =>
+        r.contacts !== null && r.granted_at !== null,
+    )
+    .map((r) => ({ contact: r.contacts, grantedAt: r.granted_at }));
+
+  // Pending access requests for this server — drives the Requests
+  // tab on the producer page. Always fetched (cheap with the
+  // server_contacts_pending_idx partial index) so the Requests tab
+  // can show its count badge regardless of which tab is active.
+  const { data: pendingRows } = await supabase
+    .from("server_contacts")
+    .select(
+      "requested_at, contacts!inner(id, owner_id, email, name, phone, socials, avatar_url, first_seen_at, last_active_at)",
+    )
+    .eq("server_id", server.id)
+    .eq("status", "pending")
+    .order("requested_at", { ascending: false })
+    .returns<
+      Array<{ requested_at: string; contacts: ContactRow | null }>
+    >();
+  const pending: Array<{ requestedAt: string; contact: ContactRow }> = (
+    pendingRows ?? []
+  )
+    .filter(
+      (r): r is { requested_at: string; contacts: ContactRow } =>
+        r.contacts !== null,
+    )
+    .map((r) => ({ requestedAt: r.requested_at, contact: r.contacts }));
 
   return (
     <ServerDetailPage
       server={server}
       beats={orderedBeats}
       contacts={contacts}
+      pending={pending}
       likesCount={likesCountRes.count ?? 0}
       userId={userRes.data.user?.id ?? ""}
       library={libraryRes.data ?? []}

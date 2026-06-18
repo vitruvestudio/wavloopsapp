@@ -23,7 +23,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -53,10 +53,25 @@ interface ContactsPageProps {
 
 export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = React.useState("");
   const [serverFilter, setServerFilter] = React.useState<string | "all">("all");
   const [sort, setSort] = React.useState<SortKey>("engagement");
   const [addOpen, setAddOpen] = React.useState(false);
+
+  // Quick-add deeplink: the sidebar's "Add an artist" item navigates
+  // here with ?add=1 to auto-open the AddContactModal. We strip the
+  // param after picking it up so a refresh doesn't re-open the modal
+  // and the URL stays clean for shareability.
+  React.useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setAddOpen(true);
+      const cleaned = new URLSearchParams(searchParams.toString());
+      cleaned.delete("add");
+      const qs = cleaned.toString();
+      router.replace(qs ? `/contacts?${qs}` : "/contacts", { scroll: false });
+    }
+  }, [searchParams, router]);
   const [importOpen, setImportOpen] = React.useState(false);
   /** Contact currently being edited via the row action menu — null
    *  when no edit modal is open. Stored as VM (what the page knows

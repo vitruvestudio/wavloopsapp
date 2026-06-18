@@ -9,10 +9,12 @@
  *
  * Header differs from the producer's PageHeader: per Theo's
  * screenshot the artist Settings uses a back arrow + "Settings"
- * title + a top-right "Save changes" button instead. Save action
- * is a Phase 1 stub — flashes a one-shot "Saved" state so the
- * affordance reads correctly without needing the persistence to
- * land yet.
+ * title + a top-right "Save changes" button instead.
+ *
+ * Phase 3.7 — state is initialized from the server-fetched
+ * artist_profiles row (parent /settings/page.tsx) and persisted
+ * via updateArtistProfileAction. Avatar upload lands in a
+ * follow-up commit.
  */
 
 "use client";
@@ -24,9 +26,20 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { ARTIST } from "../_mock";
+import { updateArtistProfileAction } from "../actions";
+import type { ArtistNotifPrefs } from "../_data";
 
 type TabKey = "profile" | "notifications";
+
+export interface ArtistSettingsInitial {
+  email: string;
+  displayName: string;
+  bio: string;
+  socials: Record<string, string>;
+  notifPrefs: ArtistNotifPrefs;
+  /** Public URL of the artist's avatar, or null if none set yet. */
+  avatarUrl: string | null;
+}
 
 /** Inputs for the SOCIAL LINKS card. Order + icons mirror the
  *  artist gate page's social chips. Same row pattern as the
@@ -45,36 +58,96 @@ const SOCIAL_FIELDS: ReadonlyArray<{
 
 const BIO_MAX = 180;
 
-export function ArtistSettingsPage() {
+export function ArtistSettingsPage({
+  initial,
+}: {
+  initial: ArtistSettingsInitial;
+}) {
   const router = useRouter();
   const [tab, setTab] = React.useState<TabKey>("profile");
   const [savedFlash, setSavedFlash] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isPending, startTransition] = React.useTransition();
 
   // ── Profile tab state ────────────────────────────────────────
-  const [displayName, setDisplayName] = React.useState(ARTIST.name);
-  const [bio, setBio] = React.useState(
-    "Vocalist & topliner. R&B / melodic. Always looking for dark, emotional beats.",
+  const [displayName, setDisplayName] = React.useState(initial.displayName);
+  const [bio, setBio] = React.useState(initial.bio);
+  const [socials, setSocials] = React.useState<Record<string, string>>(
+    initial.socials,
   );
-  const [socials, setSocials] = React.useState<Record<string, string>>({
-    instagram: "@juno215",
-  });
 
   // ── Notifications tab state ──────────────────────────────────
-  const [prefs, setPrefs] = React.useState<Record<string, boolean>>({
-    new_beats: true,
-    added_to_server: true,
-    producer_reactions: false,
-    email: true,
-    push: false,
-  });
+  const [prefs, setPrefs] = React.useState<ArtistNotifPrefs>(
+    initial.notifPrefs,
+  );
 
-  const togglePref = (key: string) =>
+  const togglePref = (key: keyof ArtistNotifPrefs) =>
     setPrefs((cur) => ({ ...cur, [key]: !cur[key] }));
 
+  // ── Avatar state ─────────────────────────────────────────────
+  // avatarDataUrl holds the new pick as base64 (sent to the action),
+  // avatarCleared marks an explicit Remove. avatarPreview is what the
+  // <Avatar src> renders right now — pick wins over stored URL, and
+  // Clear wins over both. Pattern mirrors producer SettingsPage.
+  const [avatarDataUrl, setAvatarDataUrl] = React.useState<string | null>(
+    null,
+  );
+  const [avatarCleared, setAvatarCleared] = React.useState(false);
+  const avatarPreview = avatarCleared
+    ? null
+    : (avatarDataUrl ?? initial.avatarUrl);
+
+  const onPickAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    // Reset so re-picking the same file fires onChange again.
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setError("Profile photo must be an image (JPG, PNG, WEBP).");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Image is over 5 MB. Compress and try again.");
+      return;
+    }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarDataUrl(reader.result as string);
+      setAvatarCleared(false);
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const onClearAvatar = () => {
+    setAvatarDataUrl(null);
+    setAvatarCleared(true);
+  };
+
   const onSave = () => {
-    // Phase 1 stub — flash a "Saved" pulse on the button.
-    setSavedFlash(true);
-    window.setTimeout(() => setSavedFlash(false), 2000);
+    setError(null);
+    startTransition(async () => {
+      const res = await updateArtistProfileAction({
+        displayName,
+        bio,
+        socials,
+        notifPrefs: prefs,
+        avatarDataUrl,
+        clearAvatar: avatarCleared,
+      });
+      if (!res.ok) {
+        setError(res.error ?? "Could not save.");
+        return;
+      }
+      // Reset local avatar state so the next save uses the new
+      // server URL as baseline. router.refresh() pulls the fresh
+      // public URL from artist_profiles for the <Avatar src>.
+      setAvatarDataUrl(null);
+      setAvatarCleared(false);
+      router.refresh();
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 2000);
+    });
   };
 
   return (
@@ -117,12 +190,34 @@ export function ArtistSettingsPage() {
         </h1>
         <Button
           onClick={onSave}
-          icon={savedFlash ? "check" : "check"}
+          icon="check"
           variant="primary"
+          disabled={isPending}
         >
-          {savedFlash ? "Saved" : "Save changes"}
+          {isPending
+            ? "Saving…"
+            : savedFlash
+              ? "Saved"
+              : "Save changes"}
         </Button>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="t-body-s"
+          style={{
+            marginBottom: 18,
+            padding: "10px 14px",
+            borderRadius: "var(--r-md)",
+            background: "var(--danger-surface)",
+            color: "var(--danger)",
+            border: "1px solid var(--danger)",
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* ── Grid : left rail (220px) + tab content ─────────── */}
       <div
@@ -139,9 +234,16 @@ export function ArtistSettingsPage() {
             setBio={setBio}
             socials={socials}
             setSocials={setSocials}
+            avatarPreview={avatarPreview}
+            onPickAvatar={onPickAvatar}
+            onClearAvatar={onClearAvatar}
           />
         ) : (
-          <NotificationsTab prefs={prefs} togglePref={togglePref} />
+          <NotificationsTab
+            email={initial.email}
+            prefs={prefs}
+            togglePref={togglePref}
+          />
         )}
       </div>
     </main>
@@ -254,6 +356,9 @@ interface ProfileTabProps {
   setBio: (v: string) => void;
   socials: Record<string, string>;
   setSocials: (next: Record<string, string>) => void;
+  avatarPreview: string | null;
+  onPickAvatar: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearAvatar: () => void;
 }
 
 function ProfileTab({
@@ -263,6 +368,9 @@ function ProfileTab({
   setBio,
   socials,
   setSocials,
+  avatarPreview,
+  onPickAvatar,
+  onClearAvatar,
 }: ProfileTabProps) {
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -276,27 +384,45 @@ function ProfileTab({
           How producers see you when you join their servers.
         </p>
 
-        {/* Avatar + Upload photo */}
+        {/* Avatar + Change / Remove — Change relabels Upload when
+                no photo is set yet so the affordance reads right. */}
         <div
           className="flex items-center"
           style={{ gap: 18, marginBottom: 22, flexWrap: "wrap" }}
         >
-          <Avatar name={ARTIST.handle} size={64} />
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="upload"
-            onClick={() => avatarInputRef.current?.click()}
-            className="!h-[36px]"
-          >
-            Upload photo
-          </Button>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
+          <Avatar
+            name={displayName || "Artist"}
+            src={avatarPreview}
+            size={64}
           />
+          <div className="flex items-center" style={{ gap: 6 }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="upload"
+              onClick={() => avatarInputRef.current?.click()}
+              className="!h-[36px]"
+            >
+              {avatarPreview ? "Change" : "Upload photo"}
+            </Button>
+            {avatarPreview && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearAvatar}
+                className="!h-[36px]"
+              >
+                Remove
+              </Button>
+            )}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickAvatar}
+            />
+          </div>
         </div>
 
         {/* Hairline */}
@@ -429,7 +555,7 @@ function ProfileTab({
    ============================================================ */
 
 const ACTIVITY_PREFS: ReadonlyArray<{
-  key: string;
+  key: keyof ArtistNotifPrefs;
   icon: IconName;
   title: string;
   body: string;
@@ -454,33 +580,29 @@ const ACTIVITY_PREFS: ReadonlyArray<{
   },
 ];
 
-const CHANNEL_PREFS: ReadonlyArray<{
-  key: string;
-  icon: IconName;
-  title: string;
-  body: string;
-}> = [
-  {
-    key: "email",
-    icon: "mail",
-    title: "Email",
-    body: ARTIST.email,
-  },
-  {
-    key: "push",
-    icon: "bell",
-    title: "Push notifications",
-    body: "In-app and browser push",
-  },
-];
-
 function NotificationsTab({
+  email,
   prefs,
   togglePref,
 }: {
-  prefs: Record<string, boolean>;
-  togglePref: (key: string) => void;
+  email: string;
+  prefs: ArtistNotifPrefs;
+  togglePref: (key: keyof ArtistNotifPrefs) => void;
 }) {
+  const channelPrefs: ReadonlyArray<{
+    key: keyof ArtistNotifPrefs;
+    icon: IconName;
+    title: string;
+    body: string;
+  }> = [
+    { key: "email", icon: "mail", title: "Email", body: email || "—" },
+    {
+      key: "push",
+      icon: "bell",
+      title: "Push notifications",
+      body: "In-app and browser push",
+    },
+  ];
   return (
     <div className="flex flex-col" style={{ gap: 18 }}>
       <SectionCard
@@ -500,7 +622,7 @@ function NotificationsTab({
         kicker="CHANNELS"
         title="How you're notified"
       >
-        <PrefList items={CHANNEL_PREFS} prefs={prefs} onToggle={togglePref} />
+        <PrefList items={channelPrefs} prefs={prefs} onToggle={togglePref} />
       </SectionCard>
     </div>
   );
@@ -512,13 +634,13 @@ function PrefList({
   onToggle,
 }: {
   items: ReadonlyArray<{
-    key: string;
+    key: keyof ArtistNotifPrefs;
     icon: IconName;
     title: string;
     body: string;
   }>;
-  prefs: Record<string, boolean>;
-  onToggle: (key: string) => void;
+  prefs: ArtistNotifPrefs;
+  onToggle: (key: keyof ArtistNotifPrefs) => void;
 }) {
   return (
     <div className="flex flex-col">

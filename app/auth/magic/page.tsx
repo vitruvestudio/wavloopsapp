@@ -10,6 +10,9 @@
  *   ?next=<path>  → carried into the form so the post-auth redirect
  *                   lands the user where they came from
  *   ?error=<msg>  → pre-fill the form's error slot (from callback)
+ *   ?requested=1  → came from a gate-form submit. SentState shows
+ *                   "request was also submitted" copy alongside
+ *                   the standard "check your inbox" message.
  */
 
 import type { Metadata } from "next";
@@ -36,6 +39,7 @@ export default async function MagicLinkPage({
       sentEmail={first("email")}
       initialError={first("error")}
       next={first("next") || "/listen"}
+      requested={first("requested") === "1"}
     />
   );
 }

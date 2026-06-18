@@ -29,7 +29,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { usePlayer } from "@/components/app/PlayerContext";
 import { Avatar } from "@/components/ui/Avatar";
@@ -65,7 +65,12 @@ interface BeatDetailPageProps {
   /** Server-fetched shared notes from beat_comments — replaces
    *  the prior feedback constant. */
   feedback: ReadonlyArray<FeedbackItem>;
+  /** Aggregated audience: unique listeners count, top fan, like
+   *  pills, and the per-contact listened table. */
+  audience: Audience;
 }
+
+import type { Audience, AudienceRow } from "./page";
 
 type Tab = "audience" | "feedback" | "edit";
 
@@ -77,6 +82,9 @@ interface FeedbackItem {
   artistHandle: string;
   /** Used as the avatar seed when no upload exists yet. */
   artistSeed: string;
+  /** Public URL of the artist's uploaded avatar. Falls back to
+   *  initials when null. */
+  artistAvatarUrl: string | null;
   body: string;
   /** Pre-computed relative-time string ("3 D AGO"). */
   ago: string;
@@ -86,6 +94,7 @@ export function BeatDetailPage({
   beat,
   servers,
   feedback,
+  audience,
 }: BeatDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
@@ -120,7 +129,17 @@ export function BeatDetailPage({
     };
   }, [supabase, router, beat.id]);
 
-  const [tab, setTab] = React.useState<Tab>("audience");
+  const searchParams = useSearchParams();
+  // ?tab=audience|feedback|edit honored at mount so notification
+  // deeplinks (like → audience, comment → feedback) land on the
+  // right pane.
+  const initialBeatTab: Tab = ((): Tab => {
+    const raw = searchParams.get("tab");
+    return raw === "feedback" || raw === "edit" || raw === "audience"
+      ? raw
+      : "audience";
+  })();
+  const [tab, setTab] = React.useState<Tab>(initialBeatTab);
 
   /* ============================================================
      Playback — sign URL on demand, route through PlayerDock.
@@ -314,7 +333,7 @@ export function BeatDetailPage({
         />
 
         {tab === "audience" ? (
-          <AudienceTab beat={beat} servers={servers} />
+          <AudienceTab beat={beat} servers={servers} audience={audience} />
         ) : tab === "feedback" ? (
           <FeedbackTab feedback={feedback} />
         ) : (
@@ -509,9 +528,11 @@ function Tabs({
 function AudienceTab({
   beat,
   servers,
+  audience,
 }: {
   beat: BeatWithStatsRow;
   servers: ServerRow[];
+  audience: Audience;
 }) {
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -532,8 +553,7 @@ function AudienceTab({
         <StatCard
           icon="users"
           label="UNIQUE LISTENERS"
-          value={0}
-          hint="V1.1"
+          value={audience.uniqueListeners}
         />
         <StatCard
           icon="server"
@@ -561,21 +581,331 @@ function AudienceTab({
         </div>
       )}
 
-      {/* Top fan / Who listened — comes with J6 once we have artist-side
-          listens + likes data. */}
+      {/* Two-column row: Top fan card on the left, "LIKED BY"
+              pills on the right. Stacks vertically under lg. */}
       <div
-        className="t-body"
+        className="grid grid-cols-1 lg:grid-cols-2"
+        style={{ gap: 18 }}
+      >
+        <TopFanBlock fan={audience.topFan} />
+        <LikedByBlock likers={audience.likedBy} />
+      </div>
+
+      <WhoListenedTable listeners={audience.listeners} />
+    </div>
+  );
+}
+
+/* ============================================================
+   TopFanBlock — highlight the contact with the most plays.
+   Shows the placeholder copy when nobody's listened yet so the
+   layout doesn't visibly collapse the moment a beat goes live.
+   ============================================================ */
+
+function TopFanBlock({ fan }: { fan: AudienceRow | null }) {
+  return (
+    <div>
+      <div
+        className="t-mono-s inline-flex items-center"
         style={{
-          padding: "32px 16px",
-          textAlign: "center",
-          color: "var(--fg-3)",
-          background: "var(--bg-1)",
-          border: "1px dashed var(--border-1)",
-          borderRadius: "var(--r-md)",
+          gap: 7,
+          color: "var(--accent-text)",
+          marginBottom: 10,
         }}
       >
-        Top fan + per-contact engagement land when the artist gate ships
-        (J6) — they need real listens/likes data flowing in first.
+        <Icon name="flame" size={12} />
+        TOP FAN
+      </div>
+      {!fan ? (
+        <div
+          className="t-body"
+          style={{
+            padding: "32px 18px",
+            textAlign: "center",
+            color: "var(--fg-3)",
+            background: "var(--bg-1)",
+            border: "1px dashed var(--border-1)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          No plays yet — the top fan card unlocks as soon as an artist
+          presses play.
+        </div>
+      ) : (
+        <Link
+          href={`/contacts/${fan.contactId}`}
+          className="block transition-colors duration-fast"
+          style={{ textDecoration: "none" }}
+        >
+          <div
+            className="border border-border-1 bg-bg-1"
+            style={{
+              padding: 18,
+              borderRadius: "var(--r-md)",
+            }}
+          >
+            <div className="flex items-center" style={{ gap: 14 }}>
+              <Avatar
+                name={fan.seed}
+                src={fan.avatarUrl}
+                size={44}
+              />
+              <div className="min-w-0 flex-1">
+                <div
+                  className="truncate"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "var(--fg-1)",
+                  }}
+                >
+                  {fan.handle}
+                </div>
+                <div
+                  className="t-mono-s truncate"
+                  style={{ color: "var(--fg-3)", marginTop: 3 }}
+                >
+                  {fan.email.toUpperCase()}
+                </div>
+              </div>
+            </div>
+            <div
+              aria-hidden
+              style={{
+                height: 1,
+                background: "var(--border-1)",
+                margin: "16px 0",
+              }}
+            />
+            <div className="flex items-end" style={{ gap: 24 }}>
+              <div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 28,
+                    color: "var(--fg-1)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {fan.plays}
+                </div>
+                <div
+                  className="t-mono-s"
+                  style={{ color: "var(--fg-3)", marginTop: 6 }}
+                >
+                  PLAYS
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 28,
+                    color: fan.liked ? "var(--accent-text)" : "var(--fg-1)",
+                    lineHeight: 1,
+                  }}
+                >
+                  {fan.liked ? "YES" : "NO"}
+                </div>
+                <div
+                  className="t-mono-s"
+                  style={{ color: "var(--fg-3)", marginTop: 6 }}
+                >
+                  LIKED
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   LikedByBlock — pill list of every contact who liked the beat.
+   ============================================================ */
+
+function LikedByBlock({ likers }: { likers: AudienceRow[] }) {
+  return (
+    <div>
+      <div
+        className="t-mono-s inline-flex items-center"
+        style={{
+          gap: 7,
+          color: "var(--accent-text)",
+          marginBottom: 10,
+        }}
+      >
+        <Icon name="heart" size={12} />
+        LIKED BY · {likers.length}
+      </div>
+      {likers.length === 0 ? (
+        <div
+          className="t-body"
+          style={{
+            padding: "32px 18px",
+            textAlign: "center",
+            color: "var(--fg-3)",
+            background: "var(--bg-1)",
+            border: "1px dashed var(--border-1)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          Nobody's liked this one yet.
+        </div>
+      ) : (
+        <div className="flex items-center flex-wrap" style={{ gap: 8 }}>
+          {likers.map((l) => (
+            <Link
+              key={l.contactId}
+              href={`/contacts/${l.contactId}`}
+              className="inline-flex items-center cursor-pointer transition-colors duration-fast"
+              style={{
+                gap: 8,
+                padding: "5px 12px 5px 5px",
+                borderRadius: 999,
+                background: "var(--bg-1)",
+                border: "1px solid var(--border-1)",
+                textDecoration: "none",
+              }}
+            >
+              <Avatar
+                name={l.seed}
+                src={l.avatarUrl}
+                size={26}
+              />
+              <span
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                {l.handle}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   WhoListenedTable — per-contact play count + liked flag.
+   ============================================================ */
+
+function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
+  return (
+    <div>
+      <div
+        className="t-mono-s inline-flex items-center"
+        style={{
+          gap: 7,
+          color: "var(--accent-text)",
+          marginBottom: 10,
+        }}
+      >
+        <Icon name="users" size={12} />
+        WHO LISTENED · {listeners.length}
+      </div>
+      <div
+        className="border border-border-1 bg-bg-1"
+        style={{ borderRadius: "var(--r-md)", overflow: "hidden" }}
+      >
+        {/* Header */}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 24px",
+            gap: 14,
+            padding: "12px 18px",
+            borderBottom: "1px solid var(--border-1)",
+            background: "var(--bg-2)",
+          }}
+        >
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>ARTIST</span>
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>CONTACT</span>
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>LIKED</span>
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>PLAYS</span>
+          <span />
+        </div>
+        {listeners.length === 0 ? (
+          <div
+            className="t-body"
+            style={{
+              padding: "32px 18px",
+              textAlign: "center",
+              color: "var(--fg-3)",
+            }}
+          >
+            No plays yet.
+          </div>
+        ) : (
+          listeners.map((l, i) => (
+            <Link
+              key={l.contactId}
+              href={`/contacts/${l.contactId}`}
+              className="grid items-center transition-colors duration-fast"
+              style={{
+                gridTemplateColumns:
+                  "minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 24px",
+                gap: 14,
+                padding: "14px 18px",
+                borderTop: i === 0 ? "none" : "1px solid var(--border-1)",
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <div className="flex items-center min-w-0" style={{ gap: 12 }}>
+                <Avatar name={l.seed} src={l.avatarUrl} size={32} />
+                <span
+                  className="truncate"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 14.5,
+                    fontWeight: 600,
+                    color: "var(--fg-1)",
+                  }}
+                >
+                  {l.handle}
+                </span>
+              </div>
+              <span
+                className="t-mono-s truncate"
+                style={{ color: "var(--fg-3)" }}
+              >
+                {l.email.toUpperCase()}
+              </span>
+              <span style={{ color: l.liked ? "var(--accent)" : "var(--fg-4)" }}>
+                <Icon
+                  name="heart"
+                  size={16}
+                  style={{
+                    fill: l.liked ? "var(--accent)" : "transparent",
+                  }}
+                />
+              </span>
+              <span
+                className="t-mono-s inline-flex items-center"
+                style={{ gap: 6, color: "var(--fg-2)" }}
+              >
+                <Icon name="play" size={12} />
+                {l.plays} PLAYS
+              </span>
+              <Icon
+                name="chevron-right"
+                size={16}
+                style={{ color: "var(--fg-4)" }}
+              />
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );
@@ -632,7 +962,11 @@ function FeedbackRow({ item }: { item: FeedbackItem }) {
         borderRadius: "var(--r-md)",
       }}
     >
-      <Avatar name={item.artistSeed} size={40} />
+      <Avatar
+        name={item.artistSeed}
+        src={item.artistAvatarUrl}
+        size={40}
+      />
       <div className="min-w-0 flex-1">
         <div
           className="flex items-center flex-wrap"

@@ -571,6 +571,7 @@ function withZeroStats(b: BeatRowT): BeatWithStatsRow {
     plays_count: 0,
     likes_count: 0,
     in_servers_count: 0,
+    comments_count: 0,
   };
 }
 

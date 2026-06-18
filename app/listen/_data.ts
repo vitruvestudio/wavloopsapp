@@ -189,11 +189,16 @@ export async function loadArtistContext(): Promise<ArtistContext | null> {
   // ── Producers (grouped from contacts) ───────────────────
   const producers: ArtistProducerLite[] = [];
   for (const c of contactsRes.data ?? []) {
-    const owner = (c as { owner?: ProducerRow }).owner;
+    // PostgREST returns embedded relationships as arrays even for
+    // 1:1 joins. The inferred types end up as arrays-of-fields-of-
+    // anys, which never overlap with our row interfaces. Funnel
+    // through `unknown` so the explicit shape we want sticks.
+    const owner = (c as unknown as { owner?: ProducerRow }).owner;
     if (!owner) continue;
     const servers: ArtistServerLite[] = [];
-    for (const sc of (c as { server_contacts?: ServerJoinRow[] })
-      .server_contacts ?? []) {
+    for (const sc of (
+      c as unknown as { server_contacts?: ServerJoinRow[] }
+    ).server_contacts ?? []) {
       const s = sc.server;
       if (!s) continue;
       servers.push({

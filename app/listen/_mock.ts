@@ -49,6 +49,17 @@ export interface MockBeat {
   audioUrl?: string;
   /** When true the beat shows up in the NEW filter. */
   isNew?: boolean;
+  /** Body of the artist's PRIVATE note for this beat (from
+   *  beat_notes), empty when none. Phase 3 wires this in via the
+   *  artist-side DAL so the message icon hydrates with the right
+   *  state on first render — without this the icon would only
+   *  light up after the artist re-opens the modal mid-session. */
+  noteBody?: string;
+  /** Most recent SHARED comment body for this beat (from
+   *  beat_comments). When non-empty, the message icon flips to
+   *  accent + blue dot — signalling "you sent feedback to the
+   *  producer on this one". */
+  latestCommentBody?: string;
 }
 
 export interface MockServer {

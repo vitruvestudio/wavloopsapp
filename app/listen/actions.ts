@@ -193,3 +193,101 @@ export async function saveBeatNoteAction(
   revalidatePath(`/listen/${slug}`);
   return { ok: true };
 }
+
+/* ============================================================
+   Artist profile — UPSERT artist_profiles from /listen/settings.
+   ============================================================ */
+
+export interface UpdateArtistProfilePayload {
+  displayName: string;
+  bio: string;
+  socials: Record<string, string>;
+  notifPrefs: {
+    new_beats: boolean;
+    added_to_server: boolean;
+    producer_reactions: boolean;
+    email: boolean;
+    push: boolean;
+  };
+  /** New avatar as a base64 data URL, OR null to keep the current
+   *  one. To clear the photo entirely, pass clearAvatar: true.
+   *  Mirrors the producer-side updateProfileAction shape. */
+  avatarDataUrl: string | null;
+  clearAvatar?: boolean;
+}
+
+const DATA_URL = /^data:([^;]+);base64,(.+)$/;
+
+/** Settings persistence — UPSERT keyed on user_id so the first
+ *  save creates the row and subsequent saves overwrite it.
+ *  Trims whitespace; empty strings collapse to null so the
+ *  loadArtistContext() email-local-part fallback can still kick
+ *  in on the next read. revalidates layout-wide because the
+ *  display_name flows into the producer-side Feedback tab too
+ *  via the artist_profiles join in beats/[id]/page.tsx. */
+export async function updateArtistProfileAction(
+  payload: UpdateArtistProfilePayload,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const displayName = payload.displayName.trim() || null;
+  const bio = payload.bio.trim() || null;
+  if (bio && bio.length > 180) {
+    return { ok: false, error: "Bio is over 180 characters." };
+  }
+
+  // Drop empty social entries so we don't store `{instagram: ""}`.
+  const socials: Record<string, string> = {};
+  for (const [k, v] of Object.entries(payload.socials ?? {})) {
+    const trimmed = v.trim();
+    if (trimmed) socials[k] = trimmed;
+  }
+
+  // Avatar handling — mirrors producer updateProfileAction.
+  // - new image given         → upload, get the public URL
+  // - clearAvatar=true given  → write null
+  // - neither (default)       → don't touch the field at all
+  let avatarUpdate: { avatar_url: string | null } | null = null;
+  if (payload.avatarDataUrl) {
+    const m = payload.avatarDataUrl.match(DATA_URL);
+    if (!m) return { ok: false, error: "Avatar image is invalid." };
+    const mime = m[1];
+    const ext = (mime.split("/")[1] ?? "png").replace(/[^a-z0-9]/gi, "");
+    const buffer = Buffer.from(m[2], "base64");
+    const path = `${user.id}/avatar.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, buffer, {
+        contentType: mime,
+        upsert: true,
+      });
+    if (uploadErr) {
+      return { ok: false, error: `Avatar upload failed: ${uploadErr.message}` };
+    }
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    avatarUpdate = { avatar_url: data.publicUrl };
+  } else if (payload.clearAvatar) {
+    avatarUpdate = { avatar_url: null };
+  }
+
+  const { error } = await supabase.from("artist_profiles").upsert(
+    {
+      user_id: user.id,
+      display_name: displayName,
+      bio,
+      socials,
+      notif_prefs: payload.notifPrefs,
+      ...(avatarUpdate ?? {}),
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

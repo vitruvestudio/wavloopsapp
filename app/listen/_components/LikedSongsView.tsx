@@ -250,7 +250,18 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
 
       {noteFor && (
         <BeatNoteModal
-          beat={noteFor.beat}
+          beat={{
+            ...noteFor.beat,
+            // MockBeat uses string | undefined for nullable URLs;
+            // ArtistServerViewBeat keeps string | null. Normalize
+            // here so the spread doesn't propagate the null.
+            coverUrl: noteFor.beat.coverUrl ?? undefined,
+            audioUrl: noteFor.beat.audioUrl ?? undefined,
+            // MockBeat surfaces commentCount; the artist view
+            // stores latestCommentBody (one preview row) instead.
+            // Mirror page.tsx's beatToMock conversion.
+            commentCount: noteFor.beat.latestCommentBody ? 1 : 0,
+          }}
           initialNote={notes[noteFor.beat.id]?.text ?? ""}
           initialVisibility={
             notes[noteFor.beat.id]?.visibility ?? "private"
@@ -365,7 +376,7 @@ function LikedRow({
             padding: 0,
           }}
         >
-          <CoverArt fill seed={beat.artSeed} src={beat.coverUrl} />
+          <CoverArt fill seed={beat.artSeed} src={beat.coverUrl ?? undefined} />
           <div
             className="absolute inset-0 flex items-center justify-center"
             style={{

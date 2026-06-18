@@ -68,11 +68,75 @@ export async function deleteBeatAction(id: string): Promise<ActionResult> {
   } = await supabase.auth.getUser();
   if (!user) return { error: "You're not signed in." };
 
-  // server_beats cascades on beat delete; the audio file in Storage
-  // will be cleaned up by a janitor cron post-launch.
+  // 1. Resolve storage paths BEFORE the row goes away. RLS scopes
+  // SELECT to the producer's own beats, so the lookup doubles as a
+  // soft ownership check — if the lookup returns nothing, the
+  // subsequent DELETE would also be a no-op.
+  const { data: beat } = await supabase
+    .from("beats")
+    .select("audio_url, artwork_url")
+    .eq("id", id)
+    .maybeSingle<{ audio_url: string | null; artwork_url: string | null }>();
+
+  // 2. Best-effort storage cleanup. We run these BEFORE the DB
+  // delete so a failure here doesn't leave the row in a half-
+  // deleted state. Errors are logged but never rolled back —
+  // an orphan file in storage is recoverable; a stuck row isn't.
+  if (beat?.audio_url) {
+    const { error: rmAudio } = await supabase.storage
+      .from("beat-audio")
+      .remove([beat.audio_url]);
+    if (rmAudio) {
+      console.warn(
+        "[deleteBeat] audio remove failed",
+        beat.audio_url,
+        rmAudio.message,
+      );
+    }
+  }
+  if (beat?.artwork_url) {
+    // artwork_url is persisted as a public URL (the upload flow
+    // calls getPublicUrl on the bucket and stores the result), so
+    // we strip the bucket-relative path back out before passing
+    // it to storage.remove(). If parsing fails we skip — better
+    // to leave a small orphan file than crash a delete.
+    const path = artworkPathFromUrl(beat.artwork_url);
+    if (path) {
+      const { error: rmArt } = await supabase.storage
+        .from("beat-covers")
+        .remove([path]);
+      if (rmArt) {
+        console.warn("[deleteBeat] artwork remove failed", path, rmArt.message);
+      }
+    }
+  }
+
+  // 3. DB delete — FK cascades clean server_beats, listens, likes,
+  // beat_notes, beat_comments. notifications use ON DELETE SET NULL
+  // so the artist's bell history survives the beat going away.
   const { error } = await supabase.from("beats").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath("/library", "page");
+  revalidatePath("/dashboard", "page");
+  // Artist surfaces see the beat disappear from server detail pages
+  // they had access to.
+  revalidatePath("/listen", "layout");
   redirect("/library");
+}
+
+/** Parse the bucket-relative path out of a Supabase storage public
+ *  URL. Format: ".../storage/v1/object/public/<bucket>/<path>".
+ *  Returns null when the input doesn't match — caller skips the
+ *  remove() rather than feeding storage a bad key. */
+function artworkPathFromUrl(url: string): string | null {
+  const marker = "/storage/v1/object/public/beat-covers/";
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  const path = url.slice(i + marker.length);
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }

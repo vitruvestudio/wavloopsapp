@@ -21,6 +21,21 @@ export interface ProfileRow {
   onboarded_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Producer notification preferences (added in migration #30).
+   *  Defaulted server-side so existing rows hydrate to the all-on
+   *  baseline; toggles persist via updateProducerNotifPrefsAction. */
+  notif_prefs: ProducerNotifPrefsJson;
+}
+
+/** Producer notification preferences stored as JSONB. Keys mirror
+ *  the notification kinds we ship for the producer's bell + the
+ *  delivery channels. */
+export interface ProducerNotifPrefsJson {
+  access_request: boolean;
+  likes: boolean;
+  comments: boolean;
+  email: boolean;
+  push: boolean;
 }
 
 export interface PlacementRecord {
@@ -92,6 +107,9 @@ export interface BeatWithStatsRow extends BeatRow {
   in_servers_count: number;
   plays_count: number;
   likes_count: number;
+  /** Count of shared comments left by artists on this beat. Added
+   *  in migration #31. Empty for cold beats nobody's commented on. */
+  comments_count: number;
 }
 
 export interface ServerBeatRow {

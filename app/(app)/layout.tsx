@@ -25,16 +25,22 @@
 
 import { AppShell } from "./_components/AppShell";
 import { ProducerContextProvider } from "./_components/ProducerContext";
-import { loadProducerViewer } from "./_data";
+import {
+  loadProducerNotifications,
+  loadProducerViewer,
+} from "./_data";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const viewer = await loadProducerViewer();
+  const [viewer, notifications] = await Promise.all([
+    loadProducerViewer(),
+    loadProducerNotifications(),
+  ]);
   return (
-    <ProducerContextProvider value={viewer}>
+    <ProducerContextProvider value={{ viewer, notifications }}>
       <AppShell>{children}</AppShell>
     </ProducerContextProvider>
   );

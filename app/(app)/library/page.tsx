@@ -26,6 +26,7 @@ import type {
   ServerRow,
 } from "@/lib/supabase/database.types";
 import { LibraryFilters } from "./LibraryFilters";
+import { UploadQuickAddSentinel } from "./UploadQuickAddSentinel";
 import { UploadTrigger } from "./UploadTrigger";
 
 export default async function LibraryPage() {
@@ -64,6 +65,10 @@ export default async function LibraryPage() {
 
   return (
     <>
+      {/* Sidebar Quick add → "Upload a beat" deeplinks here with
+              ?upload=1 — this sentinel auto-opens the picker once,
+              then strips the param. */}
+      <UploadQuickAddSentinel />
       <PageHeader
         title="Beat library"
         sub={`${list.length} BEAT${list.length === 1 ? "" : "S"} · ${compCount} COMPOSITION${compCount === 1 ? "" : "S"} · ${loopCount} LOOP${loopCount === 1 ? "" : "S"}`}

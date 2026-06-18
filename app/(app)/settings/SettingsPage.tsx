@@ -26,10 +26,15 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { TagInput } from "@/components/ui/TagInput";
 import type {
   PlacementRecord,
+  ProducerNotifPrefsJson,
   ProfileRow,
 } from "@/lib/supabase/database.types";
 import { signOutAction } from "@/app/auth/actions";
-import { updateProfileAction } from "./actions";
+import {
+  type ProducerNotifPrefs,
+  updateProducerNotifPrefsAction,
+  updateProfileAction,
+} from "./actions";
 
 type TabKey = "profile" | "account" | "notifications" | "billing";
 
@@ -102,7 +107,7 @@ export function SettingsPage({
               providers={providers}
             />
           ) : tab === "notifications" ? (
-            <NotificationsTab />
+            <NotificationsTab initialPrefs={profile?.notif_prefs} />
           ) : (
             <BillingTab />
           )}
@@ -930,101 +935,209 @@ function AccountRow({
    now; persistence lands when notification emails actually ship)
    ============================================================ */
 
-const NOTIF_PREFS: Array<{
-  key: string;
+/** Producer notification preferences — mirrors the artist
+ *  Settings layout (activity + channels groups) so the two
+ *  surfaces read as the same product. */
+const ACTIVITY_PREFS: Array<{
+  key: "access_request" | "likes" | "comments";
   icon: IconName;
   title: string;
   body: string;
-  defaultOn: boolean;
 }> = [
   {
-    key: "new_artist",
-    icon: "users",
-    title: "New artist entered a server",
-    body: "When someone unlocks one of your links",
-    defaultOn: true,
+    key: "access_request",
+    icon: "lock",
+    title: "New access request",
+    body: "When an artist requests access to a private server",
   },
   {
-    key: "beat_liked",
+    key: "likes",
     icon: "heart",
-    title: "Beat liked",
-    body: "When an artist likes one of your beats",
-    defaultOn: true,
+    title: "Artist liked a beat",
+    body: "Someone liked one of your uploads",
   },
   {
-    key: "product_news",
-    icon: "flame",
-    title: "Product news & tips",
-    body: "Occasional updates and producer tips",
-    defaultOn: false,
+    key: "comments",
+    icon: "message",
+    title: "Artist feedback",
+    body: "When an artist shares feedback on a beat",
   },
 ];
 
-function NotificationsTab() {
-  const [prefs, setPrefs] = React.useState<Record<string, boolean>>(() =>
-    Object.fromEntries(NOTIF_PREFS.map((p) => [p.key, p.defaultOn])),
-  );
-  const toggle = (key: string) =>
-    setPrefs((cur) => ({ ...cur, [key]: !cur[key] }));
+const CHANNEL_PREFS: Array<{
+  key: "email" | "push";
+  icon: IconName;
+  title: string;
+  body: string;
+}> = [
+  {
+    key: "email",
+    icon: "mail",
+    title: "Email",
+    body: "Send to your sign-in address",
+  },
+  {
+    key: "push",
+    icon: "bell",
+    title: "Push notifications",
+    body: "In-app and browser push (coming soon)",
+  },
+];
+
+const DEFAULT_PRODUCER_PREFS: ProducerNotifPrefs = {
+  access_request: true,
+  likes: true,
+  comments: true,
+  email: true,
+  push: false,
+};
+
+function NotificationsTab({
+  initialPrefs,
+}: {
+  initialPrefs: ProducerNotifPrefs | undefined;
+}) {
+  const [prefs, setPrefs] = React.useState<ProducerNotifPrefs>(() => ({
+    ...DEFAULT_PRODUCER_PREFS,
+    ...(initialPrefs ?? {}),
+  }));
+  const [savedFlash, setSavedFlash] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isPending, startTransition] = React.useTransition();
+
+  const togglePref = (key: keyof ProducerNotifPrefs) => {
+    // Compute next + roll-back snapshot BEFORE any state writes —
+    // React 19 forbids calling startTransition (and any other
+    // setState that could schedule work) from inside a setState
+    // updater, since the updater must stay pure.
+    const prev = prefs;
+    const next = { ...prev, [key]: !prev[key] };
+    setError(null);
+    setPrefs(next);
+    startTransition(async () => {
+      const result = await updateProducerNotifPrefsAction(next);
+      if (result.error) {
+        setError(result.error);
+        setPrefs(prev);
+        return;
+      }
+      setSavedFlash(true);
+      window.setTimeout(() => setSavedFlash(false), 1600);
+    });
+  };
 
   return (
-    <SectionCard kicker="NOTIFICATIONS" title="Email preferences">
-      <p
-        className="t-body"
-        style={{ color: "var(--fg-3)", marginBottom: 22 }}
-      >
-        Choose what lands in your inbox.
-      </p>
-      <div className="flex flex-col">
-        {NOTIF_PREFS.map((p, i) => (
+    <div className="flex flex-col" style={{ gap: 18 }}>
+      <SectionCard kicker="ACTIVITY" title="What you hear about">
+        <p
+          className="t-body"
+          style={{ color: "var(--fg-3)", marginBottom: 18 }}
+        >
+          Choose which artist activity reaches you. Off means no bell
+          row and no email.
+        </p>
+        <PrefList
+          items={ACTIVITY_PREFS}
+          prefs={prefs}
+          onToggle={togglePref}
+        />
+      </SectionCard>
+
+      <SectionCard kicker="CHANNELS" title="How you're notified">
+        <PrefList
+          items={CHANNEL_PREFS}
+          prefs={prefs}
+          onToggle={togglePref}
+        />
+      </SectionCard>
+
+      {(isPending || savedFlash || error) && (
+        <div
+          className="t-mono-s"
+          style={{
+            alignSelf: "flex-end",
+            color: error
+              ? "var(--danger)"
+              : savedFlash
+                ? "var(--accent-text)"
+                : "var(--fg-3)",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {error
+            ? error.toUpperCase()
+            : isPending
+              ? "SAVING…"
+              : "SAVED"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PrefList({
+  items,
+  prefs,
+  onToggle,
+}: {
+  items: ReadonlyArray<{
+    key: keyof ProducerNotifPrefs;
+    icon: IconName;
+    title: string;
+    body: string;
+  }>;
+  prefs: ProducerNotifPrefs;
+  onToggle: (key: keyof ProducerNotifPrefs) => void;
+}) {
+  return (
+    <div className="flex flex-col">
+      {items.map((p, i) => (
+        <div
+          key={p.key}
+          className="flex items-center"
+          style={{
+            gap: 14,
+            padding: "14px 0",
+            borderTop: i === 0 ? "none" : "1px solid var(--border-1)",
+          }}
+        >
           <div
-            key={p.key}
-            className="flex items-center"
+            className="flex items-center justify-center shrink-0 text-fg-2"
             style={{
-              gap: 14,
-              padding: "14px 0",
-              borderTop:
-                i === 0 ? "none" : "1px solid var(--border-1)",
+              width: 36,
+              height: 36,
+              borderRadius: "var(--r-sm)",
+              background: "var(--bg-2)",
             }}
           >
+            <Icon name={p.icon} size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
             <div
-              className="flex items-center justify-center shrink-0 text-fg-2"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: "var(--r-sm)",
-                background: "var(--bg-2)",
+                fontFamily: "var(--font-body)",
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: "var(--fg-1)",
               }}
             >
-              <Icon name={p.icon} size={16} />
+              {p.title}
             </div>
-            <div className="min-w-0 flex-1">
-              <div
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: 14.5,
-                  fontWeight: 600,
-                  color: "var(--fg-1)",
-                }}
-              >
-                {p.title}
-              </div>
-              <div
-                className="t-body-s"
-                style={{ color: "var(--fg-3)", marginTop: 3 }}
-              >
-                {p.body}
-              </div>
+            <div
+              className="t-body-s"
+              style={{ color: "var(--fg-3)", marginTop: 3 }}
+            >
+              {p.body}
             </div>
-            <Toggle
-              on={prefs[p.key]}
-              onChange={() => toggle(p.key)}
-              label={p.title}
-            />
           </div>
-        ))}
-      </div>
-    </SectionCard>
+          <Toggle
+            on={!!prefs[p.key]}
+            onChange={() => onToggle(p.key)}
+            label={p.title}
+          />
+        </div>
+      ))}
+    </div>
   );
 }
 

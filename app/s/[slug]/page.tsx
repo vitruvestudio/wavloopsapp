@@ -55,9 +55,14 @@ export default async function ArtistGateRoute({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
 
-  const rpcRes = await supabase.rpc("get_server_for_gate", {
-    p_slug: slug,
-  });
+  // Fetch gate data + current viewer in parallel. viewerEmail being
+  // non-null switches the gate form into "already signed in" mode —
+  // the email field is hidden and the action takes the in-line claim
+  // branch instead of sending a magic-link.
+  const [rpcRes, userRes] = await Promise.all([
+    supabase.rpc("get_server_for_gate", { p_slug: slug }),
+    supabase.auth.getUser(),
+  ]);
   // Supabase's type inference for RPC returns is conservative — cast
   // through unknown because the function declares `returns table (...)`
   // which is genuinely a row set even when it only ever holds one row.
@@ -66,7 +71,27 @@ export default async function ArtistGateRoute({ params }: PageProps) {
     notFound();
   }
 
-  return <ArtistGatePage data={rows[0]} />;
+  // Resolve the authed artist's membership status for this server.
+  // RLS helper 3b (artist_can_read_server_contact) lets the user
+  // read their own rows — pending or granted — so this query
+  // returns null when no contact / no membership exists yet.
+  let viewerMembershipStatus: "pending" | "granted" | null = null;
+  if (userRes.data.user) {
+    const { data: membership } = await supabase
+      .from("server_contacts")
+      .select("status")
+      .eq("server_id", rows[0].id)
+      .maybeSingle<{ status: "pending" | "granted" }>();
+    viewerMembershipStatus = membership?.status ?? null;
+  }
+
+  return (
+    <ArtistGatePage
+      data={rows[0]}
+      viewerEmail={userRes.data.user?.email ?? null}
+      viewerMembershipStatus={viewerMembershipStatus}
+    />
+  );
 }
 
 export async function generateMetadata({ params }: PageProps) {

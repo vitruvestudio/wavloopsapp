@@ -23,6 +23,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -188,17 +189,105 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   );
 }
 
+/** Inputs for the Quick add dropdown. Each item navigates with a
+ *  query param that the target page picks up to auto-open the
+ *  relevant modal — keeps the dropdown stateless and the modal
+ *  trigger logic colocated with the surface that owns the modal. */
+const QUICK_ADD_ITEMS: ReadonlyArray<{
+  href: string;
+  icon: IconName;
+  label: string;
+  sub: string;
+}> = [
+  {
+    href: "/servers/new",
+    icon: "server",
+    label: "New server",
+    sub: "CREATE A SHAREABLE FOLDER",
+  },
+  {
+    href: "/library?upload=1",
+    icon: "upload",
+    label: "Upload a beat",
+    sub: "ADD TO YOUR LIBRARY",
+  },
+  {
+    href: "/contacts?add=1",
+    icon: "users",
+    label: "Add an artist",
+    sub: "CREATE A NEW CONTACT",
+  },
+];
+
 function QuickAddButton({ collapsed }: { collapsed: boolean }) {
-  // V1: Quick add is a direct link to "Create a server" — the primary
-  // creation action. When we add more creation surfaces (upload beat,
-  // invite artist) we'll swap this for a dropdown menu.
+  const [open, setOpen] = React.useState(false);
+  const [anchor, setAnchor] = React.useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Position the menu relative to the trigger's viewport rect so
+  // `position: fixed` escapes the sidebar's overflow clipping. The
+  // sidebar caps its inner column at ~244px expanded / 76px
+  // collapsed, which is too narrow for a comfortable menu width —
+  // fixed positioning lets us float over the main content area.
+  const computeAnchor = React.useCallback(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    setAnchor({
+      top: rect.bottom + 8,
+      left: collapsed ? rect.right + 8 : rect.left,
+    });
+  }, [collapsed]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    computeAnchor();
+    const onResize = () => computeAnchor();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize, true);
+    };
+  }, [open, computeAnchor]);
+
+  // Click-outside + Escape close — defer the listener one tick so
+  // the opening click on the trigger doesn't immediately fire it.
+  React.useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      const inWrap = wrapRef.current?.contains(e.target as Node);
+      const inMenu = menuRef.current?.contains(e.target as Node);
+      if (!inWrap && !inMenu) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const t = setTimeout(() => {
+      document.addEventListener("pointerdown", onPointer);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <>
-      {/* Mobile + desktop expanded: full pill */}
-      <Link
-        href="/servers/new"
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      {/* Mobile + desktop expanded: full pill trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className={[
-          "flex w-full items-center rounded-md border-none bg-accent text-accent-fg",
+          "flex w-full items-center rounded-md border-none bg-accent text-accent-fg cursor-pointer",
           "transition-colors duration-fast hover:bg-accent-hover",
           collapsed ? "lg:hidden" : "",
         ].join(" ")}
@@ -216,14 +305,17 @@ function QuickAddButton({ collapsed }: { collapsed: boolean }) {
         Quick add
         <span className="flex-1" />
         <Icon name="chevron-down" size={15} />
-      </Link>
+      </button>
 
-      {/* Desktop collapsed only: circular icon */}
+      {/* Desktop collapsed only: circular icon trigger */}
       {collapsed && (
-        <Link
-          href="/servers/new"
-          title="Create a server"
-          className="mx-auto hidden items-center justify-center rounded-pill border-none bg-accent text-accent-fg transition-colors duration-fast hover:bg-accent-hover lg:flex"
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          title="Quick add"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="mx-auto hidden items-center justify-center rounded-pill border-none bg-accent text-accent-fg cursor-pointer transition-colors duration-fast hover:bg-accent-hover lg:flex"
           style={{
             width: 48,
             height: 48,
@@ -231,8 +323,98 @@ function QuickAddButton({ collapsed }: { collapsed: boolean }) {
           }}
         >
           <Icon name="plus" size={22} />
-        </Link>
+        </button>
       )}
-    </>
+
+      {open && anchor && typeof document !== "undefined" &&
+        createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Quick add"
+          style={{
+            position: "fixed",
+            top: anchor.top,
+            left: anchor.left,
+            width: 280,
+            background: "var(--bg-1)",
+            border: "1px solid var(--border-1)",
+            borderRadius: "var(--r-md)",
+            boxShadow: "var(--shadow-pop)",
+            padding: 6,
+            zIndex: 100,
+          }}
+        >
+          <div
+            className="t-mono-s"
+            style={{
+              padding: "8px 10px 6px",
+              color: "var(--fg-3)",
+              letterSpacing: "0.08em",
+            }}
+          >
+            QUICK ADD
+          </div>
+          {QUICK_ADD_ITEMS.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              onClick={() => setOpen(false)}
+              role="menuitem"
+              className="flex items-center transition-colors duration-fast"
+              style={{
+                gap: 12,
+                padding: "10px 10px",
+                borderRadius: "var(--r-sm)",
+                textDecoration: "none",
+                color: "var(--fg-1)",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--bg-2)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <div
+                className="flex items-center justify-center shrink-0"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "var(--r-sm)",
+                  background: "var(--accent-surface)",
+                  color: "var(--accent-text)",
+                }}
+              >
+                <Icon name={it.icon} size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontSize: 14.5,
+                    fontWeight: 600,
+                    color: "var(--fg-1)",
+                  }}
+                >
+                  {it.label}
+                </div>
+                <div
+                  className="t-mono-s"
+                  style={{
+                    color: "var(--fg-3)",
+                    marginTop: 3,
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  {it.sub}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </div>
   );
 }

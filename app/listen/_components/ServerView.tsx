@@ -483,9 +483,20 @@ export function ServerView({ producer, server }: ServerViewProps) {
               key={b.id}
               beat={b}
               noteVisibility={
+                // Local optimistic edit wins (artist just sent a
+                // note in this session). Otherwise hydrate from the
+                // server payload so the message icon's state stays
+                // correct across refreshes:
+                //   shared comment exists → "shared" (accent + dot)
+                //   private note exists   → "private" (fg-2 only)
+                //   nothing               → null
                 notes[b.id]?.text?.trim()
                   ? notes[b.id].visibility
-                  : null
+                  : b.latestCommentBody?.trim()
+                    ? "shared"
+                    : b.noteBody?.trim()
+                      ? "private"
+                      : null
               }
               playing={playingId === b.id}
               onTogglePlay={() => togglePlay(b)}
@@ -712,10 +723,12 @@ function BeatRow({
         {beat.addedAt}
       </span>
 
-      {/* Note button — three-state colour (no note / private /
+      {/* Note button — three-state CHIP (no note / private /
           shared) so the artist can tell at a glance whether a beat
           carries something they wrote, and whether that something
-          went to the producer. */}
+          went to the producer. The background fill makes the state
+          unambiguous — a pure text-colour switch reads as "did
+          something change?" on most monitors. */}
       <button
         type="button"
         aria-label={
@@ -732,7 +745,12 @@ function BeatRow({
           height: 32,
           borderRadius: "var(--r-sm)",
           border: "none",
-          background: "transparent",
+          background:
+            noteVisibility === "shared"
+              ? "var(--accent-surface)"
+              : noteVisibility === "private"
+                ? "var(--bg-2)"
+                : "transparent",
           color:
             noteVisibility === "shared"
               ? "var(--accent-text)"
@@ -744,14 +762,16 @@ function BeatRow({
         <Icon name="message" size={16} />
         {noteVisibility === "shared" && (
           <span
+            aria-hidden
             style={{
               position: "absolute",
               top: 2,
               right: 2,
-              width: 6,
-              height: 6,
+              width: 8,
+              height: 8,
               borderRadius: "50%",
               background: "var(--accent)",
+              border: "1.5px solid var(--bg-0)",
             }}
           />
         )}

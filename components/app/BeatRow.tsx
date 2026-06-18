@@ -283,7 +283,7 @@ export function BeatRow({
       {showEngagement && (
         <div
           className="hidden sm:flex items-center justify-end shrink-0"
-          style={{ gap: 16, width: 100 }}
+          style={{ gap: 16, width: 140 }}
         >
           <span
             className="t-mono-s inline-flex items-center"
@@ -291,6 +291,13 @@ export function BeatRow({
           >
             <Icon name="play" size={12} />
             {beat.plays_count}
+          </span>
+          <span
+            className="t-mono-s inline-flex items-center"
+            style={{ gap: 5, color: "var(--fg-3)" }}
+          >
+            <Icon name="message" size={12} />
+            {beat.comments_count}
           </span>
           <span
             className="t-mono-s inline-flex items-center"
