@@ -204,7 +204,11 @@ export function AccountMenu({
                 <button
                   type="submit"
                   role="menuitem"
-                  onClick={() => setOpen(false)}
+                  // No onClick here on purpose: setOpen(false)
+                  // re-renders the parent which unmounts this form
+                  // mid-dispatch, cancelling the action. The
+                  // server-action redirect tears the menu down
+                  // naturally.
                   className="flex w-full items-center text-fg-2 transition-colors duration-fast hover:bg-bg-3 hover:text-fg-1"
                   style={{
                     height: 38,
@@ -236,12 +240,15 @@ export function AccountMenu({
             }}
           />
 
-          {/* Log out — own form so the server action runs cleanly */}
+          {/* Log out — own form so the server action runs cleanly.
+              No onClick={setOpen(false)} on purpose — that re-renders
+              and unmounts the form before the action's redirect can
+              run, which silently kills the sign-out. The redirect
+              tears the menu down naturally. */}
           <form action={signOutAction}>
             <button
               type="submit"
               role="menuitem"
-              onClick={() => setOpen(false)}
               className="flex w-full items-center transition-colors duration-fast"
               style={{
                 height: 38,
