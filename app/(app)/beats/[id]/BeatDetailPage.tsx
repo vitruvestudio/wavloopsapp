@@ -818,11 +818,12 @@ function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
         className="border border-border-1 bg-bg-1"
         style={{ borderRadius: "var(--r-md)", overflow: "hidden" }}
       >
-        {/* Header */}
+        {/* Header — mobile drops EMAIL + LIKED columns to keep the row
+            readable below ~640px. Like state moves inline next to the
+            handle. */}
         <div
-          className="grid"
+          className="grid grid-cols-[1fr_auto_24px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_90px_110px_24px]"
           style={{
-            gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 24px",
             gap: 14,
             padding: "12px 18px",
             borderBottom: "1px solid var(--border-1)",
@@ -830,8 +831,8 @@ function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
           }}
         >
           <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>ARTIST</span>
-          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>CONTACT</span>
-          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>LIKED</span>
+          <span className="t-mono-s hidden md:inline" style={{ color: "var(--fg-4)" }}>CONTACT</span>
+          <span className="t-mono-s hidden md:inline" style={{ color: "var(--fg-4)" }}>LIKED</span>
           <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>PLAYS</span>
           <span />
         </div>
@@ -851,10 +852,8 @@ function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
             <Link
               key={l.contactId}
               href={`/contacts/${l.contactId}`}
-              className="grid items-center transition-colors duration-fast"
+              className="grid items-center transition-colors duration-fast grid-cols-[1fr_auto_24px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_90px_110px_24px]"
               style={{
-                gridTemplateColumns:
-                  "minmax(0,1.4fr) minmax(0,1.4fr) 90px 110px 24px",
                 gap: 14,
                 padding: "14px 18px",
                 borderTop: i === 0 ? "none" : "1px solid var(--border-1)",
@@ -875,14 +874,27 @@ function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
                 >
                   {l.handle}
                 </span>
+                {/* Mobile-only inline heart — the dedicated LIKED column
+                    is hidden below md to keep the row readable. */}
+                {l.liked && (
+                  <Icon
+                    name="heart"
+                    size={13}
+                    className="md:hidden shrink-0"
+                    style={{ color: "var(--accent)", fill: "var(--accent)" }}
+                  />
+                )}
               </div>
               <span
-                className="t-mono-s truncate"
+                className="t-mono-s truncate hidden md:inline"
                 style={{ color: "var(--fg-3)" }}
               >
                 {l.email.toUpperCase()}
               </span>
-              <span style={{ color: l.liked ? "var(--accent)" : "var(--fg-4)" }}>
+              <span
+                className="hidden md:inline"
+                style={{ color: l.liked ? "var(--accent)" : "var(--fg-4)" }}
+              >
                 <Icon
                   name="heart"
                   size={16}
@@ -1041,7 +1053,14 @@ function StatCard({
       </div>
       <div
         className="t-h1"
-        style={{ fontSize: 32, marginTop: 10, lineHeight: 1 }}
+        style={{
+          // 2-col grid below md → 32px chiffres écraseraient le
+          // padding 20 sur iPhone. clamp tient la stat lisible
+          // sans la coller au bord.
+          fontSize: "clamp(22px, 5.5vw, 32px)",
+          marginTop: 10,
+          lineHeight: 1,
+        }}
       >
         {value}
       </div>

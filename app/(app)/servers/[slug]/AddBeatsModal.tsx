@@ -115,8 +115,7 @@ export function AddBeatsModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Add beats to ${serverName}`}
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ padding: 18 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-[18px]"
     >
       {/* Backdrop */}
       <div

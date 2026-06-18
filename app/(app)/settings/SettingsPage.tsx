@@ -136,7 +136,11 @@ function SettingsNav({
   ];
   return (
     <nav
-      className="flex lg:flex-col overflow-x-auto"
+      // Below lg: wrap onto 2 rows instead of horizontal-scroll —
+      // hidden scroll was easy to miss, especially with "Billing
+      // & plan" being the longest tab. Wrapping makes every tab
+      // visible at a glance.
+      className="flex flex-wrap lg:flex-nowrap lg:flex-col"
       style={{ gap: 4 }}
       aria-label="Settings"
     >

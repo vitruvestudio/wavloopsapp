@@ -127,7 +127,10 @@ export function ArtistGatePage({
           width: "100%",
           maxWidth: 420,
           gap: 22,
-          padding: "22px 22px 48px",
+          // Tighter side padding below ~sm so the form + chips have
+          // room to breathe on a 375px iPhone; opens back up to 22px
+          // on tablet+.
+          padding: "22px clamp(14px, 4vw, 22px) 48px",
         }}
       >
 

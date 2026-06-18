@@ -270,7 +270,9 @@ function SettingsNav({
   ];
   return (
     <nav
-      className="flex lg:flex-col overflow-x-auto"
+      // Same wrap-instead-of-scroll fix as the producer settings —
+      // hidden horizontal scroll was a UX gotcha on mobile.
+      className="flex flex-wrap lg:flex-nowrap lg:flex-col"
       style={{ gap: 4 }}
       aria-label="Settings"
     >
