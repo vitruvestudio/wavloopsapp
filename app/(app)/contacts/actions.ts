@@ -218,6 +218,33 @@ export async function updateContactAction(
 ): Promise<AddContactResult> {
   const supabase = await createClient();
 
+  // App-side ownership seatbelt — RLS gates this too, but a
+  // missing app-level check means a buggy future migration could
+  // open up cross-producer mutation. Cheap to add, defense-in-
+  // depth pays off the first time someone fat-fingers a policy.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: "You're not signed in.", contactId: null };
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+  if (!profile) {
+    return { error: "Profile not set up yet.", contactId: null };
+  }
+  const { data: existing } = await supabase
+    .from("contacts")
+    .select("owner_id")
+    .eq("id", payload.id)
+    .maybeSingle<{ owner_id: string }>();
+  if (!existing || existing.owner_id !== profile.id) {
+    return { error: "Contact not found.", contactId: null };
+  }
+
   const email = payload.email.trim().toLowerCase();
   if (!EMAIL_REGEX.test(email)) {
     return { error: "Enter a valid email address.", contactId: null };
@@ -437,6 +464,30 @@ export async function deleteContactAction(
   id: string,
 ): Promise<DeleteContactResult> {
   const supabase = await createClient();
+
+  // App-side ownership seatbelt — see updateContactAction for
+  // rationale. RLS via contacts_owner_all gates this, but a
+  // policy regression here would delete contacts cross-tenant
+  // with zero app-side resistance otherwise.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You're not signed in." };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+  if (!profile) return { error: "Profile not set up yet." };
+  const { data: existing } = await supabase
+    .from("contacts")
+    .select("owner_id")
+    .eq("id", id)
+    .maybeSingle<{ owner_id: string }>();
+  if (!existing || existing.owner_id !== profile.id) {
+    return { error: "Contact not found." };
+  }
+
   const { error } = await supabase.from("contacts").delete().eq("id", id);
   if (error) return { error: error.message };
 

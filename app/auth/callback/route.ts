@@ -39,6 +39,23 @@ import { LAST_MODE_COOKIE, type LastMode } from "../mode-cookie";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
+/** True for paths that stay on our origin. Rejects:
+ *   - absolute URLs (http://, https://, javascript:, data:)
+ *   - protocol-relative URLs (//host)
+ *   - anything that doesn't start with `/`
+ *   - paths sneaking a backslash so `new URL()` parses host
+ *     differently across browsers.
+ *  Used to gate the magic-link `next` redirect target — the
+ *  email arrives in a user's inbox and a forged template could
+ *  put an attacker URL there. */
+function isSafeRelativePath(p: string): boolean {
+  if (typeof p !== "string" || p.length === 0 || p.length > 1024) return false;
+  if (!p.startsWith("/")) return false;
+  if (p.startsWith("//") || p.startsWith("/\\")) return false;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(p)) return false;
+  return true;
+}
+
 function bounceBack(
   url: URL,
   errorMessage: string,
@@ -80,7 +97,15 @@ export async function GET(req: NextRequest) {
   // If the caller explicitly told us where to land (gate flow:
   // /s/<slug> or /listen/<slug>), honor that. Profile-aware
   // routing only kicks in when no `next` was provided.
-  if (explicitNext) {
+  //
+  // SECURITY: `next` arrives from a URL that landed in the user's
+  // inbox via the magic-link template. Treat it as attacker-
+  // controlled — a forged email could set
+  // `?next=//evil.com/phish` and `new URL(next, origin)` would
+  // happily resolve to evil.com, turning callback into an open
+  // redirect. Whitelist to relative paths only, then collapse
+  // any protocol-scheme sneak-ins.
+  if (explicitNext && isSafeRelativePath(explicitNext)) {
     const dest = new URL(explicitNext, url.origin);
     // Best guess on cookie: gate flow is always artist-shaped.
     const res = NextResponse.redirect(dest);

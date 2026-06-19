@@ -17,6 +17,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertServerOwnership } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import {
   sendAccessGrantedEmail,
@@ -36,6 +37,9 @@ export async function addBeatsToServerAction(
   const supabase = await createClient();
 
   if (beatIds.length === 0) return { error: null, added: 0 };
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error, added: 0 };
 
   // Find the current highest position so newcomers land at the end.
   const { data: maxRow } = await supabase
@@ -104,6 +108,9 @@ export async function addArtistsToServerAction(
   const supabase = await createClient();
 
   if (contactIds.length === 0) return { error: null, added: 0 };
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error, added: 0 };
 
   const { data: existing } = await supabase
     .from("server_contacts")
@@ -288,6 +295,10 @@ export async function approveAccessRequestAction(
   serverSlug: string,
 ): Promise<AccessRequestResult> {
   const supabase = await createClient();
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error };
+
   const { error } = await supabase
     .from("server_contacts")
     .update({
@@ -368,6 +379,10 @@ export async function declineAccessRequestAction(
   serverSlug: string,
 ): Promise<AccessRequestResult> {
   const supabase = await createClient();
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error };
+
   const { error } = await supabase
     .from("server_contacts")
     .delete()

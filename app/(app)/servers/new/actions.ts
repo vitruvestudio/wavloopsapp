@@ -13,6 +13,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { assertServerOwnership } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slug";
 import type {
@@ -195,6 +196,9 @@ export async function updateServerAction(
 
   const cleanName = payload.name.trim();
   if (!cleanName) return { error: "Server name is required.", slug: null };
+
+  const guard = await assertServerOwnership(supabase, payload.id);
+  if (guard.error) return { error: guard.error, slug: null };
 
   // UPDATE the server row. RLS prevents an attacker from touching
   // someone else's server — owner_id is implicit in the policy.
