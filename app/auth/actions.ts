@@ -290,7 +290,6 @@ export async function requestGateAccessAction(
     error?: string;
     visibility?: "public" | "private";
     was_new?: boolean;
-    producer_user_id?: string | null;
     server_name?: string | null;
   } | null;
   if (!submit || !submit.ok) {

@@ -28,9 +28,21 @@
  * are scoped to UPDATE emailed_at and SELECT — no broader writes.
  */
 
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { sendBeatsUploadedEmail } from "@/lib/resend/emails";
+
+/** Constant-time string compare — avoids leaking the secret one
+ *  byte at a time via response-timing. Length-guards first since
+ *  timingSafeEqual throws on mismatched buffer lengths (and that
+ *  throw would itself be a timing signal, hence the early bool). */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 interface BatchRow {
   id: string;
@@ -60,7 +72,7 @@ export async function GET(req: NextRequest) {
   const provided = req.headers
     .get("authorization")
     ?.replace(/^Bearer\s+/i, "");
-  if (provided !== expected) {
+  if (!provided || !safeEqual(provided, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

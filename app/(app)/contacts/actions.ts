@@ -44,23 +44,105 @@ export interface OgImageResult {
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 
-export async function fetchOgImageAction(
-  targetUrl: string,
-): Promise<OgImageResult> {
-  if (!targetUrl) return { url: null };
-  try {
-    const res = await fetch(targetUrl, {
+/* ----------------------------------------------------------------
+   SSRF guard. fetchOgImageAction fetches a user-supplied URL
+   server-side, so without bounds an attacker who signs up could
+   point it at cloud metadata (169.254.169.254), localhost, or
+   internal RFC-1918 services and use the server as a proxy /
+   port scanner.
+
+   This action only ever needs to scrape OpenGraph tags off the
+   handful of social platforms the Add-Contact modal supports, so
+   the tightest correct fix is a host allowlist — far more robust
+   than IP-range blocklists (which DNS-rebinding sidesteps). We
+   also force https and read at most ~512 KB of body.
+   ---------------------------------------------------------------- */
+const OG_HOST_ALLOWLIST = [
+  "instagram.com",
+  "x.com",
+  "twitter.com",
+  "tiktok.com",
+  "youtube.com",
+  "youtu.be",
+  "soundcloud.com",
+  "spotify.com",
+  "facebook.com",
+  "fb.com",
+  "linkedin.com",
+  "twitch.tv",
+  "bandcamp.com",
+  "apple.com",
+  "threads.net",
+];
+
+/** Allowlisted-host check — exact match or a subdomain of an
+ *  allowlisted apex (so www.instagram.com / music.apple.com /
+ *  open.spotify.com pass, evil-instagram.com.attacker.net does
+ *  not). */
+function isAllowedOgHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return OG_HOST_ALLOWLIST.some(
+    (apex) => h === apex || h.endsWith(`.${apex}`),
+  );
+}
+
+/** Fetch with manual redirect handling — re-validates the host
+ *  allowlist on every hop so a 3xx can't bounce us onto an
+ *  internal target. Returns the final 2xx response, or null. */
+async function safeAllowlistedFetch(
+  startUrl: URL,
+  maxHops = 3,
+): Promise<Response | null> {
+  let current = startUrl;
+  for (let hop = 0; hop <= maxHops; hop++) {
+    if (current.protocol !== "https:") return null;
+    if (!isAllowedOgHost(current.hostname)) return null;
+    const res = await fetch(current.toString(), {
       headers: {
         "User-Agent": BROWSER_UA,
         "Accept":
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
       },
-      redirect: "follow",
+      redirect: "manual",
       cache: "no-store",
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return { url: null };
+    // 3xx → re-validate the Location against the allowlist and
+    // loop. Anything else is the terminal response.
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) return null;
+      try {
+        current = new URL(loc, current);
+      } catch {
+        return null;
+      }
+      continue;
+    }
+    return res;
+  }
+  return null;
+}
+
+export async function fetchOgImageAction(
+  targetUrl: string,
+): Promise<OgImageResult> {
+  if (!targetUrl) return { url: null };
+
+  // Validate scheme + host before issuing any request.
+  let parsed: URL;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    return { url: null };
+  }
+  if (parsed.protocol !== "https:") return { url: null };
+  if (!isAllowedOgHost(parsed.hostname)) return { url: null };
+
+  try {
+    const res = await safeAllowlistedFetch(parsed);
+    if (!res || !res.ok) return { url: null };
     const html = await res.text();
 
     // og:image — match either property/content or content/property order.
