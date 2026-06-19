@@ -126,6 +126,11 @@ export function ServerView({ producer, server }: ServerViewProps) {
   const [moodFilter, setMoodFilter] = React.useState<string | null>(null);
   // Layout toggle — mirror the producer Library's list/grid switch.
   const [viewMode, setViewMode] = React.useState<"list" | "grid">("list");
+  // Sort order — toggles between newest-first and oldest-first.
+  // Default newest so the latest uploads sit at the top.
+  const [sortOrder, setSortOrder] = React.useState<"newest" | "oldest">(
+    "newest",
+  );
   // Playback state is owned by the global PlayerContext (mounted in
   // ArtistShell) so the dock can survive route changes and other
   // pages can observe the same currently-playing beat.
@@ -173,9 +178,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
     new Set(beats.flatMap((b) => b.mood)),
   ).sort();
 
-  const visible = beats.filter((b) => {
-    // Hidden filter is the only one that shows hidden beats;
-    // every other view excludes them.
+  const filtered = beats.filter((b) => {
     if (filter === "hidden") {
       if (!b.listened) return false;
     } else if (b.listened) {
@@ -186,6 +189,13 @@ export function ServerView({ producer, server }: ServerViewProps) {
     if (moodFilter && !b.mood.includes(moodFilter)) return false;
     return true;
   });
+  // Sort by the server-side position (which loadServerView fills in
+  // order of added_at desc). Newest-first keeps the pivot order;
+  // oldest-first reverses it.
+  const visible =
+    sortOrder === "oldest"
+      ? [...filtered].sort((a, b) => b.position - a.position)
+      : filtered;
 
   const toggleLike = (id: string) => {
     // Optimistic flip on the override, then fire the action. The
@@ -548,6 +558,10 @@ export function ServerView({ producer, server }: ServerViewProps) {
         </div>
         <button
           type="button"
+          onClick={() =>
+            setSortOrder((cur) => (cur === "newest" ? "oldest" : "newest"))
+          }
+          aria-label="Toggle sort order"
           className="inline-flex items-center self-start lg:self-auto cursor-pointer"
           style={{
             gap: 8,
@@ -566,7 +580,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
           }}
         >
           <Icon name="clock" size={12} />
-          NEWEST FIRST
+          {sortOrder === "newest" ? "NEWEST FIRST" : "OLDEST FIRST"}
           <Icon name="chevron-down" size={12} />
         </button>
       </div>
