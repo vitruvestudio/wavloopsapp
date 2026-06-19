@@ -343,11 +343,17 @@ export function ArtistGatePage({
             required={socialRequired}
           />
 
-          {/* Cloudflare Turnstile widget — drops a single-use
-              `cf-turnstile-response` hidden input into this form,
-              which requestGateAccessAction verifies server-side.
-              The script auto-renders any .cf-turnstile element on
-              load. */}
+          {/* Cloudflare Turnstile — runs invisibly. The Cloudflare
+              dashboard widget mode is set to "Invisible" so no
+              floating "Success ✓ Cloudflare" badge ever paints
+              over the gate's premium dark layout. The token still
+              lands in a hidden `cf-turnstile-response` input, which
+              requestGateAccessAction verifies server-side.
+
+              `data-size="invisible"` and `display: none` on the
+              wrapper are belt-and-suspenders: even if the dashboard
+              mode is ever flipped back to managed by accident, the
+              widget stays out of the layout. */}
           {showTurnstile && (
             <>
               <Script
@@ -357,7 +363,9 @@ export function ArtistGatePage({
               <div
                 className="cf-turnstile"
                 data-sitekey={turnstileSiteKey}
+                data-size="invisible"
                 data-theme="dark"
+                style={{ display: "none" }}
               />
             </>
           )}
