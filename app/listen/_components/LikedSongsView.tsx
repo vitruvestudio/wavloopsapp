@@ -560,34 +560,7 @@ function LikedRow({
           >
             <Icon name="more" size={16} />
           </button>
-          {detailsOpen && (
-            <div
-              role="dialog"
-              aria-label="Beat details"
-              className="t-mono-s"
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                right: 0,
-                zIndex: 20,
-                padding: "8px 10px",
-                borderRadius: "var(--r-sm)",
-                border: "1px solid var(--border-1)",
-                background: "var(--bg-1)",
-                boxShadow: "var(--shadow-pop)",
-                color: "var(--fg-2)",
-                maxWidth: "min(280px, calc(100vw - 24px))",
-                whiteSpace: "normal",
-                lineHeight: 1.5,
-              }}
-            >
-              {[
-                beat.type.toUpperCase(),
-                metaLine,
-                ...beat.mood.map((m) => m.toUpperCase()),
-              ].join(" · ")}
-            </div>
-          )}
+          {detailsOpen && <DetailsPopover beat={beat} />}
         </div>
       </div>
     </div>
@@ -628,6 +601,116 @@ function EmptyState() {
       <div className="t-mono-s">
         Hit ♥ on a beat from any server to save it here.
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   DetailsPopover — mirrors the ServerView popover. Two-column
+   key/value rows on top, mood chips underneath, generous
+   padding so the surface feels premium instead of cramped.
+   ============================================================ */
+
+function DetailsPopover({
+  beat,
+}: {
+  beat: ArtistServerViewBeat;
+}) {
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "TEMPO", value: `${beat.bpm} BPM` },
+    { label: "KEY", value: beat.key },
+    { label: "LENGTH", value: beat.duration },
+    { label: "TYPE", value: beat.type.toUpperCase() },
+  ];
+  return (
+    <div
+      role="dialog"
+      aria-label="Beat details"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        zIndex: 20,
+        width: "min(260px, calc(100vw - 24px))",
+        padding: "16px 18px",
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--border-1)",
+        background: "var(--bg-1)",
+        boxShadow: "var(--shadow-pop)",
+        color: "var(--fg-1)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        className="t-mono-s"
+        style={{
+          color: "var(--accent-text)",
+          letterSpacing: "0.1em",
+          marginBottom: 2,
+        }}
+      >
+        DETAILS
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          rowGap: 8,
+          columnGap: 14,
+        }}
+      >
+        {rows.map((r) => (
+          <React.Fragment key={r.label}>
+            <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>
+              {r.label}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--fg-1)",
+                textAlign: "right",
+              }}
+            >
+              {r.value}
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+      {beat.mood.length > 0 && (
+        <>
+          <div
+            aria-hidden
+            style={{ height: 1, background: "var(--border-1)" }}
+          />
+          <div
+            className="t-mono-s"
+            style={{ color: "var(--fg-4)", marginBottom: -4 }}
+          >
+            MOOD
+          </div>
+          <div className="flex flex-wrap" style={{ gap: 6 }}>
+            {beat.mood.map((m) => (
+              <span
+                key={m}
+                className="t-mono-s"
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "var(--r-sm)",
+                  border: "1px solid var(--border-1)",
+                  color: "var(--fg-2)",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {m.toUpperCase()}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

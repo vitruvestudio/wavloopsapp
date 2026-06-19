@@ -922,38 +922,124 @@ function BeatRow({
           <Icon name="more" size={16} />
         </button>
         {detailsOpen && (
-          <div
-            role="dialog"
-            aria-label="Beat details"
-            className="t-mono-s"
-            style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              right: 0,
-              zIndex: 20,
-              padding: "8px 10px",
-              borderRadius: "var(--r-sm)",
-              border: "1px solid var(--border-1)",
-              background: "var(--bg-1)",
-              boxShadow: "var(--shadow-pop)",
-              color: "var(--fg-2)",
-              // Cap to a reasonable width and allow line breaks so
-              // beats with several mood tags don't blow past the
-              // viewport edge.
-              maxWidth: "min(280px, calc(100vw - 24px))",
-              whiteSpace: "normal",
-              lineHeight: 1.5,
-            }}
-          >
-            {[
-              beat.type.toUpperCase(),
-              metaLine,
-              ...beat.mood.map((m) => m.toUpperCase()),
-            ].join(" · ")}
-          </div>
+          <DetailsPopover beat={beat} />
         )}
       </div>
       </div>{/* /action cluster */}
+    </div>
+  );
+}
+
+/* ============================================================
+   DetailsPopover — premium beat-detail card the mobile [...]
+   button reveals. Two-column key/value rows for the technical
+   meta (Tempo, Key, Length, Type) and a wrap-friendly mood chip
+   row underneath. Wider + airier than the original one-line
+   string so the artist can actually read it.
+   ============================================================ */
+
+function DetailsPopover({ beat }: { beat: MockBeat }) {
+  const rows: Array<{ label: string; value: string }> = [
+    { label: "TEMPO", value: `${beat.bpm} BPM` },
+    { label: "KEY", value: beat.key },
+    { label: "LENGTH", value: beat.duration },
+    { label: "TYPE", value: beat.type.toUpperCase() },
+  ];
+  return (
+    <div
+      role="dialog"
+      aria-label="Beat details"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        zIndex: 20,
+        width: "min(260px, calc(100vw - 24px))",
+        padding: "16px 18px",
+        borderRadius: "var(--r-md)",
+        border: "1px solid var(--border-1)",
+        background: "var(--bg-1)",
+        boxShadow: "var(--shadow-pop)",
+        color: "var(--fg-1)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        className="t-mono-s"
+        style={{
+          color: "var(--accent-text)",
+          letterSpacing: "0.1em",
+          marginBottom: 2,
+        }}
+      >
+        DETAILS
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          rowGap: 8,
+          columnGap: 14,
+        }}
+      >
+        {rows.map((r) => (
+          <React.Fragment key={r.label}>
+            <span
+              className="t-mono-s"
+              style={{ color: "var(--fg-4)" }}
+            >
+              {r.label}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "var(--fg-1)",
+                textAlign: "right",
+              }}
+            >
+              {r.value}
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+      {beat.mood.length > 0 && (
+        <>
+          <div
+            aria-hidden
+            style={{ height: 1, background: "var(--border-1)" }}
+          />
+          <div
+            className="t-mono-s"
+            style={{ color: "var(--fg-4)", marginBottom: -4 }}
+          >
+            MOOD
+          </div>
+          <div
+            className="flex flex-wrap"
+            style={{ gap: 6 }}
+          >
+            {beat.mood.map((m) => (
+              <span
+                key={m}
+                className="t-mono-s"
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "var(--r-sm)",
+                  border: "1px solid var(--border-1)",
+                  color: "var(--fg-2)",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                {m.toUpperCase()}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
