@@ -136,7 +136,12 @@ export async function createServerAction(
 
   if (!createdServer) {
     // Random suffix fallback — better than dead-ending the form.
-    const rand = Math.random().toString(36).slice(2, 6);
+    // crypto.randomUUID gives ~122 bits; we take 12 hex chars =
+    // 48 bits. Sequential -2/-3 suffixes are predictable enough
+    // that an attacker could lazily enumerate slugs they don't
+    // own (RLS gates access either way, but no need to hand
+    // them the existence signal).
+    const rand = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const { data, error } = await supabase
       .from("servers")
       .insert({

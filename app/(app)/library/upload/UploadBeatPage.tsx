@@ -225,13 +225,60 @@ export function UploadBeatPage({
     async (f: File) => {
       setUpload({ status: "uploading", pct: 0 });
       const supabase = createClient();
+
+      // Validate this is actually audio before sending bytes
+      // to storage. The browser's File.type is attacker-
+      // controlled — a JS payload can claim audio/mpeg while
+      // shipping an executable. Whitelist the MIME prefix and
+      // the extension; also do a quick magic-byte sniff on the
+      // first 12 bytes for the common audio container headers.
+      const validExts = new Set([
+        "mp3",
+        "wav",
+        "wave",
+        "flac",
+        "aiff",
+        "aif",
+        "m4a",
+        "aac",
+        "ogg",
+        "opus",
+      ]);
       const ext = (f.name.split(".").pop() ?? "mp3").toLowerCase();
+      if (!validExts.has(ext)) {
+        setUpload({
+          status: "failed",
+          message: "Unsupported file type. Use MP3, WAV, FLAC, AIFF, M4A, AAC, OGG or OPUS.",
+        });
+        return;
+      }
+      if (f.type && !/^audio\//i.test(f.type)) {
+        setUpload({
+          status: "failed",
+          message: "File doesn't look like audio.",
+        });
+        return;
+      }
+      const head = new Uint8Array(await f.slice(0, 12).arrayBuffer());
+      if (!looksLikeAudio(head)) {
+        setUpload({
+          status: "failed",
+          message: "File header isn't a recognized audio format.",
+        });
+        return;
+      }
+
       const path = `${userId}/${beatIdRef.current}.${ext}`;
 
       const { error } = await supabase.storage
         .from("beat-audio")
         .upload(path, f, {
-          contentType: f.type || "audio/mpeg",
+          // Force a known-safe Content-Type rather than echoing
+          // back the client-supplied one. Storage will serve this
+          // back later — if a forged 'audio/html' slipped through
+          // and we passed it on, X-Content-Type-Options would
+          // help but isn't a guarantee.
+          contentType: `audio/${ext === "wave" ? "wav" : ext}`,
           upsert: false,
         });
 
@@ -600,6 +647,43 @@ export function UploadBeatPage({
    Two stop-propagation pills sit bottom-right (REMOVE + CHANGE /
    ARTWORK). They never trigger the play overlay.
    ============================================================ */
+
+/** Magic-byte sniff for the audio formats Wavloops accepts.
+ *  Looks at the first 12 bytes only — enough to spot the
+ *  container signature of every format in `validExts` above. Not
+ *  a substitute for a full validator, but enough to reject an
+ *  .exe re-labelled as `.mp3` with a forged Content-Type. */
+function looksLikeAudio(b: Uint8Array): boolean {
+  if (b.length < 4) return false;
+  // ID3v2 (MP3 with tags) — "ID3"
+  if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) return true;
+  // MP3 sync (FF Fx) — frame sync, layer III in upper nibble
+  if (b[0] === 0xff && (b[1] & 0xe0) === 0xe0) return true;
+  // RIFF (WAV) — "RIFF"
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46)
+    return true;
+  // FLAC — "fLaC"
+  if (b[0] === 0x66 && b[1] === 0x4c && b[2] === 0x61 && b[3] === 0x43)
+    return true;
+  // OGG — "OggS"
+  if (b[0] === 0x4f && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53)
+    return true;
+  // AIFF / AIFC — "FORM"
+  if (b[0] === 0x46 && b[1] === 0x4f && b[2] === 0x52 && b[3] === 0x4d)
+    return true;
+  // ISO BMFF (M4A / AAC in MP4) — bytes 4..7 = "ftyp"
+  if (
+    b.length >= 8 &&
+    b[4] === 0x66 &&
+    b[5] === 0x74 &&
+    b[6] === 0x79 &&
+    b[7] === 0x70
+  )
+    return true;
+  // AAC ADTS — sync word FFF
+  if (b[0] === 0xff && (b[1] & 0xf6) === 0xf0) return true;
+  return false;
+}
 
 function ArtworkBlock({
   seed,

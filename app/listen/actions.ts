@@ -299,13 +299,27 @@ export async function updateArtistProfileAction(
     avatarUpdate = { avatar_url: null };
   }
 
+  // Coerce notif_prefs to known booleans before persisting. The
+  // payload travels through a server action so the client could
+  // send strings, numbers, or extra keys — JSONB would happily
+  // store them and the read-side would then have to defend
+  // against junk shapes. Mirrors the producer-side coercion in
+  // app/(app)/settings/actions.ts.
+  const notifPrefs = {
+    new_beats: Boolean(payload.notifPrefs?.new_beats),
+    added_to_server: Boolean(payload.notifPrefs?.added_to_server),
+    producer_reactions: Boolean(payload.notifPrefs?.producer_reactions),
+    email: Boolean(payload.notifPrefs?.email),
+    push: Boolean(payload.notifPrefs?.push),
+  };
+
   const { error } = await supabase.from("artist_profiles").upsert(
     {
       user_id: user.id,
       display_name: displayName,
       bio,
       socials,
-      notif_prefs: payload.notifPrefs,
+      notif_prefs: notifPrefs,
       ...(avatarUpdate ?? {}),
     },
     { onConflict: "user_id" },
