@@ -171,3 +171,32 @@ export interface ServerWithStatsRow extends ServerRow {
   contacts_count: number;
   plays_count: number;
 }
+
+/** Billing — one row per paying user (free users have no row).
+ *  Migration #37. The webhook is the only writer; clients read via
+ *  the get_user_plan() RPC, not this row directly. */
+export type SubscriptionPlan = "free" | "lifetime" | "pro";
+export type SubscriptionStatus =
+  | "inactive"
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "paused";
+
+export interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  lifetime_purchased_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
