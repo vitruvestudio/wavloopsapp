@@ -55,8 +55,30 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
         <Icon name="menu" size={18} />
       </button>
 
-      {/* Spacer pushes the right cluster to the edge. */}
-      <div className="flex-1" />
+      {/* Search bar — mirrors the producer TopBar's position
+          (left-aligned, max 440px on lg+, grows on mobile so it
+          shares space with the right-cluster icons). */}
+      <div className="min-w-0 flex-1 lg:max-w-[440px] lg:flex-none lg:basis-[440px]">
+        <div
+          className="flex items-center rounded-md border border-border-2 bg-bg-inset px-3 text-fg-3 transition-colors focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)]"
+          style={{ height: 38, gap: 8 }}
+        >
+          <Icon name="search" size={17} className="text-fg-3" />
+          <input
+            type="search"
+            placeholder="Search beats, producers…"
+            className="min-w-0 flex-1 bg-transparent text-fg-1 outline-none placeholder:text-fg-4"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 14,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop spacer — pushes the right cluster to the edge.
+          Hidden on mobile so the search bar can use the whole row. */}
+      <div className="hidden flex-1 lg:block" />
 
       {/* Theme toggle — shared with the producer side, persisted
           in localStorage["wl-srv-theme"]. */}

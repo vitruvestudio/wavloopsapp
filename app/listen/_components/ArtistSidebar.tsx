@@ -41,7 +41,6 @@ export function ArtistSidebar({
   onCloseDrawer,
 }: ArtistSidebarProps) {
   const { producers, likedCount } = useArtistContext();
-  const [search, setSearch] = React.useState("");
   const pathname = usePathname();
   const producerCount = producers.length;
 
@@ -99,41 +98,6 @@ export function ArtistSidebar({
         style={{ padding: "20px 22px" }}
       >
         <Logo size={28} />
-      </div>
-
-      {/* Search */}
-      <div
-        style={{
-          padding: "0 18px 16px",
-          borderBottom: "1px solid var(--border-1)",
-        }}
-      >
-        <div
-          className="flex items-center bg-bg-inset border border-border-2 transition-all duration-fast focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--accent-ring)]"
-          style={{
-            gap: 10,
-            padding: "0 12px",
-            height: 38,
-            borderRadius: "var(--r-md)",
-          }}
-        >
-          <Icon
-            name="search"
-            size={14}
-            style={{ color: "var(--fg-3)" }}
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search your beats…"
-            className="flex-1 bg-transparent outline-none placeholder:text-fg-4 min-w-0"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 13.5,
-              color: "var(--fg-1)",
-            }}
-          />
-        </div>
       </div>
 
       {/* Liked Songs */}
