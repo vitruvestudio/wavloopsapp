@@ -293,3 +293,14 @@
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.55; }
 }
+
+/* ============================================================
+   Global guard against horizontal scroll. `overflow-x: clip`
+   stops accidental scroll without creating a new stacking
+   context the way `hidden` does — full-bleed banners using
+   negative margins still paint to the viewport edge.
+   ============================================================ */
+html,
+body {
+  overflow-x: clip;
+}
