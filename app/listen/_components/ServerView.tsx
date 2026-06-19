@@ -113,7 +113,7 @@ function BannerBackground({ server }: { server: MockServer }) {
   );
 }
 
-type Filter = "all" | "new" | "liked";
+type Filter = "all" | "new" | "liked" | "hidden";
 
 interface ServerViewProps {
   producer: MockProducer;
@@ -153,10 +153,17 @@ export function ServerView({ producer, server }: ServerViewProps) {
     listened: overrides[b.id]?.listened ?? b.listened,
   }));
 
+  // We repurpose the existing `listened` flag as "hidden" for
+  // the artist. Keeps the DB column intact (a `listens` row
+  // doubles as the hide marker now) while letting the artist
+  // dismiss beats they don't want in their default view. The
+  // eye / eye-off toggle stays — it just means hide / unhide
+  // from the artist's perspective.
   const counts = {
-    all: beats.length,
-    new: beats.filter((b) => b.isNew).length,
-    liked: beats.filter((b) => b.liked).length,
+    all: beats.filter((b) => !b.listened).length,
+    new: beats.filter((b) => b.isNew && !b.listened).length,
+    liked: beats.filter((b) => b.liked && !b.listened).length,
+    hidden: beats.filter((b) => b.listened).length,
   };
 
   // Mood pills surfaced under the existing filter chips. Compute
@@ -167,6 +174,13 @@ export function ServerView({ producer, server }: ServerViewProps) {
   ).sort();
 
   const visible = beats.filter((b) => {
+    // Hidden filter is the only one that shows hidden beats;
+    // every other view excludes them.
+    if (filter === "hidden") {
+      if (!b.listened) return false;
+    } else if (b.listened) {
+      return false;
+    }
     if (filter === "new" && !b.isNew) return false;
     if (filter === "liked" && !b.liked) return false;
     if (moodFilter && !b.mood.includes(moodFilter)) return false;
@@ -471,44 +485,25 @@ export function ServerView({ producer, server }: ServerViewProps) {
             active={filter === "liked"}
             onClick={() => setFilter("liked")}
           />
-        </div>
-        <div
-          className="flex items-center self-start lg:self-auto"
-          style={{ gap: 8 }}
-        >
-          <button
-            type="button"
-            className="inline-flex items-center cursor-pointer"
-            style={{
-              gap: 8,
-              padding: "0 12px",
-              height: 32,
-              borderRadius: "var(--r-md)",
-              border: "1px solid var(--border-1)",
-              background: "transparent",
-              color: "var(--fg-2)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <Icon name="clock" size={12} />
-            NEWEST FIRST
-            <Icon name="chevron-down" size={12} />
-          </button>
-          {/* List / Grid toggle — mirrors the producer Library
-              control. */}
+          <FilterChip
+            label="Hidden"
+            icon="eye-off"
+            count={counts.hidden}
+            active={filter === "hidden"}
+            onClick={() => setFilter("hidden")}
+          />
+          {/* List / Grid toggle inlined at the end of the chip
+              row so it stays visible on mobile (the sort dropdown
+              wraps to the next line on narrow viewports). */}
           <div
-            className="inline-flex items-center"
+            className="inline-flex items-center shrink-0"
             style={{
               border: "1px solid var(--border-1)",
               borderRadius: "var(--r-md)",
               padding: 2,
               gap: 2,
               height: 32,
+              marginLeft: "auto",
             }}
           >
             <button
@@ -551,6 +546,29 @@ export function ServerView({ producer, server }: ServerViewProps) {
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          className="inline-flex items-center self-start lg:self-auto cursor-pointer"
+          style={{
+            gap: 8,
+            padding: "0 12px",
+            height: 32,
+            borderRadius: "var(--r-md)",
+            border: "1px solid var(--border-1)",
+            background: "transparent",
+            color: "var(--fg-2)",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Icon name="clock" size={12} />
+          NEWEST FIRST
+          <Icon name="chevron-down" size={12} />
+        </button>
       </div>
 
       {/* Mood pills — horizontal-scroll row under the toolbar.
@@ -970,12 +988,13 @@ function BeatRow({
         )}
       </button>
 
-      {/* Listened toggle (eye) */}
+      {/* Hide / unhide toggle. Reuses the `listened` DB flag as the
+          per-artist hide marker — a hidden beat slides out of the
+          default views (All / New / Liked) and resurfaces only
+          under the Hidden filter chip. */}
       <button
         type="button"
-        aria-label={
-          beat.listened ? "Mark as unlistened" : "Mark as listened"
-        }
+        aria-label={beat.listened ? "Unhide" : "Hide"}
         onClick={onToggleListened}
         className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
         style={{
@@ -988,7 +1007,7 @@ function BeatRow({
         }}
       >
         <Icon
-          name={beat.listened ? "eye" : "eye-off"}
+          name={beat.listened ? "eye-off" : "eye"}
           size={16}
         />
       </button>
