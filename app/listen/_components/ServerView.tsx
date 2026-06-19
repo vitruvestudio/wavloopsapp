@@ -383,30 +383,50 @@ export function ServerView({ producer, server }: ServerViewProps) {
             </div>
           </div>
 
-          {/* Big play all — slightly smaller on mobile. */}
-          <button
-            type="button"
-            aria-label={`Play all ${server.name}`}
-            onClick={() => {
-              const first = visible[0];
-              if (first) togglePlay(first);
-            }}
-            className="shrink-0 inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105 w-[56px] h-[56px] lg:w-[64px] lg:h-[64px]"
-            style={{
-              borderRadius: "50%",
-              border: "none",
-              background: "var(--accent)",
-              color: "#fff",
-              boxShadow:
-                "0 14px 30px -10px oklch(0 0 0 / 0.4), 0 6px 12px oklch(0 0 0 / 0.2)",
-            }}
+          {/* Play-all cluster — shuffle + play, side-by-side,
+              no drop-shadow (Spotify/Deezer pattern). Shuffle on
+              the left as a flat outline-only button; play on the
+              right as the filled accent CTA. */}
+          <div
+            className="shrink-0 inline-flex items-center"
+            style={{ gap: 14 }}
           >
-            <Icon
-              name="play"
-              size={28}
-              style={{ marginLeft: 3 }}
-            />
-          </button>
+            <button
+              type="button"
+              aria-label={`Shuffle ${server.name}`}
+              onClick={() => {
+                if (visible.length === 0) return;
+                const i = Math.floor(Math.random() * visible.length);
+                togglePlay(visible[i]);
+              }}
+              className="inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105 w-[44px] h-[44px] lg:w-[48px] lg:h-[48px]"
+              style={{
+                borderRadius: "50%",
+                border: "none",
+                background: "transparent",
+                color: "var(--fg-1)",
+              }}
+            >
+              <Icon name="shuffle" size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label={`Play all ${server.name}`}
+              onClick={() => {
+                const first = visible[0];
+                if (first) togglePlay(first);
+              }}
+              className="inline-flex items-center justify-center cursor-pointer transition-transform duration-fast hover:scale-105 w-[56px] h-[56px] lg:w-[64px] lg:h-[64px]"
+              style={{
+                borderRadius: "50%",
+                border: "none",
+                background: "var(--accent)",
+                color: "#fff",
+              }}
+            >
+              <Icon name="play" size={28} style={{ marginLeft: 3 }} />
+            </button>
+          </div>
         </div>
       </section>
 

@@ -66,6 +66,7 @@ export type IconName =
   /* beat library / row */
   | "waves"
   | "repeat"
+  | "shuffle"
   | "drag"
   | "more"
   /* upload — auto-detect indicator */
@@ -446,6 +447,18 @@ export function Icon({
         <svg {...common} {...lineProps}>
           <path d="M4 9V8a2 2 0 012-2h12l-3-3" />
           <path d="M20 15v1a2 2 0 01-2 2H6l3 3" />
+        </svg>
+      );
+    case "shuffle":
+      /* Two crossing arrows — Spotify-style shuffle / play all
+         random. Tail-on-the-left, arrowhead on the right. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M16 3h5v5" />
+          <path d="M4 20l17-17" />
+          <path d="M21 16v5h-5" />
+          <path d="M15 15l6 6" />
+          <path d="M4 4l5 5" />
         </svg>
       );
     case "drag":
