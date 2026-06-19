@@ -41,6 +41,7 @@ import { switchToArtistViewAction } from "@/app/auth/mode-switch";
 import { useProducerViewer } from "@/app/(app)/_components/ProducerContext";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { ModeSwitchForm } from "@/components/app/ModeSwitchForm";
 
 interface AccountMenuProps {
   /** Override the producer viewer pulled from ProducerContext — used by
@@ -200,33 +201,10 @@ export function AccountMenu({
                   margin: "6px 0",
                 }}
               />
-              <form action={switchToArtistViewAction}>
-                <button
-                  type="submit"
-                  role="menuitem"
-                  // No onClick here on purpose: setOpen(false)
-                  // re-renders the parent which unmounts this form
-                  // mid-dispatch, cancelling the action. The
-                  // server-action redirect tears the menu down
-                  // naturally.
-                  className="flex w-full items-center text-fg-2 transition-colors duration-fast hover:bg-bg-3 hover:text-fg-1"
-                  style={{
-                    height: 38,
-                    padding: "0 10px",
-                    gap: 11,
-                    borderRadius: "var(--r-sm)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-body)",
-                    fontSize: 14,
-                    textAlign: "left",
-                  }}
-                >
-                  <Icon name="play" size={17} />
-                  Switch to Artist view
-                </button>
-              </form>
+              <ModeSwitchForm
+                action={switchToArtistViewAction}
+                target="artist"
+              />
             </>
           )}
 

@@ -25,6 +25,7 @@ import * as React from "react";
 import Link from "next/link";
 import { signOutArtistAction } from "@/app/auth/actions";
 import { switchToProducerViewAction } from "@/app/auth/mode-switch";
+import { ModeSwitchForm } from "@/components/app/ModeSwitchForm";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useArtistContext } from "./ArtistContext";
@@ -175,28 +176,10 @@ export function ArtistAccountMenu() {
                   margin: "6px 0",
                 }}
               />
-              <form action={switchToProducerViewAction}>
-                <button
-                  type="submit"
-                  role="menuitem"
-                  className="flex w-full items-center text-fg-2 transition-colors duration-fast hover:bg-bg-3 hover:text-fg-1"
-                  style={{
-                    height: 38,
-                    padding: "0 10px",
-                    gap: 11,
-                    borderRadius: "var(--r-sm)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-body)",
-                    fontSize: 14,
-                    textAlign: "left",
-                  }}
-                >
-                  <Icon name="library" size={17} />
-                  Switch to Producer view
-                </button>
-              </form>
+              <ModeSwitchForm
+                action={switchToProducerViewAction}
+                target="producer"
+              />
             </>
           )}
 
