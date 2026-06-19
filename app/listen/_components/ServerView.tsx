@@ -683,12 +683,13 @@ function BeatRow({
       </button>
 
       {/* Title + meta — mobile gets a tighter 2-line shape:
-            line 1 : title (truncated) ····· @producer
-            line 2 : COMP/LOOP tag + […] details button
-          Desktop (sm+) keeps the original inline meta row with
-          "BPM · KEY · LENGTH" spelled out plus mood tags. */}
+            line 1 : title (truncated)
+            line 2 : @PRODUCER  + […] details popover (BPM · KEY ·
+                                                       LENGTH · COMP/LOOP)
+          Desktop (sm+) keeps the original COMP tag + inline meta
+          row with "BPM · KEY · LENGTH" + mood tags. */}
       <div className="min-w-0 flex-1">
-        {/* Line 1 — title + (mobile-only) producer handle */}
+        {/* Line 1 — title (+ desktop co-producers chip) */}
         <div
           className="flex items-baseline min-w-0"
           style={{ gap: 8 }}
@@ -704,12 +705,6 @@ function BeatRow({
           >
             {beat.title}
           </span>
-          <span
-            className="t-mono-s shrink-0 sm:hidden"
-            style={{ color: "var(--fg-3)" }}
-          >
-            {producerAt.toUpperCase()}
-          </span>
           {beat.coProducers && beat.coProducers.length > 0 && (
             <span
               className="t-mono-s truncate hidden sm:inline"
@@ -722,29 +717,18 @@ function BeatRow({
           )}
         </div>
 
-        {/* Line 2 — type tag + meta */}
+        {/* Line 2 — mobile-only producer handle + details popover */}
         <div
-          className="flex items-center flex-wrap"
-          style={{ gap: 7, marginTop: 5 }}
+          className="flex items-center sm:hidden"
+          style={{ gap: 8, marginTop: 5 }}
         >
-          {beat.type === "comp" && (
-            <Tag variant="accent" icon="waves">
-              COMP
-            </Tag>
-          )}
-          {beat.type === "loop" && (
-            <Tag variant="solid" icon="repeat">
-              LOOP
-            </Tag>
-          )}
-
-          {/* Mobile-only meta toggle. Tapping the … reveals a small
-              popover with BPM · KEY · LENGTH so the row stays at
-              2 visible lines but the info is still one tap away. */}
-          <div
-            ref={detailsRef}
-            className="relative sm:hidden"
+          <span
+            className="t-mono-s truncate flex-1"
+            style={{ color: "var(--fg-3)" }}
           >
+            {producerAt.toUpperCase()}
+          </span>
+          <div ref={detailsRef} className="relative shrink-0">
             <button
               type="button"
               aria-label="Show beat details"
@@ -775,7 +759,7 @@ function BeatRow({
                 style={{
                   position: "absolute",
                   top: "calc(100% + 6px)",
-                  left: 0,
+                  right: 0,
                   zIndex: 20,
                   padding: "8px 10px",
                   borderRadius: "var(--r-sm)",
@@ -786,23 +770,33 @@ function BeatRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                {metaLine}
+                {beat.type.toUpperCase()} · {metaLine}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Desktop-only inline meta line + mood tags. */}
-          <span
-            className="t-mono-s hidden sm:inline"
-            style={{ color: "var(--fg-3)" }}
-          >
+        {/* Line 2 — desktop: COMP/LOOP tag + meta + mood tags. */}
+        <div
+          className="hidden sm:flex items-center flex-wrap"
+          style={{ gap: 7, marginTop: 5 }}
+        >
+          {beat.type === "comp" && (
+            <Tag variant="accent" icon="waves">
+              COMP
+            </Tag>
+          )}
+          {beat.type === "loop" && (
+            <Tag variant="solid" icon="repeat">
+              LOOP
+            </Tag>
+          )}
+          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
             {metaLine}
           </span>
-          <div className="hidden sm:flex items-center" style={{ gap: 7 }}>
-            {beat.mood.map((m) => (
-              <Tag key={m}>{m}</Tag>
-            ))}
-          </div>
+          {beat.mood.map((m) => (
+            <Tag key={m}>{m}</Tag>
+          ))}
         </div>
       </div>
 
