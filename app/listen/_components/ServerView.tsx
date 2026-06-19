@@ -189,13 +189,12 @@ export function ServerView({ producer, server }: ServerViewProps) {
     if (moodFilter && !b.mood.includes(moodFilter)) return false;
     return true;
   });
-  // Sort by the server-side position (which loadServerView fills in
-  // order of added_at desc). Newest-first keeps the pivot order;
-  // oldest-first reverses it.
+  // The server payload arrives in pivot-position order (which is
+  // the producer's curated newest-first ordering). For "oldest
+  // first" we reverse the visible array — no extra field needed,
+  // and the cost is O(n) on what is at most a few dozen beats.
   const visible =
-    sortOrder === "oldest"
-      ? [...filtered].sort((a, b) => b.position - a.position)
-      : filtered;
+    sortOrder === "oldest" ? [...filtered].reverse() : filtered;
 
   const toggleLike = (id: string) => {
     // Optimistic flip on the override, then fire the action. The
