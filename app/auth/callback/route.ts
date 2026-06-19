@@ -203,7 +203,11 @@ function writeLastModeCookie(res: NextResponse, mode: LastMode) {
   res.cookies.set(LAST_MODE_COOKIE, mode, {
     path: "/",
     maxAge: ONE_YEAR_SECONDS,
-    httpOnly: false,
+    // Read server-side only — flipping httpOnly off was an
+    // option for a hypothetical client peek that never shipped,
+    // and leaving it scriptable lets an XSS rewrite the routing
+    // preference. Cost of locking it down: zero.
+    httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });

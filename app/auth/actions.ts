@@ -121,7 +121,27 @@ export async function requestMagicLinkAction(
     },
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Always swallow Supabase's verbatim message — it leaks
+    // whether the account exists, is rate-limited, etc. A user
+    // enumeration vector. Log server-side for debugging; surface
+    // a generic copy. The happy-path UX is identical
+    // ("check your inbox"), so an attacker can't tell whether a
+    // probe succeeded.
+    console.warn("[auth] signInWithOtp error:", error.message);
+    // Treat known transient errors as soft-failures (still bounce
+    // to the success state) so timing doesn't leak either.
+    if (/rate/i.test(error.message)) {
+      const qs = new URLSearchParams({ sent: "1", email });
+      if (next) qs.set("next", next);
+      if (role) qs.set("as", role);
+      redirect(`/auth?${qs.toString()}`);
+    }
+    return {
+      error:
+        "We couldn't send your sign-in link right now. Please try again in a moment.",
+    };
+  }
 
   // Land on the "Check your inbox" success state (same /auth route,
   // sent=1 toggles SentState in AuthScreen).
