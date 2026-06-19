@@ -482,6 +482,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
             <BeatRow
               key={b.id}
               beat={b}
+              producerHandle={producer.handle}
               noteVisibility={
                 // Local optimistic edit wins (artist just sent a
                 // note in this session). Otherwise hydrate from the
@@ -581,6 +582,7 @@ function FilterChip({
 
 function BeatRow({
   beat,
+  producerHandle,
   noteVisibility,
   playing,
   onTogglePlay,
@@ -589,6 +591,10 @@ function BeatRow({
   onOpenNote,
 }: {
   beat: MockBeat;
+  /** Producer's @handle — surfaced on the row's first line on
+   *  mobile so the artist always knows whose pack they're in,
+   *  even when scrolled deep into the beat list. */
+  producerHandle: string;
   /** Visibility of the saved note, or null when no note exists.
    *  Drives the message icon's colour:
    *    null    → fg-4    (no note)
@@ -602,13 +608,39 @@ function BeatRow({
   onOpenNote: () => void;
 }) {
   const [hovered, setHovered] = React.useState(false);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const detailsRef = React.useRef<HTMLDivElement>(null);
+
+  // Close the mobile-only details popover on outside click / Escape.
+  React.useEffect(() => {
+    if (!detailsOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!detailsRef.current?.contains(e.target as Node))
+        setDetailsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDetailsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [detailsOpen]);
+
+  const metaLine = [`${beat.bpm} BPM`, beat.key, beat.duration].join(" · ");
+  const producerAt = producerHandle.startsWith("@")
+    ? producerHandle
+    : `@${producerHandle}`;
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="flex items-center transition-colors duration-fast"
       style={{
-        gap: 14,
+        gap: 12,
         padding: "10px 12px",
         borderRadius: "var(--r-md)",
         background: hovered ? "var(--bg-2)" : "transparent",
@@ -650,16 +682,19 @@ function BeatRow({
         </div>
       </button>
 
-      {/* Title + meta — exactly the producer BeatRow's shape:
-          title (+ co-producers inline) on top, then a meta row of
-          type tag → "BPM · KEY · LENGTH" → mood tags. */}
+      {/* Title + meta — mobile gets a tighter 2-line shape:
+            line 1 : title (truncated) ····· @producer
+            line 2 : COMP/LOOP tag + […] details button
+          Desktop (sm+) keeps the original inline meta row with
+          "BPM · KEY · LENGTH" spelled out plus mood tags. */}
       <div className="min-w-0 flex-1">
+        {/* Line 1 — title + (mobile-only) producer handle */}
         <div
-          className="flex items-center min-w-0"
+          className="flex items-baseline min-w-0"
           style={{ gap: 8 }}
         >
           <span
-            className="truncate"
+            className="truncate flex-1"
             style={{
               fontFamily: "var(--font-body)",
               fontSize: 14.5,
@@ -669,9 +704,15 @@ function BeatRow({
           >
             {beat.title}
           </span>
+          <span
+            className="t-mono-s shrink-0 sm:hidden"
+            style={{ color: "var(--fg-3)" }}
+          >
+            {producerAt.toUpperCase()}
+          </span>
           {beat.coProducers && beat.coProducers.length > 0 && (
             <span
-              className="t-mono-s truncate"
+              className="t-mono-s truncate hidden sm:inline"
               style={{ color: "var(--fg-3)" }}
             >
               {beat.coProducers
@@ -680,12 +721,12 @@ function BeatRow({
             </span>
           )}
         </div>
+
+        {/* Line 2 — type tag + meta */}
         <div
           className="flex items-center flex-wrap"
           style={{ gap: 7, marginTop: 5 }}
         >
-          {/* Type tag — same DS variants as producer BeatRow:
-              COMP = accent + waves, LOOP = solid + repeat. */}
           {beat.type === "comp" && (
             <Tag variant="accent" icon="waves">
               COMP
@@ -696,16 +737,72 @@ function BeatRow({
               LOOP
             </Tag>
           )}
-          {/* Inline meta line, duration BEFORE mood tags, joined
-              by " · " bullets — exactly the producer MetaRow. */}
-          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
-            {[`${beat.bpm} BPM`, beat.key, beat.duration].join(" · ")}
+
+          {/* Mobile-only meta toggle. Tapping the … reveals a small
+              popover with BPM · KEY · LENGTH so the row stays at
+              2 visible lines but the info is still one tap away. */}
+          <div
+            ref={detailsRef}
+            className="relative sm:hidden"
+          >
+            <button
+              type="button"
+              aria-label="Show beat details"
+              aria-expanded={detailsOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailsOpen((v) => !v);
+              }}
+              className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+              style={{
+                width: 26,
+                height: 22,
+                borderRadius: "var(--r-sm)",
+                border: "1px solid var(--border-1)",
+                background: detailsOpen
+                  ? "var(--bg-3)"
+                  : "transparent",
+                color: "var(--fg-2)",
+              }}
+            >
+              <Icon name="more" size={13} />
+            </button>
+            {detailsOpen && (
+              <div
+                role="dialog"
+                aria-label="Beat details"
+                className="t-mono-s"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  left: 0,
+                  zIndex: 20,
+                  padding: "8px 10px",
+                  borderRadius: "var(--r-sm)",
+                  border: "1px solid var(--border-1)",
+                  background: "var(--bg-1)",
+                  boxShadow: "var(--shadow-pop)",
+                  color: "var(--fg-2)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {metaLine}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop-only inline meta line + mood tags. */}
+          <span
+            className="t-mono-s hidden sm:inline"
+            style={{ color: "var(--fg-3)" }}
+          >
+            {metaLine}
           </span>
-          {/* Mood tags — DS Tag default variant (no fill, hairline
-              border + fg-3 text), same as producer. */}
-          {beat.mood.map((m) => (
-            <Tag key={m}>{m}</Tag>
-          ))}
+          <div className="hidden sm:flex items-center" style={{ gap: 7 }}>
+            {beat.mood.map((m) => (
+              <Tag key={m}>{m}</Tag>
+            ))}
+          </div>
         </div>
       </div>
 
