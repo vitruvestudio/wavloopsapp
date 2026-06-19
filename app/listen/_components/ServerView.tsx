@@ -465,11 +465,15 @@ export function ServerView({ producer, server }: ServerViewProps) {
         </div>
       </section>
 
-      {/* ── Toolbar — filter chips + sort. Mobile: filters scroll
-              horizontally if they overflow, sort moves below. */}
+      {/* ── Toolbar — filter chips on the left, sort + grid toggle
+              on the right. The filter row scrolls horizontally on
+              its own if it overflows, so the right-hand controls
+              keep a fixed position next to (or under, on mobile)
+              the chips. */}
       <div
-        className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-0 px-[18px] pt-[18px] pb-[10px] lg:px-[30px] lg:pt-[20px] lg:pb-[12px]"
+        className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3 px-[18px] pt-[18px] pb-[10px] lg:px-[30px] lg:pt-[20px] lg:pb-[12px]"
       >
+        {/* Filter chips */}
         <div
           className="flex items-center overflow-x-auto"
           style={{ gap: 8, scrollbarWidth: "none" }}
@@ -501,9 +505,14 @@ export function ServerView({ producer, server }: ServerViewProps) {
             active={filter === "hidden"}
             onClick={() => setFilter("hidden")}
           />
-          {/* List / Grid toggle inlined at the end of the chip
-              row so it stays visible on mobile (the sort dropdown
-              wraps to the next line on narrow viewports). */}
+        </div>
+
+        {/* Right cluster — sort + grid toggle, kept out of the
+            overflow container so neither one clips. */}
+        <div
+          className="flex items-center self-start lg:self-auto shrink-0"
+          style={{ gap: 8 }}
+        >
           <div
             className="inline-flex items-center shrink-0"
             style={{
@@ -512,7 +521,6 @@ export function ServerView({ producer, server }: ServerViewProps) {
               padding: 2,
               gap: 2,
               height: 32,
-              marginLeft: "auto",
             }}
           >
             <button
@@ -554,34 +562,36 @@ export function ServerView({ producer, server }: ServerViewProps) {
               <Icon name="view-grid" size={14} />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setSortOrder((cur) =>
+                cur === "newest" ? "oldest" : "newest",
+              )
+            }
+            aria-label="Toggle sort order"
+            className="inline-flex items-center cursor-pointer"
+            style={{
+              gap: 8,
+              padding: "0 12px",
+              height: 32,
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--border-1)",
+              background: "transparent",
+              color: "var(--fg-2)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Icon name="clock" size={12} />
+            {sortOrder === "newest" ? "NEWEST FIRST" : "OLDEST FIRST"}
+            <Icon name="chevron-down" size={12} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            setSortOrder((cur) => (cur === "newest" ? "oldest" : "newest"))
-          }
-          aria-label="Toggle sort order"
-          className="inline-flex items-center self-start lg:self-auto cursor-pointer"
-          style={{
-            gap: 8,
-            padding: "0 12px",
-            height: 32,
-            borderRadius: "var(--r-md)",
-            border: "1px solid var(--border-1)",
-            background: "transparent",
-            color: "var(--fg-2)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <Icon name="clock" size={12} />
-          {sortOrder === "newest" ? "NEWEST FIRST" : "OLDEST FIRST"}
-          <Icon name="chevron-down" size={12} />
-        </button>
       </div>
 
       {/* Mood pills — horizontal-scroll row under the toolbar.
