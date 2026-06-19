@@ -36,6 +36,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+import Script from "next/script";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -96,6 +97,14 @@ export function ArtistGatePage({
   const socialEntries = Object.entries(data.producer_socials ?? {}).filter(
     ([k, v]) => v && PLATFORM_ICON[k],
   );
+
+  // Cloudflare Turnstile — only anon visitors get the captcha
+  // (signed-in users already hold a verified account). Rendered
+  // only when the public site key is configured, so the gate keeps
+  // working before the Cloudflare keys are wired.
+  const turnstileSiteKey =
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+  const showTurnstile = !isAuthed && !!turnstileSiteKey;
 
   return (
     <main
@@ -333,6 +342,25 @@ export function ArtistGatePage({
             placeholder="@handle (Instagram, X…)"
             required={socialRequired}
           />
+
+          {/* Cloudflare Turnstile widget — drops a single-use
+              `cf-turnstile-response` hidden input into this form,
+              which requestGateAccessAction verifies server-side.
+              The script auto-renders any .cf-turnstile element on
+              load. */}
+          {showTurnstile && (
+            <>
+              <Script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+                strategy="afterInteractive"
+              />
+              <div
+                className="cf-turnstile"
+                data-sitekey={turnstileSiteKey}
+                data-theme="dark"
+              />
+            </>
+          )}
 
           {state?.error && (
             <div

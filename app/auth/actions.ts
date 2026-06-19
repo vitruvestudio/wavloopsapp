@@ -28,6 +28,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminSupabase } from "@/lib/supabase/admin";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { sendAccessRequestEmail } from "@/lib/resend/emails";
 
 export interface AuthState {
@@ -278,9 +280,34 @@ export async function requestGateAccessAction(
     return { error: "Please enter a valid email." };
   }
 
+  // Anon bot filter. Signed-in users already hold a verified account
+  // so they skip the captcha; anon visitors must clear Turnstile.
+  // No-op until the Cloudflare keys are configured (see lib/turnstile).
+  if (!user) {
+    const turnstileToken =
+      String(formData.get("cf-turnstile-response") ?? "") || null;
+    const fwd = (await headers()).get("x-forwarded-for");
+    const ip = fwd ? fwd.split(",")[0]?.trim() || null : null;
+    const human = await verifyTurnstile(turnstileToken, ip);
+    if (!human) {
+      return {
+        error: "Please complete the verification and try again.",
+      };
+    }
+  }
+
   // Step 1 — write the pending row + producer notification NOW,
   // before the email-verification round-trip.
-  const { data: submitRes, error: submitErr } = await supabase.rpc(
+  //
+  // RPC client choice: anon EXECUTE on submit_access_request is
+  // revoked (migration #35), so anon submissions go through the
+  // service-role admin client — but ONLY after the Turnstile check
+  // above. Signed-in users call it as themselves (authenticated
+  // grant intact). The function is SECURITY DEFINER and treats a
+  // null auth.uid() exactly like the existing anon case, so routing
+  // through admin changes nothing about its behaviour.
+  const rpcClient = user ? supabase : getAdminSupabase();
+  const { data: submitRes, error: submitErr } = await rpcClient.rpc(
     "submit_access_request",
     { p_slug: slug, p_email: email, p_social: social || null },
   );
