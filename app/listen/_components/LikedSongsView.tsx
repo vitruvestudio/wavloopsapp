@@ -263,9 +263,17 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
               key={entry.beat.id}
               entry={entry}
               noteVisibility={
+                // Hydrate from the server payload the same way
+                // ServerView does, so a beat that was already
+                // commented or noted lights up the message icon
+                // on first paint. Local optimistic edit wins.
                 notes[entry.beat.id]?.text?.trim()
                   ? notes[entry.beat.id].visibility
-                  : null
+                  : entry.beat.latestCommentBody?.trim()
+                    ? "shared"
+                    : entry.beat.noteBody?.trim()
+                      ? "private"
+                      : null
               }
               playing={playingId === entry.beat.id}
               onTogglePlay={() => togglePlay(entry.beat)}
@@ -464,24 +472,50 @@ function LikedRow({
       <div className="flex items-center" style={{ gap: 2 }}>
         <button
           type="button"
-          aria-label="Open note"
+          aria-label={
+            noteVisibility === "shared"
+              ? "Open note (shared with producer)"
+              : noteVisibility === "private"
+                ? "Open note (private)"
+                : "Open note"
+          }
           onClick={onOpenNote}
-          className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+          className="relative inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
           style={{
             width: 32,
             height: 32,
             border: "none",
             borderRadius: "var(--r-sm)",
-            background: "transparent",
+            background:
+              noteVisibility === "shared"
+                ? "var(--accent-surface)"
+                : noteVisibility === "private"
+                  ? "var(--bg-2)"
+                  : "transparent",
             color:
               noteVisibility === "shared"
-                ? "var(--accent)"
+                ? "var(--accent-text)"
                 : noteVisibility === "private"
                   ? "var(--fg-2)"
                   : "var(--fg-4)",
           }}
         >
           <Icon name="message" size={16} />
+          {noteVisibility === "shared" && (
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: 2,
+                right: 2,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "var(--accent)",
+                border: "1.5px solid var(--bg-0)",
+              }}
+            />
+          )}
         </button>
         <button
           type="button"
