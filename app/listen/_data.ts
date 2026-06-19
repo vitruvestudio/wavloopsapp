@@ -20,7 +20,9 @@
 
 import "server-only";
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/current";
 
 export interface ArtistViewer {
   userId: string;
@@ -109,13 +111,22 @@ export interface ArtistContext {
 /** Loads the full shell-level context for the authed artist.
  *  Returns null when there's no session — caller should redirect
  *  (the proxy already gates /listen/*, so this is a defense-in-
- *  depth fallback). */
-export async function loadArtistContext(): Promise<ArtistContext | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+ *  depth fallback).
+ *
+ *  Wrapped in React.cache() so the shell layout, the /listen
+ *  landing redirect, and any nested page sharing the same
+ *  request only pay for ONE round-trip to Supabase. Without
+ *  this, the layout's loadArtistContext() and a child's later
+ *  loadArtistContext() (e.g. /listen/notifications) each fan
+ *  out 5 queries in parallel — twice. */
+export const loadArtistContext = cache(_loadArtistContext);
+
+async function _loadArtistContext(): Promise<ArtistContext | null> {
+  // getCurrentUser is already cache()'d so reusing it here keeps
+  // the auth lookup deduped across the request tree.
+  const user = await getCurrentUser();
   if (!user) return null;
+  const supabase = await createClient();
 
   // Fan out: profile, contacts (with producer + servers), liked
   // count, latest notifications, producer-side profile check
@@ -362,11 +373,9 @@ export interface ArtistServerView {
 export async function loadServerView(
   slug: string,
 ): Promise<ArtistServerView | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
+  const supabase = await createClient();
 
   // Two-step instead of an embedded FK join — the embedded form
   // requires the constraint name (`servers_owner_id_fkey`) and
@@ -385,20 +394,25 @@ export async function loadServerView(
     .maybeSingle();
   if (!serverRow) return null;
 
-  const { data: owner } = await supabase
-    .from("profiles")
-    .select("id, handle, name, avatar_url, socials")
-    .eq("id", serverRow.owner_id as string)
-    .maybeSingle<ProducerRow>();
+  // Owner profile + viewer's contact row only depend on owner_id,
+  // so they can fan out in parallel rather than back-to-back.
+  const ownerId = serverRow.owner_id as string;
+  const [ownerRes, myContactRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, handle, name, avatar_url, socials")
+      .eq("id", ownerId)
+      .maybeSingle<ProducerRow>(),
+    supabase
+      .from("contacts")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .eq("owner_id", ownerId)
+      .maybeSingle<{ id: string }>(),
+  ]);
+  const owner = ownerRes.data;
   if (!owner) return null;
-
-  const { data: myContact } = await supabase
-    .from("contacts")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .eq("owner_id", serverRow.owner_id as string)
-    .maybeSingle<{ id: string }>();
-  const contactId = myContact?.id ?? null;
+  const contactId = myContactRes.data?.id ?? null;
 
   // Same two-step pattern: pivot rows first (RLS scoped to artist),
   // then resolve beat rows in one IN() round-trip.
@@ -626,11 +640,9 @@ export interface ArtistLikedEntry {
 /** Cross-producer "Liked Songs" feed. Empty array when the user
  *  has no likes or no session — keeps the page render trivial. */
 export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return [];
+  const supabase = await createClient();
 
   // 1. Every contact this artist owns (one per producer).
   const { data: contacts } = await supabase
