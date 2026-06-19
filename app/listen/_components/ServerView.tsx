@@ -71,24 +71,14 @@ function BannerBackground({ server }: { server: MockServer }) {
     return (
       <div
         aria-hidden
-        className="absolute inset-0"
+        className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage: `url(${photoSrc})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          // Heavy blur + slight desaturation + lift brightness
-          // turns the image into a soft tinted cloud rather than
-          // a recognisable photo. Scale 1.4 hides blur edges.
           filter: "blur(90px) saturate(0.75) brightness(1.05)",
           transform: "scale(1.4)",
-          // Opacity is the key dial — at 0.45 the cover colour
-          // tints the page background instead of replacing it, so
-          // light theme reads as a pastel wash exactly like the
-          // COLOR mesh, and dark theme reads as a muted glow.
           opacity: 0.45,
-          // Same upper-centre glow shape as the COLOR mesh — the
-          // banner converges on one premium look regardless of
-          // which artwork mode produced it.
           WebkitMaskImage: BANNER_GLOW_MASK,
           maskImage: BANNER_GLOW_MASK,
           zIndex: 0,
@@ -102,7 +92,7 @@ function BannerBackground({ server }: { server: MockServer }) {
   return (
     <div
       aria-hidden
-      className="absolute inset-0"
+      className="absolute inset-0 pointer-events-none"
       style={{
         background: bannerGradient(hue),
         WebkitMaskImage: BANNER_FADE_MASK,
@@ -466,16 +456,20 @@ export function ServerView({ producer, server }: ServerViewProps) {
       </section>
 
       {/* ── Toolbar — filter chips on the left, sort + grid toggle
-              on the right. The filter row scrolls horizontally on
-              its own if it overflows, so the right-hand controls
-              keep a fixed position next to (or under, on mobile)
-              the chips. */}
+              on the right. position relative + zIndex ensures the
+              chips sit above the banner's faded gradient tail,
+              which otherwise (despite living in a sibling section)
+              can swallow clicks in some browser layout passes. */}
       <div
-        className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3 px-[18px] pt-[18px] pb-[10px] lg:px-[30px] lg:pt-[20px] lg:pb-[12px]"
+        className="relative flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3 px-[18px] pt-[18px] pb-[10px] lg:px-[30px] lg:pt-[20px] lg:pb-[12px]"
+        style={{ zIndex: 2 }}
       >
-        {/* Filter chips */}
+        {/* Filter chips — horizontal scroll on mobile so the 4th
+            "Hidden" chip stays reachable without wrapping or
+            clipping. shrink-0 on each FilterChip prevents flex
+            from squishing them. */}
         <div
-          className="flex items-center overflow-x-auto"
+          className="flex items-center overflow-x-auto -mx-[18px] px-[18px] lg:mx-0 lg:px-0"
           style={{ gap: 8, scrollbarWidth: "none" }}
         >
           <FilterChip
@@ -742,7 +736,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center cursor-pointer transition-colors duration-fast"
+      className="inline-flex items-center shrink-0 cursor-pointer transition-colors duration-fast"
       style={{
         gap: 8,
         padding: "0 14px",
@@ -756,6 +750,7 @@ function FilterChip({
         fontWeight: 600,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
+        whiteSpace: "nowrap",
       }}
     >
       {icon && <Icon name={icon} size={12} />}
