@@ -132,6 +132,15 @@ export function ServerView({ producer, server }: ServerViewProps) {
   const [overrides, setOverrides] = React.useState<
     Record<string, { liked?: boolean; listened?: boolean }>
   >({});
+  // Per-beat "hidden" state, decoupled from listened. listened is
+  // auto-stamped when the artist hits play (so the producer's
+  // play count grows); hidden is only set when the artist taps
+  // the eye button. Without the split, playing a beat would
+  // immediately move it into the Hidden tab. Local-only for V1
+  // — persisting it lands with a `hidden_beats` table later.
+  const [hidden, setHidden] = React.useState<Record<string, boolean>>(
+    {},
+  );
   /** Per-beat notes, keyed by beat id. The artist picks visibility
    *  inside the modal — private notes stay local to them, shared
    *  notes reach the producer (Phase 3 splits at the DB:
@@ -146,19 +155,16 @@ export function ServerView({ producer, server }: ServerViewProps) {
     ...b,
     liked: overrides[b.id]?.liked ?? b.liked,
     listened: overrides[b.id]?.listened ?? b.listened,
+    // Local-only hidden flag — independent of the listened
+    // auto-stamp. true = artist tapped the eye button.
+    hidden: hidden[b.id] ?? false,
   }));
 
-  // We repurpose the existing `listened` flag as "hidden" for
-  // the artist. Keeps the DB column intact (a `listens` row
-  // doubles as the hide marker now) while letting the artist
-  // dismiss beats they don't want in their default view. The
-  // eye / eye-off toggle stays — it just means hide / unhide
-  // from the artist's perspective.
   const counts = {
-    all: beats.filter((b) => !b.listened).length,
-    new: beats.filter((b) => b.isNew && !b.listened).length,
-    liked: beats.filter((b) => b.liked && !b.listened).length,
-    hidden: beats.filter((b) => b.listened).length,
+    all: beats.filter((b) => !b.hidden).length,
+    new: beats.filter((b) => b.isNew && !b.hidden).length,
+    liked: beats.filter((b) => b.liked && !b.hidden).length,
+    hidden: beats.filter((b) => b.hidden).length,
   };
 
   // Mood pills surfaced under the existing filter chips. Compute
@@ -169,9 +175,11 @@ export function ServerView({ producer, server }: ServerViewProps) {
   ).sort();
 
   const filtered = beats.filter((b) => {
+    // Hidden is the only tab that shows hidden beats; every
+    // other view excludes them.
     if (filter === "hidden") {
-      if (!b.listened) return false;
-    } else if (b.listened) {
+      if (!b.hidden) return false;
+    } else if (b.hidden) {
       return false;
     }
     if (filter === "new" && !b.isNew) return false;
@@ -210,16 +218,18 @@ export function ServerView({ producer, server }: ServerViewProps) {
     });
   };
 
-  // Toggle is local-only — the eye is a "hide from NEW" gesture,
-  // not a "delete my listens history" gesture. Auto-listen is what
-  // writes to the DB (see togglePlay below).
-  const toggleListened = (id: string) =>
+  // Toggle the local hidden flag — independent of listened. The
+  // eye button on each row calls this; the auto-listen path on
+  // play() never touches it.
+  const toggleHidden = (id: string) =>
+    setHidden((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Auto-listen override (used at play-time only) — separate so
+  // it doesn't drag the row into the Hidden tab.
+  const markListenedLocal = (id: string) =>
     setOverrides((prev) => ({
       ...prev,
-      [id]: {
-        ...prev[id],
-        listened: !(prev[id]?.listened ?? beats.find((b) => b.id === id)?.listened ?? false),
-      },
+      [id]: { ...prev[id], listened: true },
     }));
 
   const togglePlay = (beat: MockBeat) => {
@@ -228,7 +238,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
     // the global player is already on this beat.
     const isCurrent = player.current?.id === beat.id;
     if (!isCurrent) {
-      toggleListened(beat.id);
+      markListenedLocal(beat.id);
       // Persist a `listens` row. completion_pct is omitted at
       // play-start; a follow-up "did they actually finish it"
       // signal can write a second row later. Errors logged only —
@@ -681,7 +691,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
               playing={playingId === b.id}
               onTogglePlay={() => togglePlay(b)}
               onToggleLike={() => toggleLike(b.id)}
-              onToggleListened={() => toggleListened(b.id)}
+              onToggleListened={() => toggleHidden(b.id)}
               onOpenNote={() => setNoteFor(b)}
             />
           ))
@@ -770,7 +780,7 @@ function BeatRow({
   onToggleListened,
   onOpenNote,
 }: {
-  beat: MockBeat;
+  beat: MockBeat & { hidden?: boolean };
   /** Producer's @handle — surfaced on the row's first line on
    *  mobile so the artist always knows whose pack they're in,
    *  even when scrolled deep into the beat list. */
@@ -1006,13 +1016,11 @@ function BeatRow({
         )}
       </button>
 
-      {/* Hide / unhide toggle. Reuses the `listened` DB flag as the
-          per-artist hide marker — a hidden beat slides out of the
-          default views (All / New / Liked) and resurfaces only
-          under the Hidden filter chip. */}
+      {/* Hide / unhide toggle. Local-only flag, independent of
+          listened — playing a beat doesn't auto-hide it. */}
       <button
         type="button"
-        aria-label={beat.listened ? "Unhide" : "Hide"}
+        aria-label={beat.hidden ? "Unhide" : "Hide"}
         onClick={onToggleListened}
         className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
         style={{
@@ -1021,13 +1029,10 @@ function BeatRow({
           borderRadius: "var(--r-sm)",
           border: "none",
           background: "transparent",
-          color: beat.listened ? "var(--fg-2)" : "var(--fg-4)",
+          color: beat.hidden ? "var(--fg-2)" : "var(--fg-4)",
         }}
       >
-        <Icon
-          name={beat.listened ? "eye-off" : "eye"}
-          size={16}
-        />
+        <Icon name={beat.hidden ? "eye-off" : "eye"} size={16} />
       </button>
 
       {/* Like */}
