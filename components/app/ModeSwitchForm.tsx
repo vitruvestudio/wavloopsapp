@@ -22,6 +22,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useFormStatus } from "react-dom";
 import { Icon } from "@/components/ui/Icon";
 import { Logomark } from "@/components/ui/Logo";
@@ -86,7 +87,14 @@ function SubmitButton({
 
 function Overlay({ target }: { target: "artist" | "producer" }) {
   const { pending } = useFormStatus();
-  if (!pending) return null;
+  // Mount the overlay through a portal into document.body so it
+  // escapes any ancestor that creates a containing block for
+  // position:fixed — ArtistTopbar uses backdrop-filter: blur,
+  // which alone is enough to trap a fixed descendant inside the
+  // header box instead of letting it cover the viewport.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  if (!pending || !mounted) return null;
   const headline =
     target === "artist"
       ? "Loading your artist space…"
@@ -95,7 +103,7 @@ function Overlay({ target }: { target: "artist" | "producer" }) {
     target === "artist"
       ? "Lining up beats from your producers"
       : "Tuning up your library and dashboard";
-  return (
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
@@ -183,6 +191,7 @@ function Overlay({ target }: { target: "artist" | "producer" }) {
           50%      { transform: scale(1.08); opacity: 1; }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
