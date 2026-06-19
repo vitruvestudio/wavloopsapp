@@ -197,54 +197,82 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
 
           {/* Play all — kicks off the dock on the first liked
               beat. Disabled when the list is empty. */}
-          <button
-            type="button"
-            aria-label="Play all liked"
-            disabled={count === 0}
-            onClick={() => {
-              const first = visible[0]?.beat;
-              if (first) togglePlay(first);
-            }}
-            className="shrink-0 grid place-items-center cursor-pointer"
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 999,
-              background: "var(--accent)",
-              border: "none",
-              color: "white",
-              opacity: count === 0 ? 0.4 : 1,
-            }}
+          {/* Shuffle + Play cluster — mirrors the ServerView
+              header: outline-less shuffle on the left, flat
+              accent play on the right, no drop-shadow. */}
+          <div
+            className="shrink-0 inline-flex items-center"
+            style={{ gap: 14 }}
           >
-            <Icon name="play" size={22} style={{ marginLeft: 2 }} />
-          </button>
+            <button
+              type="button"
+              aria-label="Shuffle liked"
+              disabled={count === 0}
+              onClick={() => {
+                if (visible.length === 0) return;
+                const i = Math.floor(Math.random() * visible.length);
+                togglePlay(visible[i].beat);
+              }}
+              className="grid place-items-center cursor-pointer transition-transform duration-fast hover:scale-105"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 999,
+                background: "transparent",
+                border: "none",
+                color: "var(--fg-1)",
+                opacity: count === 0 ? 0.4 : 1,
+              }}
+            >
+              <Icon name="shuffle" size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label="Play all liked"
+              disabled={count === 0}
+              onClick={() => {
+                const first = visible[0]?.beat;
+                if (first) togglePlay(first);
+              }}
+              className="grid place-items-center cursor-pointer transition-transform duration-fast hover:scale-105"
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 999,
+                background: "var(--accent)",
+                border: "none",
+                color: "white",
+                opacity: count === 0 ? 0.4 : 1,
+              }}
+            >
+              <Icon name="play" size={22} style={{ marginLeft: 2 }} />
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* ── Table ──────────────────────────────────────────────── */}
+      {/* ── List — same flat row shape as the ServerView so the
+              Liked Songs surface feels like just another server,
+              rather than a database table. ─────────────────── */}
       <section className="px-[12px] pb-12 lg:px-[28px]">
         {count === 0 ? (
           <EmptyState />
         ) : (
-          <>
-            <TableHeader />
-            {visible.map((entry, i) => (
-              <LikedRow
-                key={entry.beat.id}
-                index={i + 1}
-                entry={entry}
-                noteVisibility={
-                  notes[entry.beat.id]?.text?.trim()
-                    ? notes[entry.beat.id].visibility
-                    : null
-                }
-                playing={playingId === entry.beat.id}
-                onTogglePlay={() => togglePlay(entry.beat)}
-                onToggleLike={() => toggleLike(entry.beat.id, entry.server.slug)}
-                onOpenNote={() => setNoteFor(entry)}
-              />
-            ))}
-          </>
+          visible.map((entry) => (
+            <LikedRow
+              key={entry.beat.id}
+              entry={entry}
+              noteVisibility={
+                notes[entry.beat.id]?.text?.trim()
+                  ? notes[entry.beat.id].visibility
+                  : null
+              }
+              playing={playingId === entry.beat.id}
+              onTogglePlay={() => togglePlay(entry.beat)}
+              onToggleLike={() => toggleLike(entry.beat.id, entry.server.slug)}
+              onOpenNote={() => setNoteFor(entry)}
+            />
+          ))
         )}
       </section>
 
@@ -282,44 +310,7 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
    Sub-components
    ============================================================ */
 
-function TableHeader() {
-  return (
-    <div
-      className="grid items-center"
-      style={{
-        gridTemplateColumns: "28px 1fr minmax(140px, 220px) 110px",
-        gap: 12,
-        padding: "0 12px 8px",
-        marginBottom: 4,
-        borderBottom: "1px solid var(--border-1)",
-      }}
-    >
-      <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-        #
-      </span>
-      <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>
-        BEAT
-      </span>
-      {/* Hidden on narrow screens — the FROM SERVER cell collapses
-          under the title in LikedRow. */}
-      <span
-        className="t-mono-s hidden sm:inline"
-        style={{ color: "var(--fg-4)" }}
-      >
-        FROM SERVER
-      </span>
-      <span
-        className="t-mono-s"
-        style={{ color: "var(--fg-4)", textAlign: "right" }}
-      >
-        TIME
-      </span>
-    </div>
-  );
-}
-
 interface LikedRowProps {
-  index: number;
   entry: LikedEntry;
   noteVisibility: BeatNoteVisibility | null;
   playing: boolean;
@@ -328,8 +319,10 @@ interface LikedRowProps {
   onOpenNote: () => void;
 }
 
+/** Mirrors the ServerView BeatRow shape: cover · title / @producer
+ *  (mobile) or title + COMP/meta line (desktop) · message + heart
+ *  + […] popover cluster pinned right. */
 function LikedRow({
-  index,
   entry,
   noteVisibility,
   playing,
@@ -337,152 +330,143 @@ function LikedRow({
   onToggleLike,
   onOpenNote,
 }: LikedRowProps) {
-  const { producer, server, beat } = entry;
+  const { producer, beat } = entry;
   const [hovered, setHovered] = React.useState(false);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const detailsRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!detailsOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!detailsRef.current?.contains(e.target as Node))
+        setDetailsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDetailsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [detailsOpen]);
+
+  const metaLine = [`${beat.bpm} BPM`, beat.key, beat.duration].join(" · ");
+  const producerAt = producer.handle.startsWith("@")
+    ? producer.handle
+    : `@${producer.handle}`;
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="grid items-center"
+      className="flex items-center transition-colors duration-fast"
       style={{
-        gridTemplateColumns: "28px 1fr minmax(140px, 220px) 110px",
         gap: 12,
         padding: "10px 12px",
         borderRadius: "var(--r-md)",
         background: hovered ? "var(--bg-2)" : "transparent",
       }}
     >
-      {/* # */}
-      <span
-        className="t-mono-s"
-        style={{ color: "var(--fg-4)", textAlign: "left" }}
+      {/* Cover with play overlay */}
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        aria-label={playing ? "Pause" : "Play"}
+        className="relative shrink-0 overflow-hidden cursor-pointer"
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "var(--r-sm)",
+          border: "none",
+          padding: 0,
+        }}
       >
-        {String(index).padStart(2, "0")}
-      </span>
-
-      {/* BEAT — cover thumb + title + @handle + type chip + meta */}
-      <div className="flex items-center min-w-0" style={{ gap: 12 }}>
-        <button
-          type="button"
-          onClick={onTogglePlay}
-          aria-label={playing ? "Pause" : "Play"}
-          className="relative shrink-0 overflow-hidden cursor-pointer"
+        <CoverArt fill seed={beat.artSeed} src={beat.coverUrl ?? undefined} />
+        <div
+          className="absolute inset-0 flex items-center justify-center"
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: "var(--r-sm)",
-            border: "none",
-            padding: 0,
+            background:
+              hovered || playing ? "oklch(0 0 0 / 0.5)" : "transparent",
+            transition: "background var(--dur-fast) var(--ease)",
+            color: "#fff",
           }}
         >
-          <CoverArt fill seed={beat.artSeed} src={beat.coverUrl ?? undefined} />
-          <div
-            className="absolute inset-0 flex items-center justify-center"
+          {(hovered || playing) && (
+            <Icon
+              name={playing ? "pause" : "play"}
+              size={18}
+              style={{ marginLeft: playing ? 0 : 2 }}
+            />
+          )}
+        </div>
+      </button>
+
+      {/* Title + producer (mobile) or title + meta line (desktop). */}
+      <div className="min-w-0 flex-1">
+        <div className="truncate" style={{ minWidth: 0 }}>
+          <span
             style={{
-              background:
-                hovered || playing
-                  ? "oklch(0 0 0 / 0.5)"
-                  : "transparent",
-              transition: "background var(--dur-fast) var(--ease)",
-              color: "#fff",
+              fontFamily: "var(--font-body)",
+              fontSize: 14.5,
+              fontWeight: 600,
+              color: "var(--fg-1)",
             }}
           >
-            {(hovered || playing) && (
-              <Icon
-                name={playing ? "pause" : "play"}
-                size={18}
-                style={{ marginLeft: playing ? 0 : 2 }}
-              />
-            )}
-          </div>
-        </button>
-
-        <div className="min-w-0 flex-1">
-          <div
-            className="flex items-center min-w-0"
-            style={{ gap: 8 }}
-          >
-            <span
-              className="truncate"
-              style={{
-                fontFamily: "var(--font-body)",
-                fontSize: 14.5,
-                fontWeight: 600,
-                color: "var(--fg-1)",
-              }}
-            >
-              {beat.title}
-            </span>
-            <span
-              className="t-mono-s truncate"
-              style={{ color: "var(--fg-3)" }}
-            >
-              @{producer.handle}
-            </span>
-          </div>
-          <div
-            className="flex items-center flex-wrap"
-            style={{ gap: 7, marginTop: 5 }}
-          >
-            {beat.type === "comp" && (
-              <Tag variant="accent" icon="waves">
-                COMP
-              </Tag>
-            )}
-            {beat.type === "loop" && (
-              <Tag variant="solid" icon="repeat">
-                LOOP
-              </Tag>
-            )}
-            <span
-              className="t-mono-s"
-              style={{ color: "var(--fg-3)" }}
-            >
-              {`${beat.bpm} BPM`} · {beat.key}
-            </span>
-            {beat.mood.map((m) => (
-              <Tag key={m}>{m}</Tag>
-            ))}
-          </div>
+            {beat.title}
+          </span>
         </div>
-      </div>
 
-      {/* FROM SERVER — server name + producer @ underneath. Hidden
-          on narrow screens; the producer @ is already shown next to
-          the beat title above. */}
-      <div className="min-w-0 hidden sm:block">
+        {/* Mobile: @producer directly under the title. */}
         <div
-          className="t-mono-s truncate"
+          className="sm:hidden truncate t-mono-s"
           style={{
-            color: "var(--fg-2)",
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
+            color: "var(--fg-3)",
+            marginTop: 1,
+            lineHeight: 1.3,
           }}
         >
-          {server.name}
+          {producerAt.toUpperCase()}
         </div>
+
+        {/* Desktop: COMP tag + inline meta + mood tags. */}
         <div
-          className="t-mono-s truncate"
-          style={{ color: "var(--fg-4)" }}
+          className="hidden sm:flex items-center flex-wrap"
+          style={{ gap: 7, marginTop: 5 }}
         >
-          @{producer.handle}
+          {beat.type === "comp" && (
+            <Tag variant="accent" icon="waves">
+              COMP
+            </Tag>
+          )}
+          {beat.type === "loop" && (
+            <Tag variant="solid" icon="repeat">
+              LOOP
+            </Tag>
+          )}
+          <span className="t-mono-s" style={{ color: "var(--fg-3)" }}>
+            {metaLine}
+          </span>
+          <span
+            className="t-mono-s truncate"
+            style={{ color: "var(--fg-4)" }}
+          >
+            · {producerAt.toUpperCase()}
+          </span>
+          {beat.mood.map((m) => (
+            <Tag key={m}>{m}</Tag>
+          ))}
         </div>
       </div>
 
-      {/* TIME + actions */}
-      <div className="flex items-center justify-end" style={{ gap: 4 }}>
-        <span
-          className="t-mono-s"
-          style={{ color: "var(--fg-3)", minWidth: 36, textAlign: "right" }}
-        >
-          {beat.duration}
-        </span>
+      {/* Action cluster — message, heart, … (mobile popover). */}
+      <div className="flex items-center" style={{ gap: 2 }}>
         <button
           type="button"
           aria-label="Open note"
           onClick={onOpenNote}
-          className="inline-flex items-center justify-center cursor-pointer"
+          className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
           style={{
             width: 32,
             height: 32,
@@ -503,7 +487,7 @@ function LikedRow({
           type="button"
           aria-label="Unlike"
           onClick={onToggleLike}
-          className="inline-flex items-center justify-center cursor-pointer"
+          className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
           style={{
             width: 32,
             height: 32,
@@ -519,6 +503,52 @@ function LikedRow({
             style={{ fill: "var(--accent)" }}
           />
         </button>
+
+        {/* Mobile-only "…" details popover */}
+        <div ref={detailsRef} className="relative shrink-0 sm:hidden">
+          <button
+            type="button"
+            aria-label="Show beat details"
+            aria-expanded={detailsOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDetailsOpen((v) => !v);
+            }}
+            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "var(--r-sm)",
+              border: "none",
+              background: detailsOpen ? "var(--bg-3)" : "transparent",
+              color: "var(--fg-4)",
+            }}
+          >
+            <Icon name="more" size={16} />
+          </button>
+          {detailsOpen && (
+            <div
+              role="dialog"
+              aria-label="Beat details"
+              className="t-mono-s"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                zIndex: 20,
+                padding: "8px 10px",
+                borderRadius: "var(--r-sm)",
+                border: "1px solid var(--border-1)",
+                background: "var(--bg-1)",
+                boxShadow: "var(--shadow-pop)",
+                color: "var(--fg-2)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {beat.type.toUpperCase()} · {metaLine}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
