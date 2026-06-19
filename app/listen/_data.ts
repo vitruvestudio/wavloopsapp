@@ -655,7 +655,13 @@ export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
   const serverIds = Array.from(
     new Set(likes.map((l) => l.server_id as string)),
   );
-  const [beatsRes, serversRes] = await Promise.all([
+  // Fetched in parallel: the beat rows, the server rows, the
+  // artist's private notes on each liked beat, and their shared
+  // comments. Notes + comments hydrate the message icon's three-
+  // state chrome in LikedSongsView the same way ServerView gets
+  // it — without these, every liked beat reads as "no note"
+  // even when the artist has already written one.
+  const [beatsRes, serversRes, notesRes, commentsRes] = await Promise.all([
     supabase
       .from("beats")
       .select(
@@ -666,7 +672,30 @@ export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
       .from("servers")
       .select("id, slug, name, owner_id")
       .in("id", serverIds),
+    supabase
+      .from("beat_notes")
+      .select("beat_id, body")
+      .eq("user_id", user.id)
+      .in("beat_id", beatIds),
+    supabase
+      .from("beat_comments")
+      .select("beat_id, body, created_at")
+      .eq("user_id", user.id)
+      .in("beat_id", beatIds)
+      .order("created_at", { ascending: false }),
   ]);
+  const noteByBeat = new Map(
+    (notesRes.data ?? []).map((r) => [
+      r.beat_id as string,
+      r.body as string,
+    ]),
+  );
+  const latestCommentByBeat = new Map<string, string>();
+  for (const c of commentsRes.data ?? []) {
+    const id = c.beat_id as string;
+    if (!latestCommentByBeat.has(id))
+      latestCommentByBeat.set(id, c.body as string);
+  }
   const beatById = new Map(
     (beatsRes.data ?? []).map((b) => [b.id as string, b as BeatTableRow]),
   );
@@ -736,8 +765,8 @@ export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
         addedAtIso: like.liked_at as string,
         liked: true, // by definition — it's in the likes feed
         listened: false, // not surfaced on the liked view
-        noteBody: "",
-        latestCommentBody: "",
+        noteBody: noteByBeat.get(beat.id) ?? "",
+        latestCommentBody: latestCommentByBeat.get(beat.id) ?? "",
         artSeed: beat.wave_seed,
         coverUrl: beat.artwork_url ?? null,
         audioUrl: beat.audio_url
