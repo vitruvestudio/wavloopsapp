@@ -80,6 +80,10 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
    *  whole entry rather than just the beat means the modal can show
    *  the right producer @handle on the share-with copy. */
   const [noteFor, setNoteFor] = React.useState<LikedEntry | null>(null);
+  // Mood pill — single-select. null = no mood filter.
+  const [moodFilter, setMoodFilter] = React.useState<string | null>(null);
+  // List / grid view toggle — mirrors the ServerView control.
+  const [viewMode, setViewMode] = React.useState<"list" | "grid">("list");
 
   // Playback comes from the global PlayerContext (mounted in
   // ArtistShell) — the dock is the source of truth for which beat
@@ -88,7 +92,17 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
   const playingId =
     player.current && player.playing ? player.current.id : null;
 
-  const visible = all.filter((e) => !unliked[e.beat.id]);
+  // Unique mood set across all liked beats — drives the pill row
+  // under the header. Empty when no beat carries any mood tag.
+  const moodOptions = Array.from(
+    new Set(all.flatMap((e) => e.beat.mood)),
+  ).sort();
+
+  const visible = all.filter((e) => {
+    if (unliked[e.beat.id]) return false;
+    if (moodFilter && !e.beat.mood.includes(moodFilter)) return false;
+    return true;
+  });
   const count = visible.length;
 
   const toggleLike = (beatId: string, slug: string) => {
@@ -251,12 +265,128 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
         </div>
       </section>
 
-      {/* ── List — same flat row shape as the ServerView so the
-              Liked Songs surface feels like just another server,
-              rather than a database table. ─────────────────── */}
+      {/* Toolbar — mood pills + list/grid toggle. */}
+      {(moodOptions.length > 0 || all.length > 0) && (
+        <div
+          className="flex flex-col gap-2 px-[12px] pt-2 pb-2 lg:flex-row lg:items-center lg:justify-between lg:px-[28px]"
+        >
+          {/* Mood pills horizontal-scroll on overflow. */}
+          <div
+            className="flex items-center overflow-x-auto"
+            style={{ gap: 8, scrollbarWidth: "none" }}
+          >
+            {moodOptions.map((m) => {
+              const active = moodFilter === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() =>
+                    setMoodFilter((cur) => (cur === m ? null : m))
+                  }
+                  className="inline-flex items-center shrink-0 cursor-pointer transition-colors duration-fast"
+                  style={{
+                    padding: "6px 14px",
+                    height: 30,
+                    borderRadius: 999,
+                    border: active
+                      ? "1px solid var(--accent)"
+                      : "1px solid var(--border-1)",
+                    background: active
+                      ? "var(--accent-surface)"
+                      : "transparent",
+                    color: active
+                      ? "var(--accent-text)"
+                      : "var(--fg-2)",
+                    fontFamily: "var(--font-body)",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+          {/* List/Grid toggle */}
+          <div
+            className="inline-flex items-center self-start lg:self-auto"
+            style={{
+              border: "1px solid var(--border-1)",
+              borderRadius: "var(--r-md)",
+              padding: 2,
+              gap: 2,
+              height: 32,
+            }}
+          >
+            <button
+              type="button"
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}
+              onClick={() => setViewMode("list")}
+              className="inline-flex items-center justify-center cursor-pointer"
+              style={{
+                width: 28,
+                height: 24,
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                background:
+                  viewMode === "list" ? "var(--bg-2)" : "transparent",
+                color:
+                  viewMode === "list" ? "var(--fg-1)" : "var(--fg-3)",
+              }}
+            >
+              <Icon name="view-list" size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
+              onClick={() => setViewMode("grid")}
+              className="inline-flex items-center justify-center cursor-pointer"
+              style={{
+                width: 28,
+                height: 24,
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                background:
+                  viewMode === "grid" ? "var(--bg-2)" : "transparent",
+                color:
+                  viewMode === "grid" ? "var(--fg-1)" : "var(--fg-3)",
+              }}
+            >
+              <Icon name="view-grid" size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── List / grid ─────────────────────────────────────── */}
       <section className="px-[12px] pb-12 lg:px-[28px]">
         {count === 0 ? (
           <EmptyState />
+        ) : viewMode === "grid" ? (
+          <div
+            className="grid"
+            style={{
+              gap: 16,
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(160px, 1fr))",
+            }}
+          >
+            {visible.map((entry) => (
+              <LikedCard
+                key={entry.beat.id}
+                entry={entry}
+                playing={playingId === entry.beat.id}
+                onTogglePlay={() => togglePlay(entry.beat)}
+                onToggleLike={() =>
+                  toggleLike(entry.beat.id, entry.server.slug)
+                }
+              />
+            ))}
+          </div>
         ) : (
           visible.map((entry) => (
             <LikedRow
@@ -600,6 +730,118 @@ function EmptyState() {
       </div>
       <div className="t-mono-s">
         Hit ♥ on a beat from any server to save it here.
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   LikedCard — grid-view tile. Big cover with play overlay, title
+   + producer underneath, like heart pinned bottom-right corner.
+   Mirrors ServerView's BeatCard for visual consistency.
+   ============================================================ */
+
+function LikedCard({
+  entry,
+  playing,
+  onTogglePlay,
+  onToggleLike,
+}: {
+  entry: LikedEntry;
+  playing: boolean;
+  onTogglePlay: () => void;
+  onToggleLike: () => void;
+}) {
+  const { producer, beat } = entry;
+  const [hovered, setHovered] = React.useState(false);
+  const producerAt = producer.handle.startsWith("@")
+    ? producer.handle
+    : `@${producer.handle}`;
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+    >
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        aria-label={playing ? "Pause" : "Play"}
+        className="relative overflow-hidden cursor-pointer"
+        style={{
+          width: "100%",
+          aspectRatio: "1 / 1",
+          borderRadius: "var(--r-md)",
+          border: "none",
+          padding: 0,
+        }}
+      >
+        <CoverArt
+          fill
+          seed={beat.artSeed}
+          src={beat.coverUrl ?? undefined}
+        />
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background:
+              hovered || playing ? "oklch(0 0 0 / 0.5)" : "transparent",
+            transition: "background var(--dur-fast) var(--ease)",
+            color: "#fff",
+          }}
+        >
+          {(hovered || playing) && (
+            <Icon
+              name={playing ? "pause" : "play"}
+              size={28}
+              style={{ marginLeft: playing ? 0 : 2 }}
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label="Unlike"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleLike();
+          }}
+          className="absolute inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+          style={{
+            bottom: 8,
+            right: 8,
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: "none",
+            background: "oklch(0 0 0 / 0.45)",
+            color: "var(--accent)",
+          }}
+        >
+          <Icon
+            name="heart"
+            size={16}
+            style={{ fill: "var(--accent)" }}
+          />
+        </button>
+      </button>
+      <div className="min-w-0">
+        <div
+          className="truncate"
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {beat.title}
+        </div>
+        <div
+          className="t-mono-s truncate"
+          style={{ color: "var(--fg-3)", marginTop: 2 }}
+        >
+          {producerAt.toUpperCase()}
+        </div>
       </div>
     </div>
   );

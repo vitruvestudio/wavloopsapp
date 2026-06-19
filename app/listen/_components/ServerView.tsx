@@ -122,6 +122,10 @@ interface ServerViewProps {
 
 export function ServerView({ producer, server }: ServerViewProps) {
   const [filter, setFilter] = React.useState<Filter>("all");
+  // Mood pill — single-select. null = no mood filter.
+  const [moodFilter, setMoodFilter] = React.useState<string | null>(null);
+  // Layout toggle — mirror the producer Library's list/grid switch.
+  const [viewMode, setViewMode] = React.useState<"list" | "grid">("list");
   // Playback state is owned by the global PlayerContext (mounted in
   // ArtistShell) so the dock can survive route changes and other
   // pages can observe the same currently-playing beat.
@@ -155,9 +159,17 @@ export function ServerView({ producer, server }: ServerViewProps) {
     liked: beats.filter((b) => b.liked).length,
   };
 
+  // Mood pills surfaced under the existing filter chips. Compute
+  // the unique mood set across the current beats so empty mood
+  // tags don't render dead chips.
+  const moodOptions = Array.from(
+    new Set(beats.flatMap((b) => b.mood)),
+  ).sort();
+
   const visible = beats.filter((b) => {
-    if (filter === "new") return Boolean(b.isNew);
-    if (filter === "liked") return b.liked;
+    if (filter === "new" && !b.isNew) return false;
+    if (filter === "liked" && !b.liked) return false;
+    if (moodFilter && !b.mood.includes(moodFilter)) return false;
     return true;
   });
 
@@ -460,32 +472,131 @@ export function ServerView({ producer, server }: ServerViewProps) {
             onClick={() => setFilter("liked")}
           />
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center self-start lg:self-auto cursor-pointer"
-          style={{
-            gap: 8,
-            padding: "0 12px",
-            height: 32,
-            borderRadius: "var(--r-md)",
-            border: "1px solid var(--border-1)",
-            background: "transparent",
-            color: "var(--fg-2)",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-          }}
+        <div
+          className="flex items-center self-start lg:self-auto"
+          style={{ gap: 8 }}
         >
-          <Icon name="clock" size={12} />
-          NEWEST FIRST
-          <Icon name="chevron-down" size={12} />
-        </button>
+          <button
+            type="button"
+            className="inline-flex items-center cursor-pointer"
+            style={{
+              gap: 8,
+              padding: "0 12px",
+              height: 32,
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--border-1)",
+              background: "transparent",
+              color: "var(--fg-2)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Icon name="clock" size={12} />
+            NEWEST FIRST
+            <Icon name="chevron-down" size={12} />
+          </button>
+          {/* List / Grid toggle — mirrors the producer Library
+              control. */}
+          <div
+            className="inline-flex items-center"
+            style={{
+              border: "1px solid var(--border-1)",
+              borderRadius: "var(--r-md)",
+              padding: 2,
+              gap: 2,
+              height: 32,
+            }}
+          >
+            <button
+              type="button"
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}
+              onClick={() => setViewMode("list")}
+              className="inline-flex items-center justify-center cursor-pointer"
+              style={{
+                width: 28,
+                height: 24,
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                background:
+                  viewMode === "list" ? "var(--bg-2)" : "transparent",
+                color:
+                  viewMode === "list" ? "var(--fg-1)" : "var(--fg-3)",
+              }}
+            >
+              <Icon name="view-list" size={14} />
+            </button>
+            <button
+              type="button"
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
+              onClick={() => setViewMode("grid")}
+              className="inline-flex items-center justify-center cursor-pointer"
+              style={{
+                width: 28,
+                height: 24,
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                background:
+                  viewMode === "grid" ? "var(--bg-2)" : "transparent",
+                color:
+                  viewMode === "grid" ? "var(--fg-1)" : "var(--fg-3)",
+              }}
+            >
+              <Icon name="view-grid" size={14} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* ── Beat list ──────────────────────────────────────── */}
+      {/* Mood pills — horizontal-scroll row under the toolbar.
+          Single-select; tapping the active pill clears it. */}
+      {moodOptions.length > 0 && (
+        <div
+          className="flex items-center overflow-x-auto px-[18px] pb-[10px] lg:px-[30px]"
+          style={{ gap: 8, scrollbarWidth: "none" }}
+        >
+          {moodOptions.map((m) => {
+            const active = moodFilter === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() =>
+                  setMoodFilter((cur) => (cur === m ? null : m))
+                }
+                className="inline-flex items-center shrink-0 cursor-pointer transition-colors duration-fast"
+                style={{
+                  padding: "6px 14px",
+                  height: 30,
+                  borderRadius: 999,
+                  border: active
+                    ? "1px solid var(--accent)"
+                    : "1px solid var(--border-1)",
+                  background: active
+                    ? "var(--accent-surface)"
+                    : "transparent",
+                  color: active
+                    ? "var(--accent-text)"
+                    : "var(--fg-2)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Beat list / grid ───────────────────────────────── */}
       <div className="px-[12px] lg:px-[22px]" style={{ paddingBottom: 32 }}>
         {visible.length === 0 ? (
           <div
@@ -497,6 +608,26 @@ export function ServerView({ producer, server }: ServerViewProps) {
           >
             No beats match this filter.
           </div>
+        ) : viewMode === "grid" ? (
+          <div
+            className="grid"
+            style={{
+              gap: 16,
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(160px, 1fr))",
+            }}
+          >
+            {visible.map((b) => (
+              <BeatCard
+                key={b.id}
+                beat={b}
+                producerHandle={producer.handle}
+                playing={playingId === b.id}
+                onTogglePlay={() => togglePlay(b)}
+                onToggleLike={() => toggleLike(b.id)}
+              />
+            ))}
+          </div>
         ) : (
           visible.map((b) => (
             <BeatRow
@@ -504,13 +635,6 @@ export function ServerView({ producer, server }: ServerViewProps) {
               beat={b}
               producerHandle={producer.handle}
               noteVisibility={
-                // Local optimistic edit wins (artist just sent a
-                // note in this session). Otherwise hydrate from the
-                // server payload so the message icon's state stays
-                // correct across refreshes:
-                //   shared comment exists → "shared" (accent + dot)
-                //   private note exists   → "private" (fg-2 only)
-                //   nothing               → null
                 notes[b.id]?.text?.trim()
                   ? notes[b.id].visibility
                   : b.latestCommentBody?.trim()
@@ -926,6 +1050,120 @@ function BeatRow({
         )}
       </div>
       </div>{/* /action cluster */}
+    </div>
+  );
+}
+
+/* ============================================================
+   BeatCard — grid-view tile. Big cover with play overlay, title +
+   producer underneath, like heart in the bottom-right corner.
+   Pattern mirrors the producer Library's card view; the artist
+   surface lands on the same shape so the two feel like one DS.
+   ============================================================ */
+
+function BeatCard({
+  beat,
+  producerHandle,
+  playing,
+  onTogglePlay,
+  onToggleLike,
+}: {
+  beat: MockBeat;
+  producerHandle: string;
+  playing: boolean;
+  onTogglePlay: () => void;
+  onToggleLike: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+  const producerAt = producerHandle.startsWith("@")
+    ? producerHandle
+    : `@${producerHandle}`;
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", flexDirection: "column", gap: 10 }}
+    >
+      <button
+        type="button"
+        onClick={onTogglePlay}
+        aria-label={playing ? "Pause" : "Play"}
+        className="relative overflow-hidden cursor-pointer"
+        style={{
+          width: "100%",
+          aspectRatio: "1 / 1",
+          borderRadius: "var(--r-md)",
+          border: "none",
+          padding: 0,
+        }}
+      >
+        <CoverArt fill seed={beat.artSeed} src={beat.coverUrl} />
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            background:
+              hovered || playing
+                ? "oklch(0 0 0 / 0.5)"
+                : "transparent",
+            transition: "background var(--dur-fast) var(--ease)",
+            color: "#fff",
+          }}
+        >
+          {(hovered || playing) && (
+            <Icon
+              name={playing ? "pause" : "play"}
+              size={28}
+              style={{ marginLeft: playing ? 0 : 2 }}
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label={beat.liked ? "Unlike" : "Like"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleLike();
+          }}
+          className="absolute inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+          style={{
+            bottom: 8,
+            right: 8,
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: "none",
+            background: "oklch(0 0 0 / 0.45)",
+            color: beat.liked ? "var(--accent)" : "#fff",
+          }}
+        >
+          <Icon
+            name="heart"
+            size={16}
+            style={{
+              fill: beat.liked ? "var(--accent)" : "none",
+            }}
+          />
+        </button>
+      </button>
+      <div className="min-w-0">
+        <div
+          className="truncate"
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {beat.title}
+        </div>
+        <div
+          className="t-mono-s truncate"
+          style={{ color: "var(--fg-3)", marginTop: 2 }}
+        >
+          {producerAt.toUpperCase()}
+        </div>
+      </div>
     </div>
   );
 }
