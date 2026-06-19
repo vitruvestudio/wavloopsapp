@@ -717,63 +717,17 @@ function BeatRow({
           )}
         </div>
 
-        {/* Line 2 — mobile-only producer handle + details popover */}
+        {/* Line 2 — mobile-only producer handle, tight against
+            the title (Spotify-style stacked metadata). */}
         <div
-          className="flex items-center sm:hidden"
-          style={{ gap: 8, marginTop: 5 }}
+          className="sm:hidden truncate t-mono-s"
+          style={{
+            color: "var(--fg-3)",
+            marginTop: 1,
+            lineHeight: 1.3,
+          }}
         >
-          <span
-            className="t-mono-s truncate flex-1"
-            style={{ color: "var(--fg-3)" }}
-          >
-            {producerAt.toUpperCase()}
-          </span>
-          <div ref={detailsRef} className="relative shrink-0">
-            <button
-              type="button"
-              aria-label="Show beat details"
-              aria-expanded={detailsOpen}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDetailsOpen((v) => !v);
-              }}
-              className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
-              style={{
-                width: 26,
-                height: 22,
-                borderRadius: "var(--r-sm)",
-                border: "1px solid var(--border-1)",
-                background: detailsOpen
-                  ? "var(--bg-3)"
-                  : "transparent",
-                color: "var(--fg-2)",
-              }}
-            >
-              <Icon name="more" size={13} />
-            </button>
-            {detailsOpen && (
-              <div
-                role="dialog"
-                aria-label="Beat details"
-                className="t-mono-s"
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  right: 0,
-                  zIndex: 20,
-                  padding: "8px 10px",
-                  borderRadius: "var(--r-sm)",
-                  border: "1px solid var(--border-1)",
-                  background: "var(--bg-1)",
-                  boxShadow: "var(--shadow-pop)",
-                  color: "var(--fg-2)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {beat.type.toUpperCase()} · {metaLine}
-              </div>
-            )}
-          </div>
+          {producerAt.toUpperCase()}
         </div>
 
         {/* Line 2 — desktop: COMP/LOOP tag + meta + mood tags. */}
@@ -814,6 +768,10 @@ function BeatRow({
         {beat.addedAt}
       </span>
 
+      {/* Action cluster (message + eye + heart + … on mobile,
+          message + eye + heart on desktop). Tight gap so the
+          buttons read as one row of right-aligned controls. */}
+      <div className="flex items-center" style={{ gap: 2 }}>
       {/* Note button — three-state CHIP (no note / private /
           shared) so the artist can tell at a glance whether a beat
           carries something they wrote, and whether that something
@@ -914,6 +872,59 @@ function BeatRow({
           }}
         />
       </button>
+
+      {/* Mobile-only "…" details popover, parked at the very end
+          of the action cluster so the row reads: cover · title /
+          producer · ●●● actions · ⋯. Hidden above sm because the
+          desktop layout already spells the meta inline. */}
+      <div
+        ref={detailsRef}
+        className="relative shrink-0 sm:hidden"
+      >
+        <button
+          type="button"
+          aria-label="Show beat details"
+          aria-expanded={detailsOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDetailsOpen((v) => !v);
+          }}
+          className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "var(--r-sm)",
+            border: "none",
+            background: detailsOpen ? "var(--bg-3)" : "transparent",
+            color: "var(--fg-4)",
+          }}
+        >
+          <Icon name="more" size={16} />
+        </button>
+        {detailsOpen && (
+          <div
+            role="dialog"
+            aria-label="Beat details"
+            className="t-mono-s"
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              right: 0,
+              zIndex: 20,
+              padding: "8px 10px",
+              borderRadius: "var(--r-sm)",
+              border: "1px solid var(--border-1)",
+              background: "var(--bg-1)",
+              boxShadow: "var(--shadow-pop)",
+              color: "var(--fg-2)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {beat.type.toUpperCase()} · {metaLine}
+          </div>
+        )}
+      </div>
+      </div>{/* /action cluster */}
     </div>
   );
 }
