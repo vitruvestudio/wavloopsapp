@@ -937,10 +937,19 @@ function BeatRow({
               background: "var(--bg-1)",
               boxShadow: "var(--shadow-pop)",
               color: "var(--fg-2)",
-              whiteSpace: "nowrap",
+              // Cap to a reasonable width and allow line breaks so
+              // beats with several mood tags don't blow past the
+              // viewport edge.
+              maxWidth: "min(280px, calc(100vw - 24px))",
+              whiteSpace: "normal",
+              lineHeight: 1.5,
             }}
           >
-            {beat.type.toUpperCase()} · {metaLine}
+            {[
+              beat.type.toUpperCase(),
+              metaLine,
+              ...beat.mood.map((m) => m.toUpperCase()),
+            ].join(" · ")}
           </div>
         )}
       </div>
