@@ -29,10 +29,12 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { Icon } from "@/components/ui/Icon";
 import { VisBadge } from "@/components/ui/VisBadge";
 import type { ServerRow } from "@/lib/supabase/database.types";
+import { deleteServerAction } from "@/app/(app)/servers/[slug]/actions";
 
 /**
  * One mosaic slice — either a real beat cover (`src` set) or a
@@ -166,6 +168,11 @@ export function ServerCard({
           }}
         />
 
+        {/* Action menu — ⋯ button top-right, opens dropdown
+                with Edit / Preview / Delete. Sits above the Link
+                so clicks here don't trigger navigation. */}
+        <ServerActionMenu server={server} />
+
         {/* Bottom strip — name + style + visibility */}
         <div
           className="absolute flex items-end justify-between"
@@ -237,5 +244,212 @@ export function ServerCard({
         />
       </div>
     </Link>
+  );
+}
+
+/* ============================================================
+   ServerActionMenu — ⋯ overlay button + dropdown popover.
+   Sits absolutely-positioned in the top-right of the cover so
+   the wrapping <Link> sees a click anywhere ELSE on the card
+   while clicks on this button (and the menu it opens) cancel
+   bubble + nav.
+
+   Items:
+     Edit   → navigate to /servers/[slug]/edit
+     Preview→ navigate to the public /s/[slug] (target=_blank)
+     Delete → 2-click confirm, then deleteServerAction +
+              router.refresh()
+   ============================================================ */
+
+function ServerActionMenu({ server }: { server: ServerRow }) {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onPtr = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setConfirmDelete(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setConfirmDelete(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPtr);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPtr);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Cancel parent Link navigation. Used on every interactive
+  // element inside the menu — without it, the bubbling click on
+  // the <Link> would steal the producer's intent.
+  const stop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const onDelete = async (e: React.MouseEvent) => {
+    stop(e);
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await deleteServerAction(server.id);
+      if (res.error) {
+        // Cheap visible feedback — full toast system can replace
+        // this later. Keeps the menu open so the producer sees
+        // the error.
+        window.alert(res.error);
+        setBusy(false);
+        return;
+      }
+      setOpen(false);
+      setConfirmDelete(false);
+      router.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Delete failed.";
+      window.alert(msg);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      className="absolute"
+      style={{ top: 10, right: 10, zIndex: 5 }}
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          stop(e);
+          setOpen((o) => !o);
+        }}
+        aria-label="Server actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center transition-colors"
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "var(--r-sm)",
+          background: "color-mix(in oklch, var(--bg-0) 55%, transparent)",
+          backdropFilter: "blur(6px)",
+          color: "#fff",
+          border: "1px solid oklch(1 0 0 / 0.18)",
+        }}
+      >
+        <Icon name="more" size={16} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          onClick={stop}
+          className="absolute bg-bg-2 border border-border-2"
+          style={{
+            top: "calc(100% + 6px)",
+            right: 0,
+            width: 200,
+            borderRadius: "var(--r-md)",
+            boxShadow: "var(--shadow-pop)",
+            padding: 6,
+            zIndex: 30,
+          }}
+        >
+          <MenuItem
+            icon="edit"
+            label="Edit server"
+            onClick={(e) => {
+              stop(e);
+              setOpen(false);
+              router.push(`/servers/${server.slug}/edit`);
+            }}
+          />
+          <MenuItem
+            icon="external"
+            label="Preview public page"
+            onClick={(e) => {
+              stop(e);
+              setOpen(false);
+              window.open(`/s/${server.slug}`, "_blank");
+            }}
+          />
+          <div
+            aria-hidden="true"
+            style={{
+              height: 1,
+              margin: "4px 0",
+              background: "var(--border-1)",
+            }}
+          />
+          <MenuItem
+            icon="trash"
+            label={confirmDelete ? "Click again to confirm" : "Delete server"}
+            danger
+            onClick={onDelete}
+            disabled={busy}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  danger,
+  disabled,
+}: {
+  icon: import("@/components/ui/Icon").IconName;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center w-full transition-colors text-left"
+      style={{
+        gap: 10,
+        padding: "8px 10px",
+        borderRadius: "var(--r-sm)",
+        background: "transparent",
+        color: danger ? "var(--danger)" : "var(--fg-1)",
+        fontSize: 13,
+        fontFamily: "var(--font-body)",
+        cursor: disabled ? "wait" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background =
+          danger ? "var(--danger-surface)" : "var(--bg-3)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.background =
+          "transparent";
+      }}
+    >
+      <Icon name={icon} size={15} />
+      {label}
+    </button>
   );
 }
