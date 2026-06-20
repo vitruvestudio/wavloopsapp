@@ -260,22 +260,20 @@ export function UploadBeatPage({
         const niceList = allowedAudioExts
           .map((e) => e.toUpperCase())
           .join(", ");
-        const reason = `Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only. Upgrade to Pro for WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.`;
-        // On a paid-format gate we also pop the UpgradeRequired
-        // modal — a silent file-row toast was the bug Theo
-        // reported. Reset the upload state so the file picker
-        // doesn't hang in 'failed' if the user just dismisses
-        // the modal.
+        const friendly = `Unsupported file type. Use ${niceList}.`;
+        // Always reflect the rejection in the FileRow so the page
+        // shape stays consistent (the layout below only renders
+        // when `file` is set, so we keep both `file` and the
+        // failed status — never null-them out together or the page
+        // collapses to a blank canvas).
+        setUpload({ status: "failed", message: friendly });
+        // For Free / Lifetime trying a Pro-only format, also pop
+        // the UpgradeRequired modal so they're one click from
+        // checkout. Dismissing the modal still leaves them on the
+        // page with the FAILED state visible.
         if (currentPlan !== "pro") {
-          setUpload({ status: "idle" });
-          setFile(null);
-          setFileUrl(null);
+          const reason = `Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only. Upgrade to Pro for WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.`;
           setUpgradeCtx({ plan: currentPlan, reason });
-        } else {
-          setUpload({
-            status: "failed",
-            message: `Unsupported file type. Use ${niceList}.`,
-          });
         }
         return;
       }
