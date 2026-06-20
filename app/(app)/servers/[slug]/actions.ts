@@ -373,6 +373,82 @@ export async function approveAccessRequestAction(
   return { error: null };
 }
 
+/** Delete a server. Cascades on:
+ *   - server_beats          (FK ON DELETE CASCADE)
+ *   - server_contacts       (FK ON DELETE CASCADE)
+ *   - access_requests       (FK ON DELETE CASCADE)
+ *   - server_invites        (FK ON DELETE CASCADE)
+ *
+ * Listens and likes use beat-level FKs, so they're untouched.
+ *
+ * Storage: best-effort cleanup of the uploaded artwork file if
+ * any. Failure is logged but never rolls back the row delete —
+ * an orphan PNG is recoverable; a stuck DB row isn't. */
+export interface DeleteServerResult {
+  error: string | null;
+}
+
+export async function deleteServerAction(
+  serverId: string,
+): Promise<DeleteServerResult> {
+  const supabase = await createClient();
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error };
+
+  // Resolve the artwork path BEFORE the delete so the storage
+  // cleanup can target the right file.
+  const { data: server } = await supabase
+    .from("servers")
+    .select("slug, artwork_image_url")
+    .eq("id", serverId)
+    .maybeSingle<{ slug: string; artwork_image_url: string | null }>();
+
+  if (server?.artwork_image_url) {
+    const path = serverArtworkPathFromUrl(server.artwork_image_url);
+    if (path) {
+      const { error: rmErr } = await supabase.storage
+        .from("server-covers")
+        .remove([path]);
+      if (rmErr) {
+        console.warn("[deleteServer] artwork remove failed", path, rmErr.message);
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from("servers")
+    .delete()
+    .eq("id", serverId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "page");
+  // Artist /listen surfaces lose this server from their feeds.
+  revalidatePath("/listen", "layout");
+  if (server?.slug) {
+    revalidatePath(`/s/${server.slug}`, "page");
+  }
+  return { error: null };
+}
+
+/** Parse the bucket-relative path out of a Supabase storage
+ *  public URL. Matches the format used by Create / Edit Server
+ *  when it uploads to the `server-covers` bucket. Returns null
+ *  when the input doesn't look like a server cover URL so the
+ *  caller can skip the remove() rather than feed storage a bad
+ *  key. */
+function serverArtworkPathFromUrl(url: string): string | null {
+  const marker = "/storage/v1/object/public/server-covers/";
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  const path = url.slice(i + marker.length);
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
 export async function declineAccessRequestAction(
   serverId: string,
   contactId: string,
