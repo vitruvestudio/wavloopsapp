@@ -38,6 +38,8 @@ import { Field } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { TagInput } from "@/components/ui/TagInput";
+import { UpgradeRequiredModal } from "@/components/billing/UpgradeRequiredModal";
+import type { PlanKey } from "@/lib/billing/plans";
 import { CONTACT_ROLE_SUGGEST } from "@/lib/audio";
 import {
   addContactAction,
@@ -101,6 +103,13 @@ export function AddContactModal({
     existingServerIds ?? defaultServerIds,
   );
   const [error, setError] = React.useState<string | null>(null);
+  /** Artist-quota gate hit → swap the inline error for the
+   *  UpgradeRequiredModal so the producer can upgrade in one
+   *  click. */
+  const [upgradeCtx, setUpgradeCtx] = React.useState<{
+    plan: PlanKey;
+    reason: string;
+  } | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   /* ─── Auto-fill from a pasted social link ─────────────────────── */
@@ -203,7 +212,20 @@ export function AddContactModal({
           ? await updateContactAction({ id: existing.id, ...sharedPayload })
           : await addContactAction(sharedPayload);
       if (result.error) {
-        setError(result.error);
+        // Artist-quota gate from addContactAction → surface the
+        // UpgradeRequiredModal instead of the inline error so the
+        // producer has one click to Stripe Checkout. Edit-mode
+        // updateContactAction never trips the gate (it's a no-op
+        // on count), so the upgradeRequired branch only ever
+        // fires on the create path.
+        if ("upgradeRequired" in result && result.upgradeRequired) {
+          setUpgradeCtx({
+            plan: result.upgradeRequired.plan,
+            reason: result.error,
+          });
+        } else {
+          setError(result.error);
+        }
         return;
       }
       onClose();
@@ -215,6 +237,7 @@ export function AddContactModal({
   const previewEmail = email.trim() || "NO EMAIL YET";
 
   return (
+    <>
     <div
       role="dialog"
       aria-modal="true"
@@ -599,5 +622,17 @@ export function AddContactModal({
         </div>
       </div>
     </div>
+
+    {/* Upgrade modal — fires when addContactAction hits the
+        artist-quota gate. Layered above the AddContactModal so
+        the producer's draft stays intact while they consider the
+        upgrade. */}
+    <UpgradeRequiredModal
+      open={upgradeCtx !== null}
+      onClose={() => setUpgradeCtx(null)}
+      currentPlan={upgradeCtx?.plan ?? "free"}
+      reason={upgradeCtx?.reason ?? ""}
+    />
+    </>
   );
 }
