@@ -181,10 +181,91 @@ export function LandingHero() {
           </Link>
         </div>
 
-        {/* Trust signals — mono row, sits right under the CTAs.
-                Calibrated noise: just enough to answer "is this
-                production-grade?" without going pricing-table on
-                them. */}
+        {/* Hero video — placeholder until the demo cut lands. 16:9
+                frame, rounded, hairline border, soft pop shadow.
+                Reads as the immediate visual reward right under the
+                CTA pair, so the visitor's eye is rewarded for
+                staying past the headline.
+                Swap to a <video poster=... autoplay muted loop> tag
+                once the file is ready; the surrounding aspect-ratio
+                frame stays identical so layout doesn't shift. */}
+        <div
+          className="relative w-full"
+          style={{
+            maxWidth: 960,
+            marginTop: 56,
+            // Reserve the 16:9 box up-front so the layout doesn't
+            // jump when the eventual <video> hydrates.
+            aspectRatio: "16 / 9",
+            borderRadius: "var(--r-xl)",
+            border: "1px solid var(--border-2)",
+            background:
+              "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
+            boxShadow: "var(--shadow-pop)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Inner soft accent halo top-center — feels like the
+                  frame is lit by the wave that lives inside. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 50% 35% at 50% 0%, var(--accent-glow) 0%, transparent 65%)",
+              opacity: 0.55,
+            }}
+          />
+          {/* Faint vertical scan lines — adds a "screen" texture
+                  without going noisy. Mask fades them under the
+                  play button so the focal point stays clean. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, var(--border-1) 1px, transparent 1px)",
+              backgroundSize: "48px 100%",
+              maskImage:
+                "radial-gradient(ellipse 40% 40% at 50% 50%, transparent 40%, #000 80%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 40% 40% at 50% 50%, transparent 40%, #000 80%)",
+              opacity: 0.7,
+            }}
+          />
+          {/* Centered play disc + caption */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <button
+              type="button"
+              aria-label="Play demo video"
+              className="inline-flex items-center justify-center transition-transform hover:scale-105"
+              style={{
+                width: 84,
+                height: 84,
+                borderRadius: "var(--r-pill)",
+                background: "var(--accent)",
+                color: "var(--accent-fg)",
+                border: "1px solid color-mix(in oklch, var(--accent-fg) 18%, transparent)",
+                boxShadow:
+                  "0 0 0 8px color-mix(in oklch, var(--accent) 18%, transparent), 0 24px 60px -12px var(--accent-glow)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="play" size={28} />
+            </button>
+            <span
+              className="t-mono"
+              style={{
+                marginTop: 18,
+                color: "var(--fg-2)",
+              }}
+            >
+              Watch the 60-second demo
+            </span>
+          </div>
+        </div>
+
+        {/* Trust signals — mono row, caps the hero block. */}
         <div
           className="flex flex-wrap items-center justify-center t-mono"
           style={{
