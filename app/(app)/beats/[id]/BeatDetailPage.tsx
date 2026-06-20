@@ -56,6 +56,7 @@ import type {
 import {
   deleteBeatAction,
   updateBeatAction,
+  updateBeatArtworkAction,
   type UpdateBeatPayload,
 } from "./actions";
 
@@ -106,6 +107,18 @@ export function BeatDetailPage({
   const router = useRouter();
   const player = usePlayer();
   const supabase = React.useMemo(() => createClient(), []);
+
+  // Mirror beat.artwork_url in local state so the cover flips
+  // instantly when the producer uploads a new image — no need
+  // to wait for the server revalidate roundtrip. The server
+  // action still revalidates /beats/[id] so a refresh shows the
+  // same URL.
+  const [localArtworkUrl, setLocalArtworkUrl] = React.useState<
+    string | null
+  >(beat.artwork_url);
+  React.useEffect(() => {
+    setLocalArtworkUrl(beat.artwork_url);
+  }, [beat.artwork_url]);
 
   /* Realtime — push refreshes when a new shared comment lands on
      this beat. Same pattern as the Library page: filtered to THIS
@@ -236,11 +249,14 @@ export function BeatDetailPage({
         >
           {/* Cover with play overlay */}
           <CoverWithPlay
+            beatId={beat.id}
             seed={beat.wave_seed || beat.id}
-            artworkUrl={beat.artwork_url}
+            artworkUrl={localArtworkUrl}
             playing={isPlaying}
             current={isCurrent}
             onClick={togglePlay}
+            onArtworkUpdate={setLocalArtworkUrl}
+            supabase={supabase}
           />
 
           {/* Right column — type/mood tags + title + meta grid + waveform */}
@@ -362,20 +378,95 @@ export function BeatDetailPage({
    ============================================================ */
 
 function CoverWithPlay({
+  beatId,
   seed,
   artworkUrl,
   playing,
   current,
   onClick,
+  onArtworkUpdate,
+  supabase,
 }: {
+  beatId: string;
   seed: string;
   artworkUrl: string | null;
   playing: boolean;
   current: boolean;
   onClick: () => void;
+  onArtworkUpdate: (url: string | null) => void;
+  supabase: ReturnType<typeof createClient>;
 }) {
   const [hovered, setHovered] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const show = hovered || current;
+
+  const openPicker = (e: React.MouseEvent) => {
+    // Stop propagation so the parent click handler (toggle play)
+    // doesn't fire when the producer clicks the cover edit
+    // button.
+    e.stopPropagation();
+    fileInputRef.current?.click();
+  };
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setError("Cover must be an image (JPG, PNG, WEBP).");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Cover image is over 5 MB. Compress and try again.");
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      // Resolve the producer's user id for the bucket folder.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Session expired. Please sign in again.");
+        return;
+      }
+      const ext = (f.name.split(".").pop() ?? "jpg")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      // Path: {auth.uid()}/{beatId}-{epoch}.{ext}. Including the
+      // epoch in the filename avoids browsers/cdns serving a
+      // stale cached version of the previous cover after a
+      // re-upload (Supabase Storage's public URL is content-
+      // addressed by path).
+      const path = `${user.id}/${beatId}-${Date.now()}.${ext}`;
+      const up = await supabase.storage
+        .from("beat-covers")
+        .upload(path, f, { contentType: f.type, upsert: true });
+      if (up.error) {
+        setError(up.error.message);
+        return;
+      }
+      const { data } = supabase.storage
+        .from("beat-covers")
+        .getPublicUrl(path);
+      const newUrl = data.publicUrl;
+
+      // Persist + cleanup old cover via server action
+      const res = await updateBeatArtworkAction(beatId, newUrl);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      // Reflect immediately in the UI — no waiting on the
+      // revalidate roundtrip.
+      onArtworkUpdate(newUrl);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div
@@ -431,6 +522,66 @@ function CoverWithPlay({
           <Icon name={playing ? "pause" : "play"} size={24} />
         </div>
       </div>
+
+      {/* Edit-cover affordance. Two shapes:
+              - When no artwork yet: a centred dashed "Add cover"
+                pill, ALWAYS visible (subtle enough not to fight
+                the play button on the same surface).
+              - When artwork exists: a small pill in the top-right
+                corner, visible on hover. Click on either fires
+                the file picker. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        onChange={onPick}
+        className="sr-only"
+        aria-label="Upload cover"
+      />
+      <button
+        type="button"
+        onClick={openPicker}
+        disabled={uploading}
+        className="absolute inline-flex items-center transition-opacity duration-fast"
+        style={{
+          top: 10,
+          right: 10,
+          gap: 6,
+          padding: "6px 10px",
+          borderRadius: "var(--r-pill)",
+          background: "color-mix(in oklch, var(--bg-0) 70%, transparent)",
+          backdropFilter: "blur(8px)",
+          color: "var(--fg-1)",
+          fontSize: 11,
+          fontFamily: "var(--font-mono)",
+          fontWeight: 500,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          border: "1px solid var(--border-2)",
+          cursor: uploading ? "wait" : "pointer",
+          opacity: artworkUrl ? (show ? 1 : 0) : 1,
+          zIndex: 2,
+        }}
+      >
+        <Icon name={uploading ? "clock" : artworkUrl ? "edit" : "plus"} size={13} />
+        {uploading ? "Uploading…" : artworkUrl ? "Change" : "Add cover"}
+      </button>
+
+      {error && (
+        <div
+          role="alert"
+          className="absolute inset-x-0 bottom-0"
+          style={{
+            padding: "8px 12px",
+            background: "var(--danger-surface)",
+            color: "var(--danger)",
+            fontSize: 11,
+            zIndex: 3,
+          }}
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }

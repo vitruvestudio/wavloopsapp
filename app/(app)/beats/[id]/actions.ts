@@ -61,6 +61,67 @@ export async function updateBeatAction(
   return { error: null };
 }
 
+/** Update the artwork_url for an existing beat. The client has
+ *  already uploaded the new image to the `beat-covers` bucket
+ *  (storage RLS scopes writes to the user's own folder), so this
+ *  action just persists the resulting public URL and best-effort
+ *  cleans up the previous artwork file in storage so we don't
+ *  leak orphan covers as the producer iterates on art.
+ *
+ *  Pass `null` for `artworkUrl` to clear a cover entirely. */
+export async function updateBeatArtworkAction(
+  beatId: string,
+  artworkUrl: string | null,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You're not signed in." };
+
+  // Resolve the previous artwork_url BEFORE the update so we can
+  // remove the matching storage object after. RLS on `beats`
+  // restricts the SELECT to the producer's own rows; if the row
+  // isn't theirs, this lookup returns null and the subsequent
+  // UPDATE is a no-op too.
+  const { data: existing } = await supabase
+    .from("beats")
+    .select("artwork_url")
+    .eq("id", beatId)
+    .maybeSingle<{ artwork_url: string | null }>();
+
+  const { error } = await supabase
+    .from("beats")
+    .update({ artwork_url: artworkUrl })
+    .eq("id", beatId);
+
+  if (error) return { error: error.message };
+
+  // Best-effort old-cover cleanup. Failure here is logged but
+  // never bubbles — the row is already pointing at the new file,
+  // an orphan PNG is a much smaller problem than a broken edit
+  // surface. Skip when the new URL is the same as the old (idem-
+  // potent re-save).
+  if (
+    existing?.artwork_url &&
+    existing.artwork_url !== artworkUrl
+  ) {
+    const oldPath = artworkPathFromUrl(existing.artwork_url);
+    if (oldPath) {
+      const { error: rmErr } = await supabase.storage
+        .from("beat-covers")
+        .remove([oldPath]);
+      if (rmErr) {
+        console.warn("[updateBeatArtwork] old cover remove failed", oldPath, rmErr.message);
+      }
+    }
+  }
+
+  revalidatePath("/library", "page");
+  revalidatePath(`/beats/${beatId}`, "page");
+  return { error: null };
+}
+
 export async function deleteBeatAction(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const {
