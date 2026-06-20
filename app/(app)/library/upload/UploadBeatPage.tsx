@@ -257,24 +257,20 @@ export function UploadBeatPage({
       const validExts = new Set(allowedAudioExts);
       const ext = (f.name.split(".").pop() ?? "mp3").toLowerCase();
       if (!validExts.has(ext)) {
+        // Defensive — the UploadModal upstream already gates the
+        // format before navigating here, so reaching this branch
+        // means someone landed on /library/upload with a pre-
+        // staged WAV via a direct URL or a stale tab. Show the
+        // FAILED state with a clear message and let them bail
+        // via the trash icon (which still cancels back to the
+        // library).
         const niceList = allowedAudioExts
           .map((e) => e.toUpperCase())
           .join(", ");
-        const friendly = `Unsupported file type. Use ${niceList}.`;
-        // Always reflect the rejection in the FileRow so the page
-        // shape stays consistent (the layout below only renders
-        // when `file` is set, so we keep both `file` and the
-        // failed status — never null-them out together or the page
-        // collapses to a blank canvas).
-        setUpload({ status: "failed", message: friendly });
-        // For Free / Lifetime trying a Pro-only format, also pop
-        // the UpgradeRequired modal so they're one click from
-        // checkout. Dismissing the modal still leaves them on the
-        // page with the FAILED state visible.
-        if (currentPlan !== "pro") {
-          const reason = `Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only. Upgrade to Pro for WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.`;
-          setUpgradeCtx({ plan: currentPlan, reason });
-        }
+        setUpload({
+          status: "failed",
+          message: `Unsupported file type. Use ${niceList}.`,
+        });
         return;
       }
       if (f.type && !/^audio\//i.test(f.type)) {
@@ -533,17 +529,7 @@ export function UploadBeatPage({
             form on the right scrolls past the page header, the artwork
             + audio file + waveform stay in view — matches the proto
             screen 3 anchored-pack pattern. */}
-        {file == null ? (
-          // Empty state — used after the trash icon clears a wrong
-          // file, or after a format gate when the user wants to try
-          // again. Lets them drop / pick a new audio file without
-          // bouncing back to /library.
-          <InlineDropzone
-            allowedExts={allowedAudioExts}
-            onPick={handleFile}
-            onCancel={cancelUpload}
-          />
-        ) : (
+        {file == null ? null : (
           <div
             className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)]"
             style={{ gap: 32 }}
@@ -575,7 +561,7 @@ export function UploadBeatPage({
               <AudioFileRow
                 file={file}
                 upload={upload}
-                onRemove={clearCurrentFile}
+                onRemove={cancelUpload}
               />
             </div>
 

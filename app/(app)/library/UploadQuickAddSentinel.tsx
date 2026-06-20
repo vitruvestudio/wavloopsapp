@@ -15,8 +15,15 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UploadModal } from "@/components/app/UploadModal";
+import type { PlanKey } from "@/lib/billing/plans";
 
-export function UploadQuickAddSentinel() {
+export function UploadQuickAddSentinel({
+  currentPlan,
+  allowedAudioExts,
+}: {
+  currentPlan: PlanKey;
+  allowedAudioExts: readonly string[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [open, setOpen] = React.useState(false);
@@ -33,5 +40,12 @@ export function UploadQuickAddSentinel() {
     }
   }, [searchParams, router]);
 
-  return <UploadModal open={open} onClose={() => setOpen(false)} />;
+  return (
+    <UploadModal
+      open={open}
+      onClose={() => setOpen(false)}
+      currentPlan={currentPlan}
+      allowedAudioExts={allowedAudioExts}
+    />
+  );
 }

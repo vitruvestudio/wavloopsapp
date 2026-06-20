@@ -16,6 +16,8 @@
  */
 
 import { notFound } from "next/navigation";
+import { PLAN_QUOTAS } from "@/lib/billing/plans";
+import { getCurrentUserPlan } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentProducerProfileId,
@@ -171,6 +173,9 @@ export default async function ServerPage({ params }: PageProps) {
     )
     .map((r) => ({ requestedAt: r.requested_at, contact: r.contacts }));
 
+  const plan = await getCurrentUserPlan();
+  const allowedAudioExts = PLAN_QUOTAS[plan].allowedAudioExtensions;
+
   return (
     <ServerDetailPage
       server={server}
@@ -182,6 +187,8 @@ export default async function ServerPage({ params }: PageProps) {
       library={libraryRes.data ?? []}
       allServers={allServersRes.data ?? []}
       addressBook={addressBookRes.data ?? []}
+      currentPlan={plan}
+      allowedAudioExts={allowedAudioExts}
     />
   );
 }

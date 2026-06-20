@@ -78,6 +78,11 @@ interface ServerDetailPageProps {
   /** Every contact in the producer's address book — picker source
    *  for the AddArtistsModal. */
   addressBook: ContactRow[];
+  /** Effective billing plan + plan's allowed audio formats —
+   *  forwarded to UploadModal so the format gate fires at the
+   *  picker rather than after the navigation. */
+  currentPlan: import("@/lib/billing/plans").PlanKey;
+  allowedAudioExts: readonly string[];
 }
 
 export function ServerDetailPage({
@@ -89,6 +94,8 @@ export function ServerDetailPage({
   library,
   allServers,
   addressBook,
+  currentPlan,
+  allowedAudioExts,
 }: ServerDetailPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -552,6 +559,8 @@ export function ServerDetailPage({
       <UploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
+        currentPlan={currentPlan}
+        allowedAudioExts={allowedAudioExts}
       />
       {addArtistsOpen && (
         <AddArtistsModal

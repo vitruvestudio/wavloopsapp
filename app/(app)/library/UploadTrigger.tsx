@@ -17,6 +17,7 @@
 
 import * as React from "react";
 import { UploadModal } from "@/components/app/UploadModal";
+import type { PlanKey } from "@/lib/billing/plans";
 
 interface UploadTriggerProps {
   children: React.ReactNode;
@@ -24,9 +25,19 @@ interface UploadTriggerProps {
    *  Pass "block" when wrapping a full-width row (e.g. the library
    *  dropzone banner) so the child can stretch edge-to-edge. */
   block?: boolean;
+  /** Effective billing plan — forwarded to UploadModal so the
+   *  format gate fires at the picker, before navigating to the
+   *  setup page. */
+  currentPlan?: PlanKey;
+  allowedAudioExts?: readonly string[];
 }
 
-export function UploadTrigger({ children, block }: UploadTriggerProps) {
+export function UploadTrigger({
+  children,
+  block,
+  currentPlan,
+  allowedAudioExts,
+}: UploadTriggerProps) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -37,7 +48,12 @@ export function UploadTrigger({ children, block }: UploadTriggerProps) {
       >
         {children}
       </span>
-      <UploadModal open={open} onClose={() => setOpen(false)} />
+      <UploadModal
+        open={open}
+        onClose={() => setOpen(false)}
+        currentPlan={currentPlan}
+        allowedAudioExts={allowedAudioExts}
+      />
     </>
   );
 }
