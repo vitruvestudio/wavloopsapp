@@ -260,14 +260,23 @@ export function UploadBeatPage({
         const niceList = allowedAudioExts
           .map((e) => e.toUpperCase())
           .join(", ");
-        const upgrade =
-          currentPlan === "pro"
-            ? ""
-            : " Upgrade to Pro to upload WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.";
-        setUpload({
-          status: "failed",
-          message: `Unsupported file type. Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only.${upgrade}`,
-        });
+        const reason = `Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only. Upgrade to Pro for WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.`;
+        // On a paid-format gate we also pop the UpgradeRequired
+        // modal — a silent file-row toast was the bug Theo
+        // reported. Reset the upload state so the file picker
+        // doesn't hang in 'failed' if the user just dismisses
+        // the modal.
+        if (currentPlan !== "pro") {
+          setUpload({ status: "idle" });
+          setFile(null);
+          setFileUrl(null);
+          setUpgradeCtx({ plan: currentPlan, reason });
+        } else {
+          setUpload({
+            status: "failed",
+            message: `Unsupported file type. Use ${niceList}.`,
+          });
+        }
         return;
       }
       if (f.type && !/^audio\//i.test(f.type)) {
@@ -892,8 +901,15 @@ function AudioFileRow({
     );
   } else if (upload.status === "failed") {
     badge = (
-      <span className="t-mono-s" style={{ color: "var(--danger)" }}>
-        FAILED · RETRY?
+      <span
+        className="t-body-s"
+        style={{
+          color: "var(--danger)",
+          lineHeight: 1.4,
+          wordBreak: "break-word",
+        }}
+      >
+        {upload.message || "Upload failed — try again."}
       </span>
     );
   }
