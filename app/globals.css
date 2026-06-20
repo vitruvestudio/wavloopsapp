@@ -364,6 +364,26 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Floating toast / card — slides in from the side, holds, then
+   slides out. Used by the HowItWorks section's composition
+   visuals so a new notification appears at the edge of every
+   step's main mockup. Cycle is 6s with a 4s visible window.
+   Direction is set via the `--wl-toast-dx` CSS var on the
+   element (positive = enters from the right, negative = from
+   the left). */
+@keyframes wl-toast-slide {
+  0%,  100% { transform: translate(var(--wl-toast-dx, 24px), 0); opacity: 0; }
+  8%,  88%  { transform: translate(0, 0);                         opacity: 1; }
+}
+
+/* Gentle hover-float for the composition's auxiliary cards.
+   Slightly different from wl-float so the two animations can
+   coexist with their own timings. */
+@keyframes wl-card-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+
 /* ============================================================
    Global guard against horizontal scroll. `overflow-x: clip`
    stops accidental scroll without creating a new stacking
