@@ -20,6 +20,8 @@
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { PLAN_QUOTAS } from "@/lib/billing/plans";
+import { getCurrentUserPlan } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import type {
@@ -75,6 +77,14 @@ export default async function LibraryPage() {
   const servers = serversRes.data ?? [];
   const memberships = membershipsRes.data ?? [];
 
+  // Plan-aware audio whitelist — passed down to every UploadTrigger
+  // so the format gate fires at the picker (before navigating to
+  // /library/upload). A Free user dropping a WAV gets the upgrade
+  // modal in place; the Beat library stays underneath, no
+  // intermediate setup page.
+  const plan = await getCurrentUserPlan();
+  const allowedAudioExts = PLAN_QUOTAS[plan].allowedAudioExtensions;
+
   // Group memberships by beat → array of server ids.
   const beatServers: Record<string, string[]> = {};
   for (const m of memberships) {
@@ -90,12 +100,18 @@ export default async function LibraryPage() {
       {/* Sidebar Quick add → "Upload a beat" deeplinks here with
               ?upload=1 — this sentinel auto-opens the picker once,
               then strips the param. */}
-      <UploadQuickAddSentinel />
+      <UploadQuickAddSentinel
+        currentPlan={plan}
+        allowedAudioExts={allowedAudioExts}
+      />
       <PageHeader
         title="Beat library"
         sub={`${list.length} BEAT${list.length === 1 ? "" : "S"} · ${compCount} COMPOSITION${compCount === 1 ? "" : "S"} · ${loopCount} LOOP${loopCount === 1 ? "" : "S"}`}
         right={
-          <UploadTrigger>
+          <UploadTrigger
+            currentPlan={plan}
+            allowedAudioExts={allowedAudioExts}
+          >
             <Button
               icon="upload"
               size="sm"
@@ -109,10 +125,16 @@ export default async function LibraryPage() {
       />
 
       <div className="px-[18px] py-[24px] lg:px-[30px] lg:pb-[48px] lg:pt-[28px]">
-        <Dropzone />
+        <Dropzone
+          currentPlan={plan}
+          allowedAudioExts={allowedAudioExts}
+        />
 
         {list.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            currentPlan={plan}
+            allowedAudioExts={allowedAudioExts}
+          />
         ) : (
           <LibraryFilters
             beats={list}
@@ -130,9 +152,19 @@ export default async function LibraryPage() {
    Dropzone — permanent banner that opens the Upload modal
    ============================================================ */
 
-function Dropzone() {
+function Dropzone({
+  currentPlan,
+  allowedAudioExts,
+}: {
+  currentPlan: import("@/lib/billing/plans").PlanKey;
+  allowedAudioExts: readonly string[];
+}) {
   return (
-    <UploadTrigger block>
+    <UploadTrigger
+      block
+      currentPlan={currentPlan}
+      allowedAudioExts={allowedAudioExts}
+    >
       <div
         role="button"
         tabIndex={0}
@@ -192,7 +224,13 @@ function Dropzone() {
    EmptyState — first-run message under the dropzone
    ============================================================ */
 
-function EmptyState() {
+function EmptyState({
+  currentPlan,
+  allowedAudioExts,
+}: {
+  currentPlan: import("@/lib/billing/plans").PlanKey;
+  allowedAudioExts: readonly string[];
+}) {
   return (
     <div
       className="mx-auto flex flex-col items-center text-center"
@@ -217,7 +255,10 @@ function EmptyState() {
         Drop a beat above or upload one from your computer. Auto-detect
         tempo, key and length — add mood tags afterwards.
       </p>
-      <UploadTrigger>
+      <UploadTrigger
+        currentPlan={currentPlan}
+        allowedAudioExts={allowedAudioExts}
+      >
         <Button size="lg" icon="upload">
           Upload your first beat
         </Button>

@@ -29,18 +29,56 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { Modal } from "@/components/ui/Modal";
+import { UpgradeRequiredModal } from "@/components/billing/UpgradeRequiredModal";
+import type { PlanKey } from "@/lib/billing/plans";
 import { setPendingFile } from "@/lib/pending-upload";
 
 interface UploadModalProps {
   open: boolean;
   onClose: () => void;
+  /** Effective billing plan — gates the audio-format whitelist
+   *  up here so a Free user dropping a WAV gets the upgrade
+   *  modal immediately, without leaving the Beat library. */
+  currentPlan?: PlanKey;
+  /** Allowed file extensions for the current plan. Defaults to
+   *  the Pro family so legacy callers that haven't been wired
+   *  yet stay permissive (the saveBeatAction gate is still the
+   *  last line of defense). */
+  allowedAudioExts?: readonly string[];
 }
 
-export function UploadModal({ open, onClose }: UploadModalProps) {
+const DEFAULT_ALLOWED_EXTS = [
+  "mp3",
+  "wav",
+  "wave",
+  "flac",
+  "aiff",
+  "aif",
+  "m4a",
+  "aac",
+  "ogg",
+  "opus",
+] as const;
+
+export function UploadModal({
+  open,
+  onClose,
+  currentPlan,
+  allowedAudioExts = DEFAULT_ALLOWED_EXTS,
+}: UploadModalProps) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [over, setOver] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** When the picked file isn't allowed on the current plan we
+   *  pop the UpgradeRequiredModal RIGHT HERE — no navigation to
+   *  /library/upload, the user stays on the Beat library page
+   *  behind us. Dismissing the upgrade modal closes the picker
+   *  in one click. */
+  const [upgradeCtx, setUpgradeCtx] = React.useState<{
+    plan: PlanKey;
+    reason: string;
+  } | null>(null);
 
   const handleFile = React.useCallback(
     (f: File) => {
@@ -52,12 +90,27 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
         setError("Audio file is over 100 MB. Compress and try again.");
         return;
       }
+      // Plan-aware format gate — runs here so a Free user
+      // dropping a WAV never leaves /library. The saveBeatAction
+      // gate stays as defense-in-depth for direct API calls.
+      const ext = (f.name.split(".").pop() ?? "").toLowerCase();
+      const allowedSet = new Set(allowedAudioExts);
+      if (currentPlan && currentPlan !== "pro" && !allowedSet.has(ext)) {
+        const niceList = allowedAudioExts
+          .map((e) => e.toUpperCase())
+          .join(" / ");
+        setUpgradeCtx({
+          plan: currentPlan,
+          reason: `Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only. Upgrade to Pro for WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.`,
+        });
+        return;
+      }
       setError(null);
       setPendingFile(f);
       onClose();
       router.push("/library/upload");
     },
-    [onClose, router],
+    [allowedAudioExts, currentPlan, onClose, router],
   );
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +133,7 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
   }, [open]);
 
   return (
+    <>
     <Modal open={open} onClose={onClose}>
       <div
         className="bg-bg-2 border border-border-2"
@@ -206,5 +260,20 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
         </div>
       </div>
     </Modal>
+
+    {/* UpgradeRequiredModal — layered above the picker. Closing
+        it drops the upgrade state AND closes the picker, so the
+        user lands back on the Beat library without any
+        intermediate page. */}
+    <UpgradeRequiredModal
+      open={upgradeCtx !== null}
+      onClose={() => {
+        setUpgradeCtx(null);
+        onClose();
+      }}
+      currentPlan={upgradeCtx?.plan ?? "free"}
+      reason={upgradeCtx?.reason ?? ""}
+    />
+  </>
   );
 }
