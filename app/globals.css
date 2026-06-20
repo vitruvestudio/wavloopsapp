@@ -345,6 +345,25 @@
   100% { transform: translateY(0);    opacity: 1; }
 }
 
+/* SVG noodle — a lit gradient segment slides along the
+   stroke-dasharray of each connecting wire in the Problem
+   section's node network. Each path sets its own
+   stroke-dasharray (segment-len gap-len) and an
+   animation-delay so the beams desync across the 5 incoming
+   wires + 1 outgoing wire. */
+@keyframes wl-noodle-flow {
+  0%   { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1000; }
+}
+
+/* Hub ambient ring — a conic-gradient "search beam" sweeps
+   around the central Wavloops hub. Two layers run in opposite
+   directions at different speeds for depth. */
+@keyframes wl-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* ============================================================
    Global guard against horizontal scroll. `overflow-x: clip`
    stops accidental scroll without creating a new stacking
