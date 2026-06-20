@@ -47,25 +47,42 @@ const SUBSCRIPTION_LOOKUP_KEYS: ReadonlySet<StripeLookupKey> = new Set([
 
 /** Resolve the public origin for Stripe success/cancel URLs.
  *
- * Headers come FIRST on purpose. The original ordering (env var
- * first) silently broke preview deploys: a checkout initiated
- * from `wavloopsapp-...vercel.app/pricing` would set
- * `success_url=https://wavloops.co/...` because
- * NEXT_PUBLIC_SITE_URL is set to the prod URL in every
- * environment. Stripe then redirected the user back to prod
- * after payment, where their preview session didn't exist — so
- * the success page bounced them to /auth. Total dead-end. */
+ * Two distinct modes:
+ *
+ * 1. **Production** (`VERCEL_ENV === 'production'`) — return the
+ *    hardcoded canonical origin `https://wavloops.co`. We do NOT
+ *    trust the Host header here because a malicious upstream
+ *    proxy or DNS poisoning could otherwise smuggle in an
+ *    attacker-controlled `Host: evil.com` that we'd bake into a
+ *    `success_url`. Stripe would then redirect the user there
+ *    post-checkout, leaking the `session_id` query param.
+ *
+ * 2. **Preview / dev / anything else** — use the Host header.
+ *    Vercel sets this from its edge layer (signed, not
+ *    spoofable from an external client), so on preview deploys
+ *    a checkout on `wavloopsapp-xyz.vercel.app` returns the
+ *    right preview URL — keeping the user's session alive
+ *    through the redirect. This is the case the original
+ *    "headers first" inversion was designed to fix.
+ *
+ * Note on protocol: we hard-set `https` regardless of
+ * `X-Forwarded-Proto`. Stripe rejects non-HTTPS success URLs in
+ * live mode anyway, but locking it down here means a single
+ * downgrade attempt (`X-Forwarded-Proto: http`) can't produce a
+ * checkout that lands the user on an interceptable HTTP page. */
+const CANONICAL_PROD_ORIGIN = "https://wavloops.co";
+
 async function resolveOrigin(): Promise<string> {
+  if (process.env.VERCEL_ENV === "production") {
+    return CANONICAL_PROD_ORIGIN;
+  }
   const h = await headers();
   const host = h.get("host");
-  if (host) {
-    const proto = h.get("x-forwarded-proto") ?? "https";
-    return `${proto}://${host}`;
-  }
-  // Fallback for contexts without HTTP headers (cron, scripts).
+  if (host) return `https://${host}`;
+  // Fallback for non-HTTP contexts (cron, scripts) outside prod.
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (explicit) return explicit;
-  return "https://wavloops.co";
+  return CANONICAL_PROD_ORIGIN;
 }
 
 /** Start a Stripe Checkout Session for the requested lookup_key

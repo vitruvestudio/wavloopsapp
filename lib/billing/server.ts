@@ -30,6 +30,17 @@ import { PLAN_QUOTAS, type PlanKey, type PlanQuotas } from "./plans";
  *  Cached per render. Returns 'free' if not signed in or anything
  *  fails — never throws (gating must keep working even if the DB
  *  blips). */
+/** Closed set of plan strings we recognize. Anything the RPC
+ *  hands back that isn't one of these → fall through to 'free'
+ *  rather than `as PlanKey`-cast our way to undefined behavior
+ *  downstream. Adding a new tier means touching THIS set on top
+ *  of plans.ts. */
+const KNOWN_PLAN_KEYS: ReadonlySet<string> = new Set<PlanKey>([
+  "free",
+  "lifetime",
+  "pro",
+]);
+
 export const getCurrentUserPlan = cache(async (): Promise<PlanKey> => {
   try {
     const supabase = await createClient();
@@ -44,7 +55,14 @@ export const getCurrentUserPlan = cache(async (): Promise<PlanKey> => {
       console.warn("[billing] get_user_plan failed", error);
       return "free";
     }
-    return (data as PlanKey) ?? "free";
+    // Validate the RPC response against the closed plan set so a
+    // future DB row with `plan='enterprise'` (or any typo) can't
+    // get cast to PlanKey and crash `PLAN_QUOTAS[plan]` downstream.
+    // Default-deny to 'free' — gating must err safe, not fail open.
+    if (typeof data === "string" && KNOWN_PLAN_KEYS.has(data)) {
+      return data as PlanKey;
+    }
+    return "free";
   } catch (e) {
     console.warn("[billing] getCurrentUserPlan threw", e);
     return "free";
@@ -136,7 +154,11 @@ export const getCurrentPlanContext = cache(
     ]);
     return {
       plan,
-      quotas: PLAN_QUOTAS[plan],
+      // Defense in depth — getCurrentUserPlan() already constrains
+      // `plan` to PlanKey, but if the union ever grows ahead of
+      // PLAN_QUOTAS being updated, this `?? .free` keeps gating
+      // safe (fail closed) instead of crashing the whole UI.
+      quotas: PLAN_QUOTAS[plan] ?? PLAN_QUOTAS.free,
       usage: usage ?? {
         servers: 0,
         beats: 0,

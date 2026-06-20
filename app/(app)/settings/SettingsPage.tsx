@@ -30,6 +30,7 @@ import {
   createCheckoutSession,
 } from "@/app/billing/actions";
 import { STRIPE_LOOKUP_KEYS } from "@/lib/billing/plans";
+import type { StripeLookupKey } from "@/lib/billing/plans";
 import type { PlanContext } from "@/lib/billing/server";
 import type {
   PlacementRecord,
@@ -1521,14 +1522,18 @@ function usageSummary(ctx: PlanContext): string {
 function PlanCtas({ planContext }: { planContext: PlanContext }) {
   const [pending, startTransition] = React.useTransition();
 
-  const fireCheckout = (lookupKey: string) =>
+  const fireCheckout = (lookupKey: StripeLookupKey) =>
     startTransition(async () => {
       try {
-        await createCheckoutSession(lookupKey as never);
+        await createCheckoutSession(lookupKey);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not start checkout.";
         if (!/NEXT_REDIRECT/i.test(msg)) {
-          console.error("[settings/billing] checkout failed:", e);
+          // Log message only — full error objects can include
+          // Stripe customer / subscription identifiers we don't
+          // want forwarded to whatever log drain the browser
+          // console feeds.
+          console.error("[settings/billing] checkout failed:", msg);
           window.alert(msg);
         }
       }
@@ -1541,7 +1546,7 @@ function PlanCtas({ planContext }: { planContext: PlanContext }) {
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not open the portal.";
         if (!/NEXT_REDIRECT/i.test(msg)) {
-          console.error("[settings/billing] portal failed:", e);
+          console.error("[settings/billing] portal failed:", msg);
           window.alert(msg);
         }
       }
