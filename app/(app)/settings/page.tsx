@@ -8,6 +8,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { getCurrentPlanContext } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsPage } from "./SettingsPage";
 import type { ProfileRow } from "@/lib/supabase/database.types";
@@ -41,6 +42,11 @@ export default async function SettingsRoute() {
     artistRow?.display_name && artistRow.display_name.trim().length > 0,
   );
 
+  // Billing plan + usage — drives the "Your plan" card and the
+  // upgrade CTAs. Cached per request so it's a single round-trip
+  // even if other sections later need it too.
+  const planContext = await getCurrentPlanContext();
+
   // Identity provider(s) the user signed up with. Supabase exposes
   // these on the User object — we only need the provider name(s)
   // for the Account tab's "Connected — Google" / "Email & password"
@@ -54,6 +60,7 @@ export default async function SettingsRoute() {
       emailConfirmed={Boolean(user.email_confirmed_at)}
       providers={providers}
       hasArtistProfile={hasArtistProfile}
+      planContext={planContext}
     />
   );
 }
