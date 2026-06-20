@@ -73,6 +73,15 @@ interface UploadBeatPageProps {
   userId: string;
   producerName: string;
   servers: ServerRow[];
+  /** Effective billing plan — drives the audio-format whitelist
+   *  and feeds the upgrade nudge if the user picks a format their
+   *  plan doesn't allow. */
+  currentPlan: "free" | "lifetime" | "pro";
+  /** Allowed file extensions for the current plan. MP3 only on
+   *  Free + Lifetime; full audio family on Pro. Pre-computed by
+   *  the server component so the client doesn't need to import
+   *  the billing module. */
+  allowedAudioExts: readonly string[];
 }
 
 type UploadState =
@@ -85,6 +94,8 @@ export function UploadBeatPage({
   userId,
   producerName,
   servers,
+  currentPlan,
+  allowedAudioExts,
 }: UploadBeatPageProps) {
   const router = useRouter();
 
@@ -232,23 +243,21 @@ export function UploadBeatPage({
       // shipping an executable. Whitelist the MIME prefix and
       // the extension; also do a quick magic-byte sniff on the
       // first 12 bytes for the common audio container headers.
-      const validExts = new Set([
-        "mp3",
-        "wav",
-        "wave",
-        "flac",
-        "aiff",
-        "aif",
-        "m4a",
-        "aac",
-        "ogg",
-        "opus",
-      ]);
+      // The extension whitelist is plan-aware: Free + Lifetime
+      // get MP3 only, Pro gets the full family.
+      const validExts = new Set(allowedAudioExts);
       const ext = (f.name.split(".").pop() ?? "mp3").toLowerCase();
       if (!validExts.has(ext)) {
+        const niceList = allowedAudioExts
+          .map((e) => e.toUpperCase())
+          .join(", ");
+        const upgrade =
+          currentPlan === "pro"
+            ? ""
+            : " Upgrade to Pro to upload WAV / FLAC / AIFF / M4A / AAC / OGG / OPUS.";
         setUpload({
           status: "failed",
-          message: "Unsupported file type. Use MP3, WAV, FLAC, AIFF, M4A, AAC, OGG or OPUS.",
+          message: `Unsupported file type. Your ${currentPlan === "free" ? "Free" : "Lifetime"} plan supports ${niceList} only.${upgrade}`,
         });
         return;
       }

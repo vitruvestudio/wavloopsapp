@@ -25,6 +25,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { checkAudioFormat, checkBeatQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
 import type { BeatType } from "@/lib/supabase/database.types";
 
@@ -92,6 +93,19 @@ export async function saveBeatAction(
   if (!payload.audio_path) {
     return { error: "Audio file is missing. Re-upload and try again." };
   }
+
+  // Billing gates — count + format. The client-side upload page
+  // already gates the format before bytes ship to Supabase Storage,
+  // but a determined user could craft a saveBeatAction call with
+  // a pre-uploaded WAV path, so we re-check server-side. Defense
+  // in depth on a quota that costs real egress (Pro-only formats
+  // are typically 5-10× heavier than MP3).
+  const beatGate = await checkBeatQuota();
+  if (!beatGate.ok) return { error: beatGate.reason };
+
+  const ext = payload.audio_path.split(".").pop()?.toLowerCase() ?? "";
+  const formatGate = await checkAudioFormat(ext);
+  if (!formatGate.ok) return { error: formatGate.reason };
 
   // 1) Insert beat row
   const { data: inserted, error: insertErr } = await supabase

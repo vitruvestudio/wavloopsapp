@@ -17,6 +17,8 @@
  */
 
 import { redirect } from "next/navigation";
+import { PLAN_QUOTAS } from "@/lib/billing/plans";
+import { getCurrentUserPlan } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
 import { UploadBeatPage } from "./UploadBeatPage";
 import type { ServerRow } from "@/lib/supabase/database.types";
@@ -48,11 +50,19 @@ export default async function UploadPage() {
         .returns<ServerRow[]>()
     : { data: [] as ServerRow[] };
 
+  // Plan-aware audio format gating. The client gates the file
+  // before any byte ships to Supabase Storage; the action re-checks
+  // the format server-side for defense in depth.
+  const plan = await getCurrentUserPlan();
+  const allowedAudioExts = PLAN_QUOTAS[plan].allowedAudioExtensions;
+
   return (
     <UploadBeatPage
       userId={user.id}
       producerName={profile?.name ?? "You"}
       servers={servers ?? []}
+      currentPlan={plan}
+      allowedAudioExts={allowedAudioExts}
     />
   );
 }
