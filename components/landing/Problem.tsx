@@ -1,47 +1,39 @@
 /**
- * Landing — Section 02. Node network (v4).
+ * Landing — Section 02. Node network (v5).
  *
- * Theo's note that drove this rewrite: "I can't go to market
- * with what we had — the side-by-side scene was still SaaS-
- * template at the bottom. Let's tell the story with a node
- * graph: many chaotic tools on the left, all converging onto
- * the Wavloops hub, then a single wire going OUT to the one
- * useful server." That visual asymmetry IS the value prop —
- * many in, one out — and reading it requires no copy at all.
+ * v4 read as 'apps plugged INTO Wavloops' because the brand
+ * circles floated free on a neutral glass canvas — the eye saw
+ * 'integrations' instead of 'pain'. Theo's fix: 'two distinct
+ * cards. Left card = the old way (chaos rows). Right card =
+ * the new way (your Wavloops server). The Wavloops mark sits in
+ * the middle as the bridge between the two worlds'.
  *
  * Anatomy
  * ───────
- *   ┌─ Editorial header ─────────────────────────────────────┐
- *   │ 02 ─── OUR PROMISE                                    │
- *   │ The beat-sending headache ENDS HERE.                   │
- *   │ <producer verbatim — accent left-bar>                  │
- *   └────────────────────────────────────────────────────────┘
- *   ┌─ Glass container ──────────────────────────────────────┐
- *   │                                                        │
- *   │   ◯ Gmail                                              │
- *   │   ◯ Instagram                          ┌──────────┐    │
- *   │   ◯ WhatsApp ────►───►◐ Wavloops ─►─► │ your.    │    │
- *   │   ◯ Discord                            │ server   │    │
- *   │   ◯ WeTransfer                         └──────────┘    │
- *   │                                                        │
- *   └────────────────────────────────────────────────────────┘
+ *   ┌─ 02 ─── OUR PROMISE ────────────────────────────────────┐
+ *   │ The beat-sending headache ENDS HERE.                    │
+ *   │ <producer verbatim — accent left-bar>                   │
+ *   └─────────────────────────────────────────────────────────┘
  *
- * Implementation notes
- * ────────────────────
- * - 5 incoming SVG wires + 1 outgoing wire, all rendered TWICE:
- *   once as a faint static "wire" (background layer, gradient
- *   stops fade in/out toward the endpoints so they vanish into
- *   the canvas), and once as an "animated noodle" — same path,
- *   stroke-dasharray + wl-noodle-flow keyframe, per-path delays
- *   to desync the beams.
- * - Junction dots sit at the hub's in/out edges (where all the
- *   wires meet), wl-pulse-dot in accent-text.
- * - The hub is a circular glass disc with two counter-rotating
- *   conic-gradient masks creating a soft "search beam" sweep,
- *   plus a giant ambient radial-glow behind it.
- * - The right card uses the same DS tokens as the in-app
- *   server detail surface (cover with mini equalizer + LIVE
- *   pill) so the destination reads as a real product surface.
+ *   ┌─ The old way ─────── CHAOS ┐         ┌─ Atlanta Nights ────────┐
+ *   │ ✉  WeTransfer link    •    │  ╲      │ ▣ Atlanta Nights        │
+ *   │    GMAIL · EXPIRED         │   ╲     │   4 BEATS · 12 ARTISTS  │
+ *   │ ◯  "did u send it??"  •    │    ╲    │ wavloops.co/s/atl-nights│
+ *   │    INSTAGRAM DM            │     →   │ ▸ Midnight Drift 142BPM │
+ *   │ 💬  Manager           •    │  ┌──┐   │ ▸ Golden Hour    78BPM  │
+ *   │    WHATSAPP · 5M           │ →│ W│→  │ KA kayde.mgmt@gmail.com │
+ *   │ 🎮  ATL Producers     •    │  └──┘   │   JOINED · 14 · 5       │
+ *   │    DISCORD · NOW           │  ╱      └─────────────────────────┘
+ *   └────────────────────────────┘ ╱
+ *                            ONE SERVER
+ *
+ *   "5 apps, expired links,                One link. Every beat,
+ *    'who did I send it to?'"              every contact, every
+ *                                          play — tracked.
+ *
+ * The flow reads left → right WITHOUT copy: a card full of
+ * chaos collapses into a single Wavloops mark and re-emerges as
+ * a clean server destination.
  */
 
 "use client";
@@ -61,41 +53,27 @@ export function LandingProblem() {
         backgroundColor: "var(--bg-0)",
       }}
     >
+      {/* Ambient brand glow centered behind the hub. Painted on
+              the section itself now that the outer glass wrapper is
+              gone — keeps the canvas warm without re-introducing a
+              card. */}
       <div
-        className="mx-auto"
-        style={{ maxWidth: 1200, padding: "0 24px" }}
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 30% 35% at 50% 65%, var(--accent-glow) 0%, transparent 70%)",
+          opacity: 0.45,
+        }}
+      />
+
+      <div
+        className="relative mx-auto"
+        style={{ maxWidth: 1280, padding: "0 24px" }}
       >
-        {/* ─── Editorial header ─── */}
         <SectionHeader />
-
-        {/* ─── Glass container with the node network ─── */}
-        <div
-          className="relative overflow-hidden"
-          style={{
-            marginTop: 56,
-            padding: "40px 28px",
-            borderRadius: 28,
-            background:
-              "linear-gradient(135deg, color-mix(in oklch, var(--bg-2) 80%, transparent) 0%, var(--bg-1) 100%)",
-            border: "1px solid var(--border-1)",
-            boxShadow:
-              "0 40px 100px -40px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
-          }}
-        >
-          {/* Soft ambient brand glow behind the hub area —
-                  paints the canvas with a warm accent halo
-                  centered on where the hub will render. */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse 40% 50% at 50% 50%, var(--accent-glow) 0%, transparent 70%)",
-              opacity: 0.35,
-            }}
-          />
-
-          <NodeNetwork />
+        <div style={{ marginTop: 64 }}>
+          <NetworkScene />
         </div>
       </div>
     </section>
@@ -103,34 +81,21 @@ export function LandingProblem() {
 }
 
 /* ============================================================
-   Editorial section header (02 ─ OUR PROMISE / title / quote)
+   Editorial section header
    ============================================================ */
 
 function SectionHeader() {
   return (
     <div className="flex flex-col" style={{ gap: 28 }}>
-      {/* Number + label row with a hairline divider — gives the
-              section the editorial feel the reference design has,
-              without changing Theo's existing copy. */}
       <div className="flex items-center" style={{ gap: 18 }}>
-        <span
-          className="t-mono"
-          style={{ color: "var(--accent-text)" }}
-        >
+        <span className="t-mono" style={{ color: "var(--accent-text)" }}>
           02
         </span>
         <span
           aria-hidden="true"
-          style={{
-            height: 1,
-            flex: 1,
-            background: "var(--border-1)",
-          }}
+          style={{ height: 1, flex: 1, background: "var(--border-1)" }}
         />
-        <span
-          className="t-mono"
-          style={{ color: "var(--fg-3)" }}
-        >
+        <span className="t-mono" style={{ color: "var(--fg-3)" }}>
           Our promise
         </span>
       </div>
@@ -174,11 +139,7 @@ function SectionHeader() {
         </blockquote>
         <figcaption
           className="t-mono"
-          style={{
-            marginTop: 14,
-            color: "var(--fg-3)",
-            paddingLeft: 22,
-          }}
+          style={{ marginTop: 14, color: "var(--fg-3)", paddingLeft: 22 }}
         >
           — a producer
         </figcaption>
@@ -188,53 +149,50 @@ function SectionHeader() {
 }
 
 /* ============================================================
-   Node network — SVG wires + HTML node layer
+   Network scene — left card → hub → right card
+   ============================================================
+   ViewBox 1200 × 520. Coordinate map:
+     LeftCard right edge   x = 320
+     LeftCard row Y stops  y = 150, 220, 290, 360
+     Hub left edge          x = 540
+     Hub right edge         x = 660
+     RightCard left edge   x = 760
    ============================================================ */
 
-/**
- * SVG viewBox is 1000 × 600. HTML nodes get positioned in
- * absolute units that line up with the SVG coordinate system
- * by using percent translations on a relative container, so the
- * graph scales together at any container width.
- *
- * Coordinate map (viewBox-space):
- *   Hub centre     → (500, 300)
- *   Hub left edge  → (435, 300)
- *   Hub right edge → (565, 300)
- *   Left node X    → 140 (column centre)
- *   Right card X   → 820
- *   Left Y stops   → 90, 195, 300, 405, 510
- */
+const LEFT_ROW_YS = [150, 220, 290, 360];
+const HUB_LEFT_X = 540;
+const HUB_RIGHT_X = 660;
+const HUB_Y = 260;
+const LEFT_CARD_RIGHT_X = 320;
+const RIGHT_CARD_LEFT_X = 760;
 
-const LEFT_NODES = [
-  { brand: "gmail", y: 90 },
-  { brand: "instagram", y: 195 },
-  { brand: "whatsapp", y: 300 },
-  { brand: "discord", y: 405 },
-  { brand: "wetransfer", y: 510 },
-] as const;
+const WIRES = [
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[0]} C 420 ${LEFT_ROW_YS[0]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.0 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[1]} C 420 ${LEFT_ROW_YS[1]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.5 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[2]} C 420 ${LEFT_ROW_YS[2]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.0 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[3]} C 420 ${LEFT_ROW_YS[3]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.5 },
+  { d: `M ${HUB_RIGHT_X} ${HUB_Y} L ${RIGHT_CARD_LEFT_X} ${HUB_Y}`, delay: 2.0 },
+];
 
-function NodeNetwork() {
+function NetworkScene() {
   return (
     <div
       className="relative"
       style={{
         width: "100%",
-        aspectRatio: "1000 / 600",
-        minHeight: 380,
+        aspectRatio: "1200 / 520",
+        minHeight: 420,
       }}
     >
-      {/* ───── SVG layer — wires + animated noodles ───── */}
+      {/* ───── SVG layer ───── */}
       <svg
-        viewBox="0 0 1000 600"
+        viewBox="0 0 1200 520"
         preserveAspectRatio="none"
         className="absolute inset-0 w-full h-full"
         style={{ pointerEvents: "none" }}
         aria-hidden="true"
       >
         <defs>
-          {/* Faint wire gradient — fades in at the endpoints so
-                  the wires don't bluntly hit the node edges. */}
           <linearGradient id="wl-wire" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
             <stop offset="25%" stopColor="#ffffff" stopOpacity="0.10" />
@@ -242,16 +200,11 @@ function NodeNetwork() {
             <stop offset="75%" stopColor="#ffffff" stopOpacity="0.10" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </linearGradient>
-
-          {/* Noodle gradient — bright at centre, transparent at
-                  edges, so the lit segment fades smoothly. Uses the
-                  Wavloops accent indigo. */}
           <linearGradient id="wl-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#7c7aff" stopOpacity="0" />
             <stop offset="50%" stopColor="#a8a5ff" stopOpacity="1" />
             <stop offset="100%" stopColor="#7c7aff" stopOpacity="0" />
           </linearGradient>
-
           <filter id="wl-wire-glow" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="2" result="blur" />
             <feMerge>
@@ -259,7 +212,6 @@ function NodeNetwork() {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-
           <filter id="wl-dot-glow" x="-100%" y="-100%" width="300%" height="300%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
@@ -269,7 +221,6 @@ function NodeNetwork() {
           </filter>
         </defs>
 
-        {/* Background static wires — 5 from left, 1 going right */}
         {WIRES.map((w, i) => (
           <path
             key={`wire-${i}`}
@@ -280,8 +231,6 @@ function NodeNetwork() {
             filter="url(#wl-wire-glow)"
           />
         ))}
-
-        {/* Animated noodles — same paths, dashed + flowing */}
         {WIRES.map((w, i) => (
           <path
             key={`noodle-${i}`}
@@ -292,239 +241,256 @@ function NodeNetwork() {
             filter="url(#wl-wire-glow)"
             style={{
               strokeDasharray: "60 940",
-              animation: `wl-noodle-flow ${w.duration}s linear infinite`,
+              animation: `wl-noodle-flow 3s linear infinite`,
               animationDelay: `${w.delay}s`,
             }}
           />
         ))}
 
-        {/* Junction dots — hub in/out points, breathe in accent */}
+        {/* Junction dots */}
         <circle
-          cx={435}
-          cy={300}
+          cx={HUB_LEFT_X}
+          cy={HUB_Y}
           r={4}
           fill="var(--accent-text)"
           filter="url(#wl-dot-glow)"
         />
         <circle
-          cx={565}
-          cy={300}
+          cx={HUB_RIGHT_X}
+          cy={HUB_Y}
           r={4}
           fill="var(--accent-text)"
           filter="url(#wl-dot-glow)"
         />
       </svg>
 
-      {/* ───── HTML node layer — sits ABOVE the SVG ───── */}
+      {/* ───── HTML layer ───── */}
       <div className="absolute inset-0">
-        {/* Left brand nodes — absolute-positioned by viewBox y */}
-        {LEFT_NODES.map((n) => (
-          <BrandNode key={n.brand} brand={n.brand} y={n.y} />
-        ))}
+        <LeftCardWrap />
+        <CenterHub />
+        <RightCardWrap />
+      </div>
 
-        {/* Centre hub */}
-        <Hub />
+      {/* ───── Below-cards captions ───── */}
+      <BelowCaptions />
+    </div>
+  );
+}
 
-        {/* Right card — single destination */}
-        <RightCard />
+/* ============================================================
+   LEFT — "The old way" card
+   ============================================================ */
+
+const CHAOS_ROWS = [
+  {
+    brand: "gmail",
+    subject: "WeTransfer link",
+    tag: "GMAIL · EXPIRED",
+  },
+  {
+    brand: "instagram",
+    subject: "“did u send it??”",
+    tag: "INSTAGRAM DM",
+  },
+  {
+    brand: "whatsapp",
+    subject: "Manager",
+    tag: "WHATSAPP · 5M",
+  },
+  {
+    brand: "discord",
+    subject: "ATL Producers",
+    tag: "DISCORD · NOW",
+  },
+] as const;
+
+function LeftCardWrap() {
+  // Anchor the card so its right edge lines up with x=320 in
+  // viewBox space. The container is responsive (aspect-ratio
+  // matched), so positioning by percentage keeps SVG and HTML
+  // in sync at any width.
+  return (
+    <div
+      className="absolute"
+      style={{
+        // Center vertically on row stops average ≈ y=255
+        top: `${(255 / 520) * 100}%`,
+        // Centre horizontally on left card centre (x ≈ 180)
+        left: `${(180 / 1200) * 100}%`,
+        transform: "translate(-50%, -50%)",
+        width: 280,
+      }}
+    >
+      <div
+        style={{
+          background:
+            "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
+          border: "1px solid var(--border-1)",
+          borderRadius: "var(--r-lg)",
+          padding: 14,
+          boxShadow:
+            "0 30px 60px -20px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }}
+      >
+        {/* Card header */}
+        <div
+          className="flex items-center"
+          style={{ gap: 10, padding: "4px 4px 12px" }}
+        >
+          <span
+            aria-hidden="true"
+            className="flex items-center justify-center"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: "var(--r-pill)",
+              background:
+                "color-mix(in oklch, var(--danger) 18%, transparent)",
+              color: "var(--danger)",
+            }}
+          >
+            <XGlyph />
+          </span>
+          <span className="t-title" style={{ fontSize: 13.5 }}>
+            The old way
+          </span>
+          <span
+            className="t-mono"
+            style={{
+              marginLeft: "auto",
+              color: "var(--danger)",
+              background:
+                "color-mix(in oklch, var(--danger) 14%, transparent)",
+              padding: "3px 8px",
+              borderRadius: "var(--r-pill)",
+              fontSize: 9,
+            }}
+          >
+            Chaos
+          </span>
+        </div>
+
+        {/* Chaos rows */}
+        <div className="flex flex-col" style={{ gap: 6 }}>
+          {CHAOS_ROWS.map((r) => (
+            <ChaosRow key={r.brand} {...r} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-/**
- * Wire paths (viewBox-space). Each starts at a left node's
- * approximate right edge (~190, y) and curves toward the hub's
- * left edge (435, 300). Outgoing wire is a single straight
- * line from the hub's right edge to the right card.
- *
- * Path durations + delays are tuned by hand: incoming wires
- * stagger 0 → 1s so the eye reads "many flows" instead of "one
- * synchronised pulse". Outgoing wire uses the longest delay so
- * it fires last, giving the visual reading order in → hub →
- * out.
- */
-const WIRES = [
-  // Incoming — top to bottom
-  { d: "M 190 90  C 280 90,  380 300, 435 300", duration: 3.2, delay: 0.0 },
-  { d: "M 190 195 C 280 195, 380 300, 435 300", duration: 3.0, delay: 0.4 },
-  { d: "M 190 300 L 435 300",                    duration: 2.6, delay: 0.8 },
-  { d: "M 190 405 C 280 405, 380 300, 435 300", duration: 3.0, delay: 1.2 },
-  { d: "M 190 510 C 280 510, 380 300, 435 300", duration: 3.2, delay: 1.6 },
-  // Outgoing — single beam to right card
-  { d: "M 565 300 L 760 300", duration: 2.4, delay: 2.0 },
-] as const;
-
-/* ============================================================
-   Brand nodes (left column)
-   ============================================================ */
-
-const BRAND_META = {
-  gmail: {
-    label: "Gmail",
-    color: "#EA4335",
-    bg: "#FFFFFF",
-    icon: GmailLogo,
-  },
-  instagram: {
-    label: "Instagram",
-    color: "#FFFFFF",
-    bg: "linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%)",
-    icon: InstagramLogo,
-  },
-  whatsapp: {
-    label: "WhatsApp",
-    color: "#FFFFFF",
-    bg: "#25D366",
-    icon: WhatsappLogo,
-  },
-  discord: {
-    label: "Discord",
-    color: "#FFFFFF",
-    bg: "#5865F2",
-    icon: DiscordLogo,
-  },
-  wetransfer: {
-    label: "WeTransfer",
-    color: "#FFFFFF",
-    bg: "#406AFF",
-    icon: WetransferLogo,
-  },
-} as const;
-
-function BrandNode({
+function ChaosRow({
   brand,
-  y,
+  subject,
+  tag,
 }: {
   brand: keyof typeof BRAND_META;
-  y: number;
+  subject: string;
+  tag: string;
 }) {
   const meta = BRAND_META[brand];
   const Icon = meta.icon;
   return (
     <div
-      className="absolute"
+      className="flex items-center"
       style={{
-        // Position centre on the SVG node centre (140, y) in
-        // viewBox 1000×600. As percentages of the container.
-        left: `${(140 / 1000) * 100}%`,
-        top: `${(y / 600) * 100}%`,
-        transform: "translate(-50%, -50%)",
+        gap: 10,
+        padding: "10px 10px",
+        background: "var(--bg-0)",
+        border: "1px solid var(--border-1)",
+        borderRadius: "var(--r-md)",
       }}
     >
-      <div
-        className="relative group"
+      <span
+        className="flex items-center justify-center shrink-0"
         style={{
-          width: 72,
-          height: 72,
-          borderRadius: "var(--r-pill)",
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          boxShadow:
-            "0 20px 40px -20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          width: 30,
+          height: 30,
+          borderRadius: "var(--r-sm)",
+          background: meta.bg,
+          color: meta.color,
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
         }}
       >
-        {/* Inner brand tile holding the real logo */}
-        <span
-          className="flex items-center justify-center"
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div
+          className="t-title"
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: "var(--r-md)",
-            background: meta.bg,
-            color: meta.color,
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+            fontSize: 12.5,
+            color: "var(--fg-1)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          <Icon size={22} />
-        </span>
-
-        {/* Hover halo in the brand's color — picked up below as
-                a colored radial behind the circle. */}
+          {subject}
+        </div>
+        <div
+          className="t-mono"
+          style={{ color: "var(--fg-4)", fontSize: 9, marginTop: 3 }}
+        >
+          {tag}
+        </div>
       </div>
+      {/* Unread dot */}
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "var(--r-pill)",
+          background: "var(--fg-4)",
+        }}
+      />
     </div>
   );
 }
 
 /* ============================================================
-   Centre hub — Wavloops mark with rotating beams + glow
+   CENTER — Wavloops hub
    ============================================================ */
 
-function Hub() {
+function CenterHub() {
   return (
     <div
-      className="absolute"
+      className="absolute flex flex-col items-center"
       style={{
-        left: `${(500 / 1000) * 100}%`,
-        top: `${(300 / 600) * 100}%`,
+        top: `${(HUB_Y / 520) * 100}%`,
+        left: `${(600 / 1200) * 100}%`,
         transform: "translate(-50%, -50%)",
       }}
     >
-      <div className="relative" style={{ width: 132, height: 132 }}>
-        {/* Ambient outer glow — large blurred halo */}
+      <div className="relative" style={{ width: 92, height: 92 }}>
+        {/* Soft ambient halo */}
         <div
           aria-hidden="true"
           className="absolute"
           style={{
-            inset: -50,
+            inset: -28,
             borderRadius: "var(--r-pill)",
             background:
               "radial-gradient(circle, var(--accent-glow) 0%, transparent 65%)",
-            opacity: 0.55,
+            opacity: 0.7,
             filter: "blur(8px)",
           }}
         />
 
-        {/* Rotating conic beam — 270° transparent + 90° accent,
-                masked into a ring. Spins slowly. */}
-        <div
-          aria-hidden="true"
-          className="absolute"
-          style={{
-            inset: -20,
-            borderRadius: "var(--r-pill)",
-            background:
-              "conic-gradient(from 0deg, transparent 0deg, transparent 240deg, color-mix(in oklch, var(--accent-text) 65%, transparent) 360deg)",
-            maskImage: "radial-gradient(transparent 56%, black 60%)",
-            WebkitMaskImage: "radial-gradient(transparent 56%, black 60%)",
-            animation: "wl-spin 8s linear infinite",
-            opacity: 0.7,
-          }}
-        />
-        {/* Counter-rotating beam — different color stop, slower */}
-        <div
-          aria-hidden="true"
-          className="absolute"
-          style={{
-            inset: -10,
-            borderRadius: "var(--r-pill)",
-            background:
-              "conic-gradient(from 180deg, transparent 0deg, transparent 250deg, var(--accent) 360deg)",
-            maskImage: "radial-gradient(transparent 56%, black 60%)",
-            WebkitMaskImage: "radial-gradient(transparent 56%, black 60%)",
-            animation: "wl-spin 14s linear infinite reverse",
-            opacity: 0.45,
-          }}
-        />
-
-        {/* Glass core — Wavloops Logomark in accent */}
+        {/* Accent square — like the reference's blue 'W' chip,
+                Wavloops-styled. Rounded square (not circle) so it
+                reads as a product mark, not as another node. */}
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            borderRadius: "var(--r-pill)",
+            borderRadius: 18,
             background:
-              "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
+              "linear-gradient(140deg, var(--accent) 0%, oklch(0.42 0.16 268) 100%)",
+            border: "1px solid color-mix(in oklch, var(--accent-text) 50%, transparent)",
             boxShadow:
-              "0 40px 100px -40px var(--accent-glow), inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.08)",
+              "0 30px 60px -20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.18)",
           }}
         >
           {/* Inner ring */}
@@ -532,179 +498,336 @@ function Hub() {
             aria-hidden="true"
             className="absolute"
             style={{
-              inset: 10,
-              borderRadius: "var(--r-pill)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              inset: 6,
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.16)",
             }}
           />
-          {/* Mark — bigger than usual, accent-tinted */}
           <span
             style={{
-              color: "var(--accent-text)",
-              filter:
-                "drop-shadow(0 0 24px color-mix(in oklch, var(--accent-text) 80%, transparent))",
+              color: "#ffffff",
+              filter: "drop-shadow(0 0 18px rgba(255,255,255,0.45))",
               display: "flex",
             }}
           >
-            <Logomark size={56} />
+            <Logomark size={36} />
           </span>
         </div>
       </div>
+
+      {/* Caption under the hub */}
+      <span
+        className="t-mono"
+        style={{
+          marginTop: 16,
+          color: "var(--accent-text)",
+          textShadow: "0 0 14px var(--accent-glow)",
+        }}
+      >
+        One server
+      </span>
     </div>
   );
 }
 
 /* ============================================================
-   Right card — single destination ("your server")
+   RIGHT — Wavloops server card (the destination)
    ============================================================ */
 
-function RightCard() {
+function RightCardWrap() {
   return (
     <div
       className="absolute"
       style={{
-        left: `${(820 / 1000) * 100}%`,
-        top: `${(300 / 600) * 100}%`,
+        top: `${(HUB_Y / 520) * 100}%`,
+        left: `${(940 / 1200) * 100}%`,
         transform: "translate(-50%, -50%)",
+        width: 340,
       }}
     >
       <div
         className="relative"
         style={{
-          width: 280,
           background:
             "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
           border:
-            "1px solid color-mix(in oklch, var(--accent-text) 28%, transparent)",
+            "1px solid color-mix(in oklch, var(--accent-text) 35%, transparent)",
           borderRadius: "var(--r-lg)",
           overflow: "hidden",
           boxShadow:
-            "0 30px 60px -20px oklch(0 0 0 / 0.7), 0 0 0 1px rgba(255,255,255,0.04) inset",
+            "0 36px 70px -22px oklch(0 0 0 / 0.7), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 40px -10px var(--accent-glow)",
         }}
       >
-        {/* Soft top brand halo — picks up where the wire enters */}
+        {/* Soft accent halo from where the wire enters */}
         <div
           aria-hidden="true"
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              "radial-gradient(ellipse 80% 60% at 0% 50%, var(--accent-glow) 0%, transparent 65%)",
-            opacity: 0.5,
+              "radial-gradient(ellipse 80% 50% at 0% 50%, var(--accent-glow) 0%, transparent 60%)",
+            opacity: 0.45,
           }}
         />
 
-        {/* URL pill at top */}
+        {/* Server hero */}
         <div
-          className="flex items-center"
+          className="relative flex items-center"
+          style={{
+            padding: 14,
+            gap: 12,
+            borderBottom: "1px solid var(--border-1)",
+            zIndex: 2,
+          }}
+        >
+          <ServerCoverEq size={44} />
+          <div className="min-w-0 flex-1">
+            <div className="t-title" style={{ fontSize: 13.5 }}>
+              Atlanta Nights
+            </div>
+            <div
+              className="t-mono"
+              style={{ color: "var(--fg-3)", fontSize: 9, marginTop: 3 }}
+            >
+              4 BEATS · 12 ARTISTS
+            </div>
+          </div>
+          <span
+            className="t-mono"
+            style={{
+              padding: "3px 8px",
+              borderRadius: "var(--r-pill)",
+              background: "var(--bg-2)",
+              color: "var(--fg-2)",
+              fontSize: 9,
+              border: "1px solid var(--border-1)",
+            }}
+          >
+            Private
+          </span>
+        </div>
+
+        {/* URL pill row */}
+        <div
+          className="relative flex items-center"
           style={{
             padding: "10px 14px",
             gap: 8,
             borderBottom: "1px solid var(--border-1)",
             background: "var(--bg-1)",
-            position: "relative",
             zIndex: 2,
           }}
         >
           <span
+            aria-hidden="true"
+            style={{ color: "var(--fg-4)", fontSize: 11, display: "flex" }}
+          >
+            <LinkGlyph />
+          </span>
+          <span
             className="t-mono"
             style={{
-              color: "var(--fg-3)",
-              background: "var(--bg-0)",
-              border: "1px solid var(--border-1)",
-              padding: "3px 10px",
-              borderRadius: "var(--r-pill)",
-              flex: 1,
-              textAlign: "center",
+              color: "var(--fg-2)",
               fontSize: 10,
+              flex: 1,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            wavloops.co/s/your-server
+            wavloops.co/s/atl-nights
+          </span>
+          <span
+            className="t-mono"
+            style={{
+              padding: "2px 7px",
+              borderRadius: "var(--r-pill)",
+              background: "var(--ok-surface)",
+              color: "var(--ok)",
+              fontSize: 9,
+            }}
+          >
+            Copied
           </span>
         </div>
 
-        {/* Card body — cover + title + status */}
-        <div
-          className="relative"
-          style={{
-            padding: 18,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            zIndex: 2,
-          }}
-        >
-          <ServerCoverEq />
-          <div className="min-w-0 flex-1">
-            <div className="t-title" style={{ fontSize: 14 }}>
-              Your beat server
-            </div>
-            <div
-              className="flex items-center"
-              style={{ gap: 6, marginTop: 6 }}
-            >
-              <span
-                className="inline-flex items-center t-mono"
-                style={{
-                  gap: 5,
-                  padding: "3px 8px",
-                  borderRadius: "var(--r-pill)",
-                  background: "var(--ok-surface)",
-                  color: "var(--ok)",
-                  fontSize: 9,
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: "var(--r-pill)",
-                    background: "var(--ok)",
-                    ["--wl-pulse-color" as string]: "var(--ok)",
-                    animation: "wl-pulse-dot 1.6s ease-out infinite",
-                  }}
-                />
-                Live
-              </span>
-            </div>
-          </div>
+        {/* Beat rows */}
+        <div className="relative" style={{ zIndex: 2 }}>
+          <BeatRow
+            playing
+            title="Midnight Drift"
+            meta="142 BPM · F MIN"
+          />
+          <BeatRow title="Golden Hour" meta="78 BPM · C MIN" plays={540} likes={88} />
         </div>
 
-        {/* Footer caption */}
+        {/* Contact strip */}
         <div
-          className="t-mono"
+          className="relative flex items-center"
           style={{
-            position: "relative",
+            padding: "12px 14px",
+            gap: 10,
+            borderTop: "1px solid var(--border-1)",
+            background: "var(--bg-1)",
             zIndex: 2,
-            padding: "10px 18px 16px",
-            color: "var(--fg-4)",
-            fontSize: 10,
           }}
         >
-          ONE LINK · UPDATES ITSELF
+          <span
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "var(--r-pill)",
+              background:
+                "linear-gradient(135deg, oklch(0.62 0.18 35) 0%, oklch(0.58 0.18 22) 100%)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            KA
+          </span>
+          <div className="min-w-0 flex-1">
+            <div
+              className="t-title"
+              style={{
+                fontSize: 12,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              kayde.mgmt@gmail.com
+            </div>
+            <div
+              className="t-mono"
+              style={{
+                color: "var(--fg-4)",
+                fontSize: 9,
+                marginTop: 3,
+                display: "flex",
+                gap: 8,
+              }}
+            >
+              <span style={{ color: "var(--ok)" }}>● Joined</span>
+              <span>14 plays</span>
+              <span>5 likes</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ServerCoverEq() {
-  const BARS = 5;
+function BeatRow({
+  title,
+  meta,
+  playing,
+  plays,
+  likes,
+}: {
+  title: string;
+  meta: string;
+  playing?: boolean;
+  plays?: number;
+  likes?: number;
+}) {
+  return (
+    <div
+      className="flex items-center"
+      style={{
+        padding: "10px 14px",
+        gap: 12,
+        borderTop: "1px solid var(--border-1)",
+        background: playing ? "var(--accent-surface)" : "transparent",
+      }}
+    >
+      <span
+        className="flex items-center justify-center shrink-0"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: "var(--r-pill)",
+          background: playing ? "var(--accent)" : "var(--bg-2)",
+          color: playing ? "#fff" : "var(--fg-2)",
+          boxShadow: playing ? "0 0 16px var(--accent-glow)" : "none",
+        }}
+      >
+        {playing ? <PauseGlyph /> : <PlayGlyph />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div
+          className="t-title"
+          style={{
+            fontSize: 12.5,
+            color: playing ? "var(--accent-text)" : "var(--fg-1)",
+          }}
+        >
+          {title}
+        </div>
+        <div
+          className="t-mono"
+          style={{ color: "var(--fg-4)", fontSize: 9, marginTop: 3 }}
+        >
+          {meta}
+        </div>
+      </div>
+      {playing ? (
+        <ActiveEqMini />
+      ) : (
+        <div
+          className="t-mono"
+          style={{ color: "var(--fg-4)", fontSize: 9, display: "flex", gap: 8 }}
+        >
+          {plays !== undefined && <span>● {plays}</span>}
+          {likes !== undefined && <span>♥ {likes}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActiveEqMini() {
+  return (
+    <span
+      className="flex items-end shrink-0"
+      style={{ gap: 2, height: 14 }}
+      aria-hidden="true"
+    >
+      {[0, 0.12, 0.24, 0.36].map((d, i) => (
+        <span
+          key={i}
+          style={{
+            width: 2.5,
+            height: "100%",
+            background: "var(--accent-text)",
+            borderRadius: 1,
+            transformOrigin: "bottom",
+            animation: "wl-eq-bar 1s ease-in-out infinite",
+            animationDelay: `${d}s`,
+            display: "inline-block",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ServerCoverEq({ size = 44 }: { size?: number }) {
+  const BARS = 4;
   return (
     <div
       className="relative flex items-end justify-center shrink-0"
       style={{
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         borderRadius: "var(--r-md)",
         background:
           "linear-gradient(135deg, var(--accent) 0%, oklch(0.42 0.16 268) 100%)",
         boxShadow:
-          "0 12px 32px -12px var(--accent-glow), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        padding: "12px 10px",
+          "0 12px 24px -12px var(--accent-glow), inset 0 0 0 1px rgba(255,255,255,0.08)",
+        padding: `${size * 0.22}px ${size * 0.2}px`,
         gap: 3,
         overflow: "hidden",
       }}
@@ -713,7 +836,7 @@ function ServerCoverEq() {
         <span
           key={i}
           style={{
-            width: 3.5,
+            width: 3,
             height: "100%",
             background: "rgba(255,255,255,0.92)",
             borderRadius: 2,
@@ -729,7 +852,70 @@ function ServerCoverEq() {
 }
 
 /* ============================================================
-   Brand SVG icons (inline)
+   Below-cards captions
+   ============================================================ */
+
+function BelowCaptions() {
+  return (
+    <div
+      className="grid"
+      style={{
+        gridTemplateColumns: "1fr 0.7fr 1.2fr",
+        gap: 20,
+        marginTop: 28,
+        alignItems: "start",
+      }}
+    >
+      <p
+        className="t-body"
+        style={{
+          color: "var(--fg-3)",
+          fontSize: 13,
+          lineHeight: 1.5,
+          textAlign: "center",
+          maxWidth: 260,
+          margin: "0 auto",
+        }}
+      >
+        5 apps, expired links,
+        <br />
+        &ldquo;who did I send it to?&rdquo;
+      </p>
+      <div />
+      <p
+        className="t-body"
+        style={{
+          color: "var(--fg-2)",
+          fontSize: 13,
+          lineHeight: 1.5,
+          textAlign: "center",
+          maxWidth: 320,
+          margin: "0 auto",
+        }}
+      >
+        One link. Every beat, every contact, every play — tracked.
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   Brand metadata (left-card chaos rows)
+   ============================================================ */
+
+const BRAND_META = {
+  gmail: { bg: "#FFFFFF", color: "#EA4335", icon: GmailLogo },
+  instagram: {
+    bg: "linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%)",
+    color: "#FFFFFF",
+    icon: InstagramLogo,
+  },
+  whatsapp: { bg: "#25D366", color: "#FFFFFF", icon: WhatsappLogo },
+  discord: { bg: "#5865F2", color: "#FFFFFF", icon: DiscordLogo },
+} as const;
+
+/* ============================================================
+   Inline brand SVGs + small glyphs
    ============================================================ */
 
 function GmailLogo({ size = 16 }: { size?: number }) {
@@ -764,10 +950,35 @@ function DiscordLogo({ size = 16 }: { size?: number }) {
   );
 }
 
-function WetransferLogo({ size = 16 }: { size?: number }) {
+function XGlyph() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M0 6.75A.74.74 0 0 1 .73 6h2.49a.73.73 0 0 1 .71.55l1.69 7.05L7.7 6.55a.74.74 0 0 1 .74-.55h2.42a.75.75 0 0 1 .74.55l2.08 7.05 1.71-7.05a.74.74 0 0 1 .73-.55h2.46a.74.74 0 0 1 .73.9l-3 11.81a.75.75 0 0 1-.73.55h-2.7a.74.74 0 0 1-.73-.54l-1.69-6.21-1.78 6.21a.74.74 0 0 1-.73.54h-2.7a.74.74 0 0 1-.73-.55L0 6.93a.75.75 0 0 1 0-.18zm23 6.41A1 1 0 1 0 24 14.16a1 1 0 0 0-1-1zm0 3.2a1 1 0 1 0 1 1 1 1 0 0 0-1-1z" />
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+function PlayGlyph() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  );
+}
+
+function PauseGlyph() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+    </svg>
+  );
+}
+
+function LinkGlyph() {
+  return (
+    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </svg>
   );
 }
