@@ -25,6 +25,12 @@ import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { TagInput } from "@/components/ui/TagInput";
+import {
+  createBillingPortalSession,
+  createCheckoutSession,
+} from "@/app/billing/actions";
+import { STRIPE_LOOKUP_KEYS } from "@/lib/billing/plans";
+import type { PlanContext } from "@/lib/billing/server";
 import type {
   PlacementRecord,
   ProducerNotifPrefsJson,
@@ -49,6 +55,9 @@ interface SettingsPageProps {
    *  Drives the "Add Artist mode" / "Also using Artist mode" UI
    *  inside the Account tab. */
   hasArtistProfile: boolean;
+  /** Resolved billing context: plan + quotas + live usage. Drives
+   *  the "Your plan" card + the upgrade / manage CTAs. */
+  planContext: PlanContext;
 }
 
 /** Suggestions for the certifications TagInput — mirrors the
@@ -85,6 +94,7 @@ export function SettingsPage({
   emailConfirmed,
   providers,
   hasArtistProfile,
+  planContext,
 }: SettingsPageProps) {
   const [tab, setTab] = React.useState<TabKey>("profile");
 
@@ -116,7 +126,7 @@ export function SettingsPage({
           ) : tab === "notifications" ? (
             <NotificationsTab initialPrefs={profile?.notif_prefs} />
           ) : (
-            <BillingTab />
+            <BillingTab planContext={planContext} />
           )}
         </div>
       </div>
@@ -1239,7 +1249,7 @@ function Toggle({
    BillingTab — current plan, upgrade options, payment + history
    ============================================================ */
 
-function BillingTab() {
+function BillingTab({ planContext }: { planContext: PlanContext }) {
   const stub = (label: string) =>
     alert(`${label} — wires up when paid tiers ship.`);
   return (
@@ -1280,7 +1290,7 @@ function BillingTab() {
                   color: "var(--fg-1)",
                 }}
               >
-                Free plan
+                {humanPlanName(planContext.plan)} plan
               </span>
               <span
                 className="t-mono-s"
@@ -1298,44 +1308,15 @@ function BillingTab() {
               className="t-mono-s"
               style={{ color: "var(--fg-3)", marginTop: 4 }}
             >
-              3 SERVERS · 50 BEATS · WAVLOOPS BRANDING
+              {usageSummary(planContext)}
             </div>
           </div>
         </div>
 
-        {/* Two upgrade cards side-by-side */}
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2"
-          style={{ gap: 14 }}
-        >
-          <PlanCard
-            kicker="MOST FLEXIBLE"
-            name="Pro — Monthly"
-            price="12€"
-            unit="/ month"
-            features={[
-              "Unlimited servers & beats",
-              "Remove WAVLOOPS branding",
-              "CSV export & analytics",
-            ]}
-            ctaLabel="Choose Pro"
-            onCta={() => stub("Choose Pro")}
-          />
-          <PlanCard
-            kicker="BEST VALUE"
-            name="Lifetime"
-            price="129€"
-            unit="once"
-            features={[
-              "Everything in Pro, forever",
-              "One payment, no renewal",
-              "Priority support",
-            ]}
-            ctaLabel="Choose Lifetime"
-            onCta={() => stub("Choose Lifetime")}
-            accent
-          />
-        </div>
+        {/* Plan-aware CTAs: Free → both upgrade options.
+            Lifetime → only Pro (you already own Lifetime).
+            Pro → "Manage subscription" via Stripe Customer Portal. */}
+        <PlanCtas planContext={planContext} />
       </SectionCard>
 
       <SectionCard kicker="PAYMENT" title="Payment method">
@@ -1509,6 +1490,133 @@ function PlanCard({
       >
         {ctaLabel}
       </Button>
+    </div>
+  );
+}
+
+/* ============================================================
+   Billing helpers — pure UI glue around the plan context.
+   ============================================================ */
+
+function humanPlanName(plan: PlanContext["plan"]): string {
+  if (plan === "pro") return "Pro";
+  if (plan === "lifetime") return "Lifetime";
+  return "Free";
+}
+
+/** Format the quotas/usage line under the plan name. Shows the
+ *  3 numbers that matter (servers, beats, artists) with their
+ *  caps, or "Unlimited" for ∞ quotas. */
+function usageSummary(ctx: PlanContext): string {
+  const fmt = (used: number, max: number | null) =>
+    max === null ? `${used} / UNLIMITED` : `${used} / ${max}`;
+  return `${fmt(ctx.usage.servers, ctx.quotas.servers)} SERVERS · ${fmt(ctx.usage.beats, ctx.quotas.beats)} BEATS · ${fmt(ctx.usage.artists, ctx.quotas.artists)} ARTISTS`;
+}
+
+/** Plan-aware CTAs.
+ *   - Free → both upgrade options (Lifetime + Pro M/Y).
+ *   - Lifetime → upgrade-to-Pro options only.
+ *   - Pro → a single "Manage subscription" button that opens the
+ *     Stripe Customer Portal (card / cancel / invoices). */
+function PlanCtas({ planContext }: { planContext: PlanContext }) {
+  const [pending, startTransition] = React.useTransition();
+
+  const fireCheckout = (lookupKey: string) =>
+    startTransition(async () => {
+      try {
+        await createCheckoutSession(lookupKey as never);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Could not start checkout.";
+        if (!/NEXT_REDIRECT/i.test(msg)) {
+          console.error("[settings/billing] checkout failed:", e);
+          window.alert(msg);
+        }
+      }
+    });
+
+  const firePortal = () =>
+    startTransition(async () => {
+      try {
+        await createBillingPortalSession();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Could not open the portal.";
+        if (!/NEXT_REDIRECT/i.test(msg)) {
+          console.error("[settings/billing] portal failed:", e);
+          window.alert(msg);
+        }
+      }
+    });
+
+  if (planContext.plan === "pro") {
+    return (
+      <div className="flex flex-col" style={{ gap: 10 }}>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={firePortal}
+          disabled={pending}
+          className="!h-[42px]"
+        >
+          {pending ? "Opening portal…" : "Manage subscription"}
+        </Button>
+        <div className="t-body-s" style={{ color: "var(--fg-3)" }}>
+          Update your card, view invoices, or cancel anytime. Cancelling
+          keeps your access until the end of the current billing period.
+        </div>
+      </div>
+    );
+  }
+
+  // Free or Lifetime → show upgrade options. Lifetime customers
+  // skip the Lifetime card (they already have it).
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2"
+      style={{ gap: 14 }}
+    >
+      {planContext.plan === "free" && (
+        <PlanCard
+          kicker="BEST VALUE"
+          name="Lifetime"
+          price="129€"
+          unit="once"
+          features={[
+            "3 servers, 150 beats, 500 artists",
+            "Per-artist tracking — who listened to what",
+            "One payment, no renewal",
+          ]}
+          ctaLabel={pending ? "Redirecting…" : "Get Lifetime"}
+          onCta={() => fireCheckout(STRIPE_LOOKUP_KEYS.lifetime)}
+          accent
+        />
+      )}
+      <PlanCard
+        kicker="MOST FLEXIBLE"
+        name="Pro — Monthly"
+        price="12€"
+        unit="/ month"
+        features={[
+          "Unlimited servers, beats, artists",
+          "MP3 + WAV upload",
+          "Cancel anytime",
+        ]}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — 12 €/mo"}
+        onCta={() => fireCheckout(STRIPE_LOOKUP_KEYS.proMonthly)}
+      />
+      <PlanCard
+        kicker="2 MONTHS OFF"
+        name="Pro — Yearly"
+        price="99€"
+        unit="/ year"
+        features={[
+          "Same as Pro Monthly",
+          "Pay yearly, save ~30 %",
+          "Cancel anytime",
+        ]}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — 99 €/yr"}
+        onCta={() => fireCheckout(STRIPE_LOOKUP_KEYS.proYearly)}
+        accent={planContext.plan === "lifetime"}
+      />
     </div>
   );
 }
