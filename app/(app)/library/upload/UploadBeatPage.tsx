@@ -362,6 +362,25 @@ export function UploadBeatPage({
     router.push("/library");
   };
 
+  /** Trash button on the FileRow — drop the current file but
+   *  STAY on the page so the producer can drop / pick another
+   *  one. Without this we'd send them back to /library every
+   *  time they realised they grabbed the wrong file. The Cancel
+   *  button in the header still does the full bail. */
+  const clearCurrentFile = React.useCallback(() => {
+    if (isCurrent) player.clear();
+    if (fileUrl) URL.revokeObjectURL(fileUrl);
+    setFile(null);
+    setFileUrl(null);
+    setUpload({ status: "idle" });
+    setServerError(null);
+    // Drop any auto-detected metadata that came with the prior file.
+    setBpm("");
+    setKey("");
+    setLoudnessLufs(null);
+    setDurationSeconds(null);
+  }, [isCurrent, fileUrl, player]);
+
   /* ============================================================
      Auto-detect BPM + Key via essentia.js (lazy-loaded WASM).
      Populates the empty cells when analysis completes — never
@@ -514,7 +533,17 @@ export function UploadBeatPage({
             form on the right scrolls past the page header, the artwork
             + audio file + waveform stay in view — matches the proto
             screen 3 anchored-pack pattern. */}
-        {file == null ? null : (
+        {file == null ? (
+          // Empty state — used after the trash icon clears a wrong
+          // file, or after a format gate when the user wants to try
+          // again. Lets them drop / pick a new audio file without
+          // bouncing back to /library.
+          <InlineDropzone
+            allowedExts={allowedAudioExts}
+            onPick={handleFile}
+            onCancel={cancelUpload}
+          />
+        ) : (
           <div
             className="grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)]"
             style={{ gap: 32 }}
@@ -546,7 +575,7 @@ export function UploadBeatPage({
               <AudioFileRow
                 file={file}
                 upload={upload}
-                onRemove={cancelUpload}
+                onRemove={clearCurrentFile}
               />
             </div>
 
@@ -1395,6 +1424,123 @@ function AddToServers({
       <div className="t-body-s" style={{ marginTop: 8 }}>
         You can also add it to a server later from the library.
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   InlineDropzone — shown when the page has no current file.
+   Happens after the trash icon clears a wrong pick or after a
+   format-gate rejection. Lets the producer drop / pick another
+   audio file in place, instead of bouncing back to /library and
+   starting the funnel over.
+   ============================================================ */
+
+function InlineDropzone({
+  allowedExts,
+  onPick,
+  onCancel,
+}: {
+  allowedExts: readonly string[];
+  onPick: (file: File) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+
+  const accept = allowedExts.map((e) => `.${e}`).join(",");
+  const niceList = allowedExts.map((e) => e.toUpperCase()).join(", ");
+
+  return (
+    <div className="flex flex-col items-center" style={{ gap: 14 }}>
+      <label
+        htmlFor="inline-dropzone-input"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) onPick(f);
+        }}
+        className="flex flex-col items-center justify-center w-full cursor-pointer transition-colors duration-fast"
+        style={{
+          maxWidth: 720,
+          padding: "44px 22px",
+          gap: 12,
+          borderRadius: "var(--r-md)",
+          border: `1.5px dashed ${dragOver ? "var(--accent)" : "var(--border-2)"}`,
+          background: dragOver ? "var(--accent-surface)" : "var(--bg-1)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          className="flex items-center justify-center"
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "var(--r-sm)",
+            background: "var(--accent-surface)",
+            color: "var(--accent-text)",
+          }}
+        >
+          <Icon name="upload" size={22} />
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 700,
+            fontSize: 20,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Drop another audio file
+        </div>
+        <p
+          className="t-body-s"
+          style={{
+            color: "var(--fg-3)",
+            margin: 0,
+            maxWidth: 420,
+          }}
+        >
+          {niceList} accepted on your plan. Drag a file here or click to
+          browse.
+        </p>
+        <input
+          id="inline-dropzone-input"
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPick(f);
+            // Reset so picking the same file twice in a row still
+            // fires onChange (e.g. user picks WAV → blocked → picks
+            // WAV again to confirm).
+            e.target.value = "";
+          }}
+        />
+      </label>
+
+      <button
+        type="button"
+        onClick={onCancel}
+        className="t-mono-s cursor-pointer"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "var(--fg-3)",
+          letterSpacing: "0.08em",
+          padding: 8,
+        }}
+      >
+        ← BACK TO BEAT LIBRARY
+      </button>
     </div>
   );
 }
