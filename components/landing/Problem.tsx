@@ -48,8 +48,9 @@ export function LandingProblem() {
       aria-labelledby="problem-title"
       className="relative"
       style={{
-        paddingTop: 120,
-        paddingBottom: 120,
+        // Tight on mobile, generous on desktop.
+        paddingTop: "clamp(64px, 10vw, 120px)",
+        paddingBottom: "clamp(64px, 10vw, 120px)",
         backgroundColor: "var(--bg-0)",
       }}
     >
@@ -72,8 +73,18 @@ export function LandingProblem() {
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
         <SectionHeader />
-        <div style={{ marginTop: 64 }}>
+        {/* Desktop ≥ md — the full node network with SVG wires.
+                The aspect-ratio layout collapses too tightly for
+                a phone, so it's hidden under md and replaced by a
+                vertical stack. */}
+        <div className="hidden md:block" style={{ marginTop: 64 }}>
           <NetworkScene />
+        </div>
+        {/* Mobile < md — vertical stack with a chevron between
+                each block. Same inner content as the desktop scene,
+                just composed in a flex column. */}
+        <div className="md:hidden" style={{ marginTop: 48 }}>
+          <MobileScene />
         </div>
       </div>
     </section>
@@ -330,35 +341,25 @@ const CHAOS_ROWS = [
   },
 ] as const;
 
-function LeftCardWrap() {
-  // Anchor the card by its RIGHT edge (not its centre) so the
-  // wire start points always align with the card boundary at
-  // any container width. `left: 30%` positions the wrapper's
-  // right edge at viewBox x = LEFT_CARD_RIGHT_X = 360 (30% of
-  // viewBox width 1200), then translate(-100%) flips that into
-  // the card's right edge anchor.
+/**
+ * The actual chaos card markup (no positioning). Lives outside
+ * its wrappers so the desktop network and the mobile stack can
+ * both render the same content without duplicating it.
+ */
+function LeftCardInner() {
   return (
     <div
-      className="absolute"
       style={{
-        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
-        left: `${(LEFT_CARD_RIGHT_X / VIEWBOX_W) * 100}%`,
-        transform: "translate(-100%, -50%)",
-        width: 360,
+        background:
+          "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
+        border: "1px solid var(--border-1)",
+        borderRadius: "var(--r-lg)",
+        padding: 14,
+        boxShadow:
+          "0 30px 60px -20px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
-      <div
-        style={{
-          background:
-            "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
-          border: "1px solid var(--border-1)",
-          borderRadius: "var(--r-lg)",
-          padding: 14,
-          boxShadow:
-            "0 30px 60px -20px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
-        }}
-      >
-        {/* Card header */}
+      {/* Card header */}
         <div
           className="flex items-center"
           style={{ gap: 10, padding: "4px 4px 12px" }}
@@ -396,13 +397,35 @@ function LeftCardWrap() {
           </span>
         </div>
 
-        {/* Chaos rows */}
-        <div className="flex flex-col" style={{ gap: 6 }}>
-          {CHAOS_ROWS.map((r) => (
-            <ChaosRow key={r.brand} {...r} />
-          ))}
-        </div>
+      {/* Chaos rows */}
+      <div className="flex flex-col" style={{ gap: 6 }}>
+        {CHAOS_ROWS.map((r) => (
+          <ChaosRow key={r.brand} {...r} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Desktop wrapper — anchors the card by its RIGHT edge so the
+ * wire start points always align with the card boundary at any
+ * container width. `left: 30%` puts the wrapper's right edge
+ * at viewBox x = LEFT_CARD_RIGHT_X (360 of 1200 = 30%); the
+ * translate(-100%) then anchors the card's right edge there.
+ */
+function LeftCardWrap() {
+  return (
+    <div
+      className="absolute"
+      style={{
+        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
+        left: `${(LEFT_CARD_RIGHT_X / VIEWBOX_W) * 100}%`,
+        transform: "translate(-100%, -50%)",
+        width: 360,
+      }}
+    >
+      <LeftCardInner />
     </div>
   );
 }
@@ -480,16 +503,14 @@ function ChaosRow({
    CENTER — Wavloops hub
    ============================================================ */
 
-function CenterHub() {
+/**
+ * Hub chip + "One server" caption. No positioning — shared
+ * between the desktop network (absolutely positioned over the
+ * SVG) and the mobile stack (placed between the two cards).
+ */
+function HubInner() {
   return (
-    <div
-      className="absolute flex flex-col items-center"
-      style={{
-        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
-        left: `${(600 / VIEWBOX_W) * 100}%`,
-        transform: "translate(-50%, -50%)",
-      }}
-    >
+    <div className="flex flex-col items-center">
       <div className="relative" style={{ width: 104, height: 104 }}>
         {/* Soft ambient halo */}
         <div
@@ -556,40 +577,46 @@ function CenterHub() {
   );
 }
 
-/* ============================================================
-   RIGHT — Wavloops server card (the destination)
-   ============================================================ */
-
-function RightCardWrap() {
-  // Anchor by LEFT edge so the outgoing wire end visually slips
-  // under the card's left border at every container width. The
-  // wire's RIGHT_CARD_LEFT_X = 860 (71.6% of viewBox) → card's
-  // left edge sits at the same percentage. The wire's last
-  // ~10 viewBox units are tucked under the card border for a
-  // seamless visual connection.
+/** Desktop wrapper — absolute-positions HubInner over the SVG
+ *  centre. */
+function CenterHub() {
   return (
     <div
       className="absolute"
       style={{
         top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
-        left: `${(RIGHT_CARD_LEFT_X / VIEWBOX_W) * 100}%`,
-        transform: "translate(0, -50%)",
-        width: 400,
+        left: `${(600 / VIEWBOX_W) * 100}%`,
+        transform: "translate(-50%, -50%)",
       }}
     >
-      <div
-        className="relative"
-        style={{
-          background:
-            "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
-          border:
-            "1px solid color-mix(in oklch, var(--accent-text) 35%, transparent)",
-          borderRadius: "var(--r-lg)",
-          overflow: "hidden",
-          boxShadow:
-            "0 36px 70px -22px oklch(0 0 0 / 0.7), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 40px -10px var(--accent-glow)",
-        }}
-      >
+      <HubInner />
+    </div>
+  );
+}
+
+/* ============================================================
+   RIGHT — Wavloops server card (the destination)
+   ============================================================ */
+
+/**
+ * The Atlanta Nights server card markup, no positioning. Shared
+ * across the desktop network and the mobile stack.
+ */
+function RightCardInner() {
+  return (
+    <div
+      className="relative"
+      style={{
+        background:
+          "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
+        border:
+          "1px solid color-mix(in oklch, var(--accent-text) 35%, transparent)",
+        borderRadius: "var(--r-lg)",
+        overflow: "hidden",
+        boxShadow:
+          "0 36px 70px -22px oklch(0 0 0 / 0.7), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 0 40px -10px var(--accent-glow)",
+      }}
+    >
         {/* Soft accent halo from where the wire enters */}
         <div
           aria-hidden="true"
@@ -748,6 +775,29 @@ function RightCardWrap() {
           </div>
         </div>
       </div>
+  );
+}
+
+/**
+ * Desktop wrapper — anchors the card by its LEFT edge so the
+ * outgoing wire end visually slips under the card's left border
+ * at every container width. The wire's RIGHT_CARD_LEFT_X = 860
+ * (71.6% of viewBox) maps to the card's left edge. Last ~10
+ * viewBox units of the wire tuck under the card border for a
+ * seamless visual connection.
+ */
+function RightCardWrap() {
+  return (
+    <div
+      className="absolute"
+      style={{
+        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
+        left: `${(RIGHT_CARD_LEFT_X / VIEWBOX_W) * 100}%`,
+        transform: "translate(0, -50%)",
+        width: 400,
+      }}
+    >
+      <RightCardInner />
     </div>
   );
 }
@@ -928,6 +978,98 @@ function BelowCaptions() {
         One link. Every beat, every contact, every play — tracked.
       </p>
     </div>
+  );
+}
+
+/* ============================================================
+   Mobile scene — vertical stack (< md)
+   ────────────────────────────────────
+   Same content as the desktop network (LeftCardInner +
+   HubInner + RightCardInner) but stacked vertically with
+   downward chevrons between blocks and the chaos / promise
+   captions placed directly under their respective cards
+   instead of in a 3-column grid. SVG wires are dropped on
+   mobile — they assume a horizontal layout and would clip
+   awkwardly in a narrow viewport.
+   ============================================================ */
+
+function MobileScene() {
+  return (
+    <div className="flex flex-col items-center" style={{ gap: 8 }}>
+      {/* Left card — chaos */}
+      <div style={{ width: "100%", maxWidth: 380 }}>
+        <LeftCardInner />
+      </div>
+      <p
+        className="t-body"
+        style={{
+          color: "var(--fg-3)",
+          fontSize: 12.5,
+          lineHeight: 1.5,
+          marginTop: 14,
+          textAlign: "center",
+          maxWidth: 280,
+        }}
+      >
+        5 apps, expired links,
+        <br />
+        &ldquo;who did I send it to?&rdquo;
+      </p>
+
+      {/* Chevron */}
+      <div style={{ marginTop: 18 }}>
+        <DownChevron />
+      </div>
+
+      {/* Hub */}
+      <div style={{ marginTop: 18 }}>
+        <HubInner />
+      </div>
+
+      {/* Chevron */}
+      <div style={{ marginTop: 18 }}>
+        <DownChevron />
+      </div>
+
+      {/* Right card — promise */}
+      <div style={{ width: "100%", maxWidth: 380, marginTop: 18 }}>
+        <RightCardInner />
+      </div>
+      <p
+        className="t-body"
+        style={{
+          color: "var(--fg-2)",
+          fontSize: 12.5,
+          lineHeight: 1.5,
+          marginTop: 14,
+          textAlign: "center",
+          maxWidth: 320,
+        }}
+      >
+        One link. Every beat, every contact, every play — tracked.
+      </p>
+    </div>
+  );
+}
+
+function DownChevron() {
+  return (
+    <svg
+      width={22}
+      height={22}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="var(--accent-text)"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{
+        filter: "drop-shadow(0 0 10px var(--accent-glow))",
+      }}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
   );
 }
 

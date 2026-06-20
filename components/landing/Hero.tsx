@@ -40,11 +40,12 @@ export function LandingHero() {
       aria-labelledby="hero-title"
       className="relative overflow-hidden"
       style={{
-        // Pad-top accounts for the fixed header (72px) + breathing
-        // room. Pad-bottom is deliberately generous to land the eye
-        // on the next section without crowding the CTAs.
-        paddingTop: 168,
-        paddingBottom: 120,
+        // Pad-top clamps to (header height 60px + breathing) on
+        // mobile and grows to the cinematic 168px on desktop.
+        // Pad-bottom follows the same scaling so the next section
+        // doesn't crowd the CTA stack at any viewport.
+        paddingTop: "clamp(112px, 16vw, 168px)",
+        paddingBottom: "clamp(72px, 12vw, 120px)",
         backgroundColor: "var(--bg-0)",
       }}
     >
