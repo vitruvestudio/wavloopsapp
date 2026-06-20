@@ -295,6 +295,57 @@
 }
 
 /* ============================================================
+   Landing — idle motion primitives.
+   Used by the Problem section's chaos collage + Wavloops mockup
+   so the panels breathe. All keyframes affect translateY only
+   (no rotation inside the keyframe) so they compose with each
+   card's base `transform: rotate(...)` applied via a child
+   wrapper. Per-card durations + delays are passed inline at the
+   call site to desync the cards.
+   ============================================================ */
+@keyframes wl-float {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-7px); }
+  100% { transform: translateY(0); }
+}
+
+/* 1.6s breathing pulse for the LIVE dot + notification badges.
+   Layered halo via box-shadow scales out then fades so the dot
+   itself stays sharp. Reads color from `--wl-pulse-color` set on
+   the element, so the same animation drives green LIVE and red
+   notification badges. */
+@keyframes wl-pulse-dot {
+  0%   { box-shadow: 0 0 0 0 var(--wl-pulse-color, var(--ok));
+         filter: brightness(1); }
+  70%  { box-shadow: 0 0 0 9px transparent;
+         filter: brightness(1.18); }
+  100% { box-shadow: 0 0 0 0 transparent;
+         filter: brightness(1); }
+}
+
+/* Three-dot typing indicator under the chat bubble. Each dot
+   gets its own animation-delay so the bounce ripples L→R. */
+@keyframes wl-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+  30%           { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Mini equalizer bars inside the server cover. Each bar's own
+   animation-delay desynchronizes the heights so they wave. */
+@keyframes wl-eq-bar {
+  0%, 100% { transform: scaleY(0.35); }
+  50%      { transform: scaleY(1); }
+}
+
+/* Activity row enters from the top of the feed with a small
+   slide + fade. Applied once per new row appended to the live
+   feed. */
+@keyframes wl-row-in {
+  0%   { transform: translateY(-6px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+
+/* ============================================================
    Global guard against horizontal scroll. `overflow-x: clip`
    stops accidental scroll without creating a new stacking
    context the way `hidden` does — full-bleed banners using
