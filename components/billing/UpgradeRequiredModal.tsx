@@ -30,7 +30,7 @@ import { createCheckoutSession } from "@/app/billing/actions";
 import { Modal } from "@/components/ui/Modal";
 import { Icon } from "@/components/ui/Icon";
 import { STRIPE_LOOKUP_KEYS } from "@/lib/billing/plans";
-import type { PlanKey } from "@/lib/billing/plans";
+import type { PlanKey, StripeLookupKey } from "@/lib/billing/plans";
 
 interface UpgradeRequiredModalProps {
   open: boolean;
@@ -137,14 +137,24 @@ export function UpgradeRequiredModal({
 function UpgradeCards({ currentPlan }: { currentPlan: PlanKey }) {
   const [pending, startTransition] = useTransition();
 
-  const fire = (lookupKey: string) =>
+  // Typed StripeLookupKey + no `as` cast — keeps the union closed
+  // so a future call site can't smuggle in an unknown lookup key
+  // (e.g. "wavloops_pro_yearly_discount") that would hit Stripe
+  // with an unknown plan. Server action also re-validates against
+  // STRIPE_LOOKUP_KEYS as defense in depth, but locking the type
+  // at the call site avoids a useless round-trip.
+  const fire = (lookupKey: StripeLookupKey) =>
     startTransition(async () => {
       try {
-        await createCheckoutSession(lookupKey as never);
+        await createCheckoutSession(lookupKey);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Could not start checkout.";
         if (!/NEXT_REDIRECT/i.test(msg)) {
-          console.error("[upgrade-modal] checkout failed:", e);
+          // Log only the message — the full error object can carry
+          // Stripe customer / subscription ids in details that we
+          // don't want to ship to the browser console (or whatever
+          // log drain it forwards to).
+          console.error("[upgrade-modal] checkout failed:", msg);
           window.alert(msg);
         }
       }

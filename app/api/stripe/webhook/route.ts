@@ -83,6 +83,24 @@ export async function POST(req: NextRequest) {
   const admin = getAdminSupabase();
 
   // Idempotency — skip if we've already processed this event id.
+  //
+  // KNOWN GAP (accepted at MVP): the SELECT and INSERT below are
+  // separate round-trips. If Stripe delivers the same event twice
+  // in tight succession (rare but documented), both deliveries
+  // can pass this SELECT before either reaches the INSERT, then
+  // both fire `dispatch()`. This is SAFE today because every
+  // handler is itself idempotent (UPSERTs on subscriptions keyed
+  // by user_id / stripe_subscription_id, no side-effects beyond
+  // the DB write). The marker INSERT then deduplicates downstream
+  // observers.
+  //
+  // If we ever add a side-effect that ISN'T safe to run twice
+  // (a transactional "Welcome to Pro" email, a Slack ping, a
+  // referral bounty payout), wrap this check in a single
+  // round-trip UPSERT — INSERT ... ON CONFLICT (event_id) DO
+  // NOTHING RETURNING event_id; absence of returned row = already
+  // processed, bail. The unique constraint on event_id makes that
+  // atomic.
   const { data: existing } = await admin
     .from("stripe_events_processed")
     .select("event_id")
