@@ -159,18 +159,28 @@ function SectionHeader() {
      RightCard left edge   x = 760
    ============================================================ */
 
-const LEFT_ROW_YS = [150, 220, 290, 360];
+// Y stops align with the actual rendered row centers inside the
+// enlarged left card. ViewBox is now 1200 × 560 (was 520) to
+// give the bigger cards vertical breathing room.
+const LEFT_ROW_YS = [180, 245, 310, 375];
 const HUB_LEFT_X = 540;
 const HUB_RIGHT_X = 660;
-const HUB_Y = 260;
-const LEFT_CARD_RIGHT_X = 320;
-const RIGHT_CARD_LEFT_X = 760;
+const HUB_Y = 280;
+const VIEWBOX_W = 1200;
+const VIEWBOX_H = 560;
+const LEFT_CARD_RIGHT_X = 360;
+// Right card left edge — wire endpoint slips ~10 viewBox units
+// behind the card border so the noodle visually merges into the
+// card instead of stopping in the void.
+const RIGHT_CARD_LEFT_X = 860;
 
 const WIRES = [
-  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[0]} C 420 ${LEFT_ROW_YS[0]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.0 },
-  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[1]} C 420 ${LEFT_ROW_YS[1]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.5 },
-  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[2]} C 420 ${LEFT_ROW_YS[2]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.0 },
-  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[3]} C 420 ${LEFT_ROW_YS[3]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.5 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[0]} C 440 ${LEFT_ROW_YS[0]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.0 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[1]} C 440 ${LEFT_ROW_YS[1]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.5 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[2]} C 440 ${LEFT_ROW_YS[2]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.0 },
+  { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[3]} C 440 ${LEFT_ROW_YS[3]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.5 },
+  // Outgoing — 200 viewBox units of wire so the noodle has room
+  // to breathe and the eye reads it as one clean beam.
   { d: `M ${HUB_RIGHT_X} ${HUB_Y} L ${RIGHT_CARD_LEFT_X} ${HUB_Y}`, delay: 2.0 },
 ];
 
@@ -180,13 +190,13 @@ function NetworkScene() {
       className="relative"
       style={{
         width: "100%",
-        aspectRatio: "1200 / 520",
-        minHeight: 420,
+        aspectRatio: `${VIEWBOX_W} / ${VIEWBOX_H}`,
+        minHeight: 460,
       }}
     >
       {/* ───── SVG layer ───── */}
       <svg
-        viewBox="0 0 1200 520"
+        viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
         preserveAspectRatio="none"
         className="absolute inset-0 w-full h-full"
         style={{ pointerEvents: "none" }}
@@ -195,9 +205,9 @@ function NetworkScene() {
         <defs>
           <linearGradient id="wl-wire" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="25%" stopColor="#ffffff" stopOpacity="0.10" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.16" />
-            <stop offset="75%" stopColor="#ffffff" stopOpacity="0.10" />
+            <stop offset="20%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.28" />
+            <stop offset="80%" stopColor="#ffffff" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="wl-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -236,12 +246,16 @@ function NetworkScene() {
             key={`noodle-${i}`}
             d={w.d}
             stroke="url(#wl-noodle)"
-            strokeWidth={2.2}
+            strokeWidth={2.6}
             fill="none"
             filter="url(#wl-wire-glow)"
             style={{
-              strokeDasharray: "60 940",
-              animation: `wl-noodle-flow 3s linear infinite`,
+              // Shorter cycle than v5 (320 vs 1000) so the lit
+              // segment passes through the visible wire more
+              // often — the right-side beam in particular was
+              // dark most of the time before.
+              strokeDasharray: "80 240",
+              animation: `wl-noodle-flow 2.4s linear infinite`,
               animationDelay: `${w.delay}s`,
             }}
           />
@@ -305,20 +319,20 @@ const CHAOS_ROWS = [
 ] as const;
 
 function LeftCardWrap() {
-  // Anchor the card so its right edge lines up with x=320 in
-  // viewBox space. The container is responsive (aspect-ratio
-  // matched), so positioning by percentage keeps SVG and HTML
-  // in sync at any width.
+  // Anchor the card by its RIGHT edge (not its centre) so the
+  // wire start points always align with the card boundary at
+  // any container width. `left: 30%` positions the wrapper's
+  // right edge at viewBox x = LEFT_CARD_RIGHT_X = 360 (30% of
+  // viewBox width 1200), then translate(-100%) flips that into
+  // the card's right edge anchor.
   return (
     <div
       className="absolute"
       style={{
-        // Center vertically on row stops average ≈ y=255
-        top: `${(255 / 520) * 100}%`,
-        // Centre horizontally on left card centre (x ≈ 180)
-        left: `${(180 / 1200) * 100}%`,
-        transform: "translate(-50%, -50%)",
-        width: 280,
+        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
+        left: `${(LEFT_CARD_RIGHT_X / VIEWBOX_W) * 100}%`,
+        transform: "translate(-100%, -50%)",
+        width: 360,
       }}
     >
       <div
@@ -459,12 +473,12 @@ function CenterHub() {
     <div
       className="absolute flex flex-col items-center"
       style={{
-        top: `${(HUB_Y / 520) * 100}%`,
-        left: `${(600 / 1200) * 100}%`,
+        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
+        left: `${(600 / VIEWBOX_W) * 100}%`,
         transform: "translate(-50%, -50%)",
       }}
     >
-      <div className="relative" style={{ width: 92, height: 92 }}>
+      <div className="relative" style={{ width: 104, height: 104 }}>
         {/* Soft ambient halo */}
         <div
           aria-hidden="true"
@@ -510,7 +524,7 @@ function CenterHub() {
               display: "flex",
             }}
           >
-            <Logomark size={36} />
+            <Logomark size={42} />
           </span>
         </div>
       </div>
@@ -535,14 +549,20 @@ function CenterHub() {
    ============================================================ */
 
 function RightCardWrap() {
+  // Anchor by LEFT edge so the outgoing wire end visually slips
+  // under the card's left border at every container width. The
+  // wire's RIGHT_CARD_LEFT_X = 860 (71.6% of viewBox) → card's
+  // left edge sits at the same percentage. The wire's last
+  // ~10 viewBox units are tucked under the card border for a
+  // seamless visual connection.
   return (
     <div
       className="absolute"
       style={{
-        top: `${(HUB_Y / 520) * 100}%`,
-        left: `${(940 / 1200) * 100}%`,
-        transform: "translate(-50%, -50%)",
-        width: 340,
+        top: `${(HUB_Y / VIEWBOX_H) * 100}%`,
+        left: `${(RIGHT_CARD_LEFT_X / VIEWBOX_W) * 100}%`,
+        transform: "translate(0, -50%)",
+        width: 400,
       }}
     >
       <div
