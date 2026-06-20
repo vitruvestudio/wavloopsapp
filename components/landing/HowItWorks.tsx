@@ -32,7 +32,7 @@ export function LandingHowItWorks() {
   return (
     <section
       id="how-it-works"
-      aria-labelledby="how-title"
+      aria-label="How it works"
       className="relative"
       style={{
         paddingTop: "clamp(64px, 10vw, 120px)",
@@ -57,14 +57,16 @@ export function LandingHowItWorks() {
         className="relative mx-auto"
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
-        <SectionHeader />
+        {/* Editorial section header removed per Theo — the step
+                marker pills 'STEP 01 / 02 / 03' inside each block
+                carry the rhythm without a separate top title. */}
 
         {/* Steps — alternating visual side at desktop, stacked
                 vertical on mobile. Big vertical gap between
                 steps so each one feels like its own beat. */}
         <div
           className="flex flex-col"
-          style={{ marginTop: "clamp(56px, 8vw, 96px)", gap: "clamp(80px, 10vw, 140px)" }}
+          style={{ gap: "clamp(100px, 11vw, 160px)" }}
         >
           <StepBlock
             n="01"
@@ -73,7 +75,7 @@ export function LandingHowItWorks() {
             description="Drop your beats into a server. Tag them, name them, done. Your catalog lives in one place — always."
             visualSide="left"
           >
-            <LibraryMockup />
+            <BuildComposition />
           </StepBlock>
 
           <StepBlock
@@ -83,7 +85,7 @@ export function LandingHowItWorks() {
             description="Share your server link with your artists. They get in with their email — no app to download, no friction. Public or private, you choose who's in."
             visualSide="right"
           >
-            <ArtistPhoneMockup />
+            <ShareComposition />
           </StepBlock>
 
           <StepBlock
@@ -93,67 +95,11 @@ export function LandingHowItWorks() {
             description="Every listen, every like, every artist — tracked live. You know exactly who's into what, and who's ready to lock in."
             visualSide="left"
           >
-            <TrackingMockup />
+            <TrackComposition />
           </StepBlock>
         </div>
       </div>
     </section>
-  );
-}
-
-/* ============================================================
-   Editorial section header — 03 / HOW IT WORKS
-   ============================================================ */
-
-function SectionHeader() {
-  return (
-    <div className="flex flex-col" style={{ gap: 28 }}>
-      <div className="flex items-center" style={{ gap: 18 }}>
-        <span className="t-mono" style={{ color: "var(--accent-text)" }}>
-          03
-        </span>
-        <span
-          aria-hidden="true"
-          style={{ height: 1, flex: 1, background: "var(--border-1)" }}
-        />
-        <span className="t-mono" style={{ color: "var(--fg-3)" }}>
-          How it works
-        </span>
-      </div>
-
-      <h2
-        id="how-title"
-        className="t-display"
-        style={{
-          fontSize: "clamp(36px, 4.4vw, 56px)",
-          lineHeight: 1.04,
-          maxWidth: 880,
-        }}
-      >
-        Up and running in{" "}
-        <span
-          style={{
-            color: "var(--accent-text)",
-            textShadow: "0 0 32px var(--accent-glow)",
-          }}
-        >
-          minutes
-        </span>
-        .
-      </h2>
-
-      <p
-        className="t-body-l"
-        style={{
-          fontSize: 19,
-          lineHeight: 1.55,
-          color: "var(--fg-2)",
-          maxWidth: 640,
-        }}
-      >
-        Three steps. One link. Zero hassle.
-      </p>
-    </div>
   );
 }
 
@@ -189,6 +135,7 @@ function StepBlock({
     >
       <div
         className={`relative flex items-center justify-center min-w-0 ${visualOrderClass}`}
+        style={{ overflow: "visible" }}
       >
         {children}
       </div>
@@ -239,6 +186,390 @@ function StepBlock({
         </p>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   Compositions — each step wraps its main mockup with one or
+   two floating auxiliary cards that slide in periodically, so
+   the visitor SEES things happening instead of staring at a
+   static screenshot. Floating elements live OUTSIDE the main
+   mockup's bounding box, so the visual column needs
+   overflow:visible (the StepBlock grid handles that).
+   ============================================================ */
+
+function BuildComposition() {
+  return (
+    <div className="relative" style={{ width: "100%", maxWidth: 540 }}>
+      <LibraryMockup />
+
+      {/* Floating: "Beat uploaded" toast slides in top-right
+              every 6s. Sells the active flow of new beats. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          top: -22,
+          right: -30,
+          ["--wl-toast-dx" as string]: "30px",
+          animation: "wl-toast-slide 6s ease-in-out infinite",
+          animationDelay: "0.6s",
+          zIndex: 4,
+        }}
+      >
+        <UploadedToast />
+      </div>
+
+      {/* Floating: tag editor mini card at bottom-left bobs
+              gently, signaling 'you organise as you go'. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          bottom: -22,
+          left: -34,
+          animation: "wl-card-bob 5s ease-in-out infinite",
+          zIndex: 4,
+        }}
+      >
+        <TagsCard />
+      </div>
+    </div>
+  );
+}
+
+function ShareComposition() {
+  return (
+    <div className="relative" style={{ width: "100%", maxWidth: 540, display: "flex", justifyContent: "center" }}>
+      <ArtistPhoneMockup />
+
+      {/* Producer-side "share modal" slides in left, mid-height,
+              showing what the producer does just before the
+              artist receives the link. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          top: "18%",
+          left: -36,
+          ["--wl-toast-dx" as string]: "-30px",
+          animation: "wl-toast-slide 7s ease-in-out infinite",
+          animationDelay: "0.4s",
+          zIndex: 4,
+        }}
+      >
+        <ShareLinkCard />
+      </div>
+
+      {/* "Joined" toast bottom-right — a new artist just clicked
+              the link. Right edge slide-in. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          bottom: "8%",
+          right: -36,
+          ["--wl-toast-dx" as string]: "30px",
+          animation: "wl-toast-slide 7s ease-in-out infinite",
+          animationDelay: "3.5s",
+          zIndex: 4,
+        }}
+      >
+        <JoinedToast />
+      </div>
+    </div>
+  );
+}
+
+function TrackComposition() {
+  return (
+    <div className="relative" style={{ width: "100%", maxWidth: 540 }}>
+      <TrackingMockup />
+
+      {/* Top-right notification — a like just landed. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          top: -16,
+          right: -28,
+          ["--wl-toast-dx" as string]: "30px",
+          animation: "wl-toast-slide 6.5s ease-in-out infinite",
+          animationDelay: "0.2s",
+          zIndex: 4,
+        }}
+      >
+        <LikeToast />
+      </div>
+
+      {/* Bottom-left top-fan callout bobs subtly. */}
+      <div
+        className="absolute hidden md:block"
+        style={{
+          bottom: -18,
+          left: -32,
+          animation: "wl-card-bob 5.5s ease-in-out infinite",
+          animationDelay: "1.2s",
+          zIndex: 4,
+        }}
+      >
+        <PlaysSpikeCard />
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Floating auxiliary cards
+   ============================================================ */
+
+function FloatingCard({
+  children,
+  width = 220,
+  accent,
+}: {
+  children: React.ReactNode;
+  width?: number;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        width,
+        background:
+          "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
+        border: accent
+          ? "1px solid color-mix(in oklch, var(--accent-text) 40%, transparent)"
+          : "1px solid var(--border-2)",
+        borderRadius: "var(--r-md)",
+        padding: 12,
+        boxShadow: accent
+          ? "0 22px 50px -16px oklch(0 0 0 / 0.7), 0 0 30px -8px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.06)"
+          : "0 22px 50px -16px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.06)",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function UploadedToast() {
+  return (
+    <FloatingCard accent width={230}>
+      <div className="flex items-center" style={{ gap: 10 }}>
+        <span
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "var(--r-pill)",
+            background: "var(--ok-surface)",
+            color: "var(--ok)",
+          }}
+        >
+          <CheckGlyph />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="t-title" style={{ fontSize: 12, color: "var(--fg-1)" }}>
+            Beat uploaded
+          </div>
+          <div className="t-mono" style={{ color: "var(--fg-4)", fontSize: 9, marginTop: 2 }}>
+            SUNSET DRIVE · 124 BPM
+          </div>
+        </div>
+      </div>
+    </FloatingCard>
+  );
+}
+
+function TagsCard() {
+  return (
+    <FloatingCard width={210}>
+      <div className="t-mono" style={{ color: "var(--fg-4)", fontSize: 9, marginBottom: 8 }}>
+        Tags
+      </div>
+      <div className="flex flex-wrap" style={{ gap: 5 }}>
+        {[
+          { l: "trap", on: true },
+          { l: "dark", on: true },
+          { l: "night", on: true },
+          { l: "808", on: false },
+        ].map((t) => (
+          <span
+            key={t.l}
+            className="t-mono"
+            style={{
+              padding: "3px 8px",
+              borderRadius: "var(--r-pill)",
+              background: t.on ? "var(--accent-surface)" : "var(--bg-2)",
+              color: t.on ? "var(--accent-text)" : "var(--fg-3)",
+              border: "1px solid var(--border-1)",
+              fontSize: 9,
+            }}
+          >
+            #{t.l}
+          </span>
+        ))}
+      </div>
+    </FloatingCard>
+  );
+}
+
+function ShareLinkCard() {
+  return (
+    <FloatingCard accent width={250}>
+      <div className="t-mono" style={{ color: "var(--fg-4)", fontSize: 9, marginBottom: 8 }}>
+        Share link
+      </div>
+      <div
+        className="flex items-center"
+        style={{
+          padding: "6px 8px",
+          background: "var(--bg-0)",
+          border: "1px solid var(--border-1)",
+          borderRadius: "var(--r-pill)",
+          gap: 6,
+        }}
+      >
+        <LinkGlyphSm />
+        <span
+          className="t-mono"
+          style={{
+            color: "var(--fg-2)",
+            fontSize: 9,
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          wavloops.co/s/atl-nights
+        </span>
+        <span
+          className="t-mono"
+          style={{
+            padding: "2px 6px",
+            borderRadius: "var(--r-pill)",
+            background: "var(--ok-surface)",
+            color: "var(--ok)",
+            fontSize: 8,
+          }}
+        >
+          Copied
+        </span>
+      </div>
+    </FloatingCard>
+  );
+}
+
+function JoinedToast() {
+  return (
+    <FloatingCard width={220}>
+      <div className="flex items-center" style={{ gap: 10 }}>
+        <span
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "var(--r-pill)",
+            background:
+              "linear-gradient(135deg, oklch(0.62 0.18 35) 0%, oklch(0.58 0.18 22) 100%)",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
+          KA
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="t-title" style={{ fontSize: 12 }}>
+            Kayde just joined
+          </div>
+          <div className="t-mono" style={{ color: "var(--ok)", fontSize: 9, marginTop: 2 }}>
+            ● ATLANTA NIGHTS
+          </div>
+        </div>
+      </div>
+    </FloatingCard>
+  );
+}
+
+function LikeToast() {
+  return (
+    <FloatingCard accent width={230}>
+      <div className="flex items-center" style={{ gap: 10 }}>
+        <span
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "var(--r-pill)",
+            background: "color-mix(in oklch, oklch(0.7 0.2 22) 18%, transparent)",
+            color: "oklch(0.78 0.18 22)",
+          }}
+        >
+          <HeartMini filled />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="t-title" style={{ fontSize: 12 }}>
+            <span style={{ color: "var(--accent-text)", fontWeight: 700 }}>@yuki</span>{" "}
+            liked
+          </div>
+          <div className="t-mono" style={{ color: "var(--fg-4)", fontSize: 9, marginTop: 2 }}>
+            MIDNIGHT DRIFT · NOW
+          </div>
+        </div>
+      </div>
+    </FloatingCard>
+  );
+}
+
+function PlaysSpikeCard() {
+  return (
+    <FloatingCard width={220}>
+      <div
+        className="flex items-center justify-between"
+        style={{ marginBottom: 8 }}
+      >
+        <span className="t-mono" style={{ color: "var(--fg-4)", fontSize: 9 }}>
+          Plays · this hour
+        </span>
+        <span
+          className="t-mono"
+          style={{ color: "var(--ok)", fontSize: 9 }}
+        >
+          +47
+        </span>
+      </div>
+      <div className="flex items-end" style={{ gap: 2, height: 28 }}>
+        {[0.3, 0.42, 0.36, 0.52, 0.6, 0.8, 0.7, 0.95, 1].map((h, i) => (
+          <span
+            key={i}
+            style={{
+              flex: 1,
+              height: `${h * 100}%`,
+              background:
+                i >= 6 ? "var(--accent)" : "var(--accent-text)",
+              opacity: i >= 6 ? 1 : 0.6,
+              borderRadius: 2,
+            }}
+          />
+        ))}
+      </div>
+    </FloatingCard>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function LinkGlyphSm() {
+  return (
+    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--fg-4)" }}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
   );
 }
 
