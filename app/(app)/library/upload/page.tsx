@@ -37,9 +37,24 @@ export default async function UploadPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, name")
+    .select("id, name, handle")
     .eq("user_id", user.id)
-    .maybeSingle<{ id: string; name: string | null }>();
+    .maybeSingle<{
+      id: string;
+      name: string | null;
+      handle: string | null;
+    }>();
+
+  // Default "Produced by" tag — fall through a sane chain so a
+  // brand-new producer with no name set still sees something
+  // meaningful instead of the literal placeholder "You". Theo's
+  // report was that a logged-in account should never see "YOU" as
+  // its own producer tag; pick the best available signal.
+  const defaultProducerTag =
+    profile?.name?.trim() ||
+    (profile?.handle ? `@${profile.handle}` : null) ||
+    user.email?.split("@")[0] ||
+    "Me";
 
   const { data: servers } = profile
     ? await supabase
@@ -59,7 +74,7 @@ export default async function UploadPage() {
   return (
     <UploadBeatPage
       userId={user.id}
-      producerName={profile?.name ?? "You"}
+      producerName={defaultProducerTag}
       servers={servers ?? []}
       currentPlan={plan}
       allowedAudioExts={allowedAudioExts}
