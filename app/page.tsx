@@ -25,6 +25,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { LandingHeader } from "@/components/landing/Header";
 import { LandingHero } from "@/components/landing/Hero";
+import { LandingProblem } from "@/components/landing/Problem";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -37,6 +38,7 @@ export default async function HomePage() {
     <main style={{ backgroundColor: "var(--bg-0)" }}>
       <LandingHeader isAuthed={isAuthed} />
       <LandingHero />
+      <LandingProblem />
       {/* Follow-on sections (How it works, Pricing, FAQ, CTA)
               will land here as separate components. */}
     </main>
