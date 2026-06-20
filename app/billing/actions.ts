@@ -45,14 +45,27 @@ const SUBSCRIPTION_LOOKUP_KEYS: ReadonlySet<StripeLookupKey> = new Set([
   STRIPE_LOOKUP_KEYS.proYearly,
 ]);
 
-/** Resolve the public origin for Stripe success/cancel URLs. */
+/** Resolve the public origin for Stripe success/cancel URLs.
+ *
+ * Headers come FIRST on purpose. The original ordering (env var
+ * first) silently broke preview deploys: a checkout initiated
+ * from `wavloopsapp-...vercel.app/pricing` would set
+ * `success_url=https://wavloops.co/...` because
+ * NEXT_PUBLIC_SITE_URL is set to the prod URL in every
+ * environment. Stripe then redirected the user back to prod
+ * after payment, where their preview session didn't exist — so
+ * the success page bounced them to /auth. Total dead-end. */
 async function resolveOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host");
+  if (host) {
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    return `${proto}://${host}`;
+  }
+  // Fallback for contexts without HTTP headers (cron, scripts).
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (explicit) return explicit;
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const host = h.get("host") ?? "wavloops.co";
-  return `${proto}://${host}`;
+  return "https://wavloops.co";
 }
 
 /** Start a Stripe Checkout Session for the requested lookup_key
