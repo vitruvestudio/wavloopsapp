@@ -10,6 +10,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { checkArtistQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
 
 /* ================================================================
@@ -219,6 +220,18 @@ export async function addContactAction(
   if (!EMAIL_REGEX.test(email)) {
     return { error: "Enter a valid email address.", contactId: null };
   }
+
+  // Billing gate — capped at 25 artists for Free, 500 for Lifetime.
+  // Note: this only gates manual producer-side additions. The anon
+  // gate flow (submit_access_request RPC) can still create contacts
+  // for incoming artist requests, which is the intended behaviour —
+  // we don't want to block someone from REQUESTING access just
+  // because the producer hasn't upgraded yet. The producer can't
+  // approve them once over quota, so they stay pending until the
+  // upgrade lands.
+  const artistGate = await checkArtistQuota(1);
+  if (!artistGate.ok)
+    return { error: artistGate.reason, contactId: null };
 
   // Drop empty socials so we don't store noise.
   const cleanSocials: Record<string, string> = {};
@@ -455,6 +468,15 @@ export async function importContactsAction(
       error: "Your producer profile isn't set up yet.",
     };
   }
+
+  // Billing gate — bulk import is the easiest path to blow past
+  // the artists quota, so we check ALL rows up-front rather than
+  // letting some slip in before the cap. Worst-case the producer
+  // imports 0 rows and gets a clear upgrade nudge; we never
+  // partial-insert.
+  const artistGate = await checkArtistQuota(rows.length);
+  if (!artistGate.ok)
+    return { imported: 0, skipped: 0, error: artistGate.reason };
 
   // Dedupe by email within the batch — if the CSV has the same
   // email twice, Postgres' upsert would still work, but PostgREST

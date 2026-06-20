@@ -13,6 +13,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { checkServerQuota } from "@/lib/billing/gates";
 import { assertServerOwnership } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/slug";
@@ -91,6 +92,12 @@ export async function createServerAction(
         "Your producer profile isn't set up yet. Finish onboarding first.",
     };
   }
+
+  // Billing gate — Free plan capped at 1 server, Lifetime at 3.
+  // checkServerQuota() reads the cached plan + live usage; this is
+  // the only place that knows about quotas. Phase 4.
+  const serverGate = await checkServerQuota();
+  if (!serverGate.ok) return { error: serverGate.reason };
 
   const cleanName = payload.name.trim();
   if (!cleanName) return { error: "Server name is required." };
