@@ -1,26 +1,44 @@
 /**
- * Wavloops V3 — root entry, session-aware redirect.
+ * Wavloops V3 — public landing.
  *
- * The proxy.ts file at the project root also handles the auth/no-auth
- * branching for `/dashboard`, `/auth`, etc. This page is the explicit
- * fallback for visitors landing on `/`:
+ * Server component. Composes the public surface:
+ *   - Transparent header pinned over the hero (turns frosted on
+ *     scroll), state-aware: "Sign in" / "Get started" for
+ *     anonymous visitors, "Open app" for signed-in ones.
+ *   - Hero — the value-prop pitch.
  *
- *   has session    → /dashboard
- *   no session     → /auth
+ * Auth state is resolved once on the server with
+ * `supabase.auth.getUser()` (verifies against Auth, not just the
+ * cookie) and threaded down as a single `isAuthed` boolean — no
+ * client-side auth check needed.
  *
- * We call `supabase.auth.getUser()` (not `getSession()`) because the
- * session cookie can be spoofed; `getUser` verifies with the Auth
- * server before returning.
+ * Note on the previous behaviour
+ * ──────────────────────────────
+ * Until this commit `/` did `redirect(user ? "/dashboard" :
+ * "/auth")` so anonymous traffic bounced straight to the auth
+ * page. With a public landing we keep the door open: signed-in
+ * users see "Open app" and can still browse the marketing surface
+ * (handy for sharing the URL with peers without breaking out of
+ * their session).
  */
 
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { LandingHeader } from "@/components/landing/Header";
+import { LandingHero } from "@/components/landing/Hero";
 
 export default async function HomePage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isAuthed = Boolean(user);
 
-  redirect(user ? "/dashboard" : "/auth");
+  return (
+    <main style={{ backgroundColor: "var(--bg-0)" }}>
+      <LandingHeader isAuthed={isAuthed} />
+      <LandingHero />
+      {/* Follow-on sections (How it works, Pricing, FAQ, CTA)
+              will land here as separate components. */}
+    </main>
+  );
 }
