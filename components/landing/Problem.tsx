@@ -179,9 +179,17 @@ const WIRES = [
   { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[1]} C 440 ${LEFT_ROW_YS[1]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 0.5 },
   { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[2]} C 440 ${LEFT_ROW_YS[2]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.0 },
   { d: `M ${LEFT_CARD_RIGHT_X} ${LEFT_ROW_YS[3]} C 440 ${LEFT_ROW_YS[3]}, 480 ${HUB_Y}, ${HUB_LEFT_X} ${HUB_Y}`, delay: 1.5 },
-  // Outgoing — 200 viewBox units of wire so the noodle has room
-  // to breathe and the eye reads it as one clean beam.
-  { d: `M ${HUB_RIGHT_X} ${HUB_Y} L ${RIGHT_CARD_LEFT_X} ${HUB_Y}`, delay: 2.0 },
+  // Outgoing — same 200-unit run but with a tiny upward arc in
+  // the middle so the path's bounding box has non-zero height.
+  // A perfectly horizontal `L` line was rendering INVISIBLE
+  // because the linearGradient (gradientUnits=objectBoundingBox
+  // default) can't paint across a zero-height bbox. Endpoints
+  // stay at HUB_Y so the wire still enters the hub and the
+  // right card on the same horizontal axis.
+  {
+    d: `M ${HUB_RIGHT_X} ${HUB_Y} C 720 ${HUB_Y - 6}, 800 ${HUB_Y - 6}, ${RIGHT_CARD_LEFT_X} ${HUB_Y}`,
+    delay: 2.0,
+  },
 ];
 
 function NetworkScene() {
@@ -203,12 +211,16 @@ function NetworkScene() {
         aria-hidden="true"
       >
         <defs>
+          {/* Static wire — soft accent-tinted stops so the wires
+                  read as 'energy flowing through the brand', not
+                  generic white grid lines. Boosted opacity now that
+                  the chaos panel canvas is dark. */}
           <linearGradient id="wl-wire" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="20%" stopColor="#ffffff" stopOpacity="0.18" />
-            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.28" />
-            <stop offset="80%" stopColor="#ffffff" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="0%" stopColor="#a8a5ff" stopOpacity="0" />
+            <stop offset="20%" stopColor="#a8a5ff" stopOpacity="0.32" />
+            <stop offset="50%" stopColor="#c9c7ff" stopOpacity="0.5" />
+            <stop offset="80%" stopColor="#a8a5ff" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#a8a5ff" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="wl-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#7c7aff" stopOpacity="0" />
