@@ -11,6 +11,8 @@
  */
 
 import { notFound } from "next/navigation";
+import { PLAN_QUOTAS } from "@/lib/billing/plans";
+import { getCurrentUserPlan } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProducerProfileId } from "@/lib/supabase/current";
 import { BeatDetailPage } from "./BeatDetailPage";
@@ -228,12 +230,20 @@ export default async function BeatPage({ params }: BeatPageProps) {
     listeners: audienceRows.filter((r) => r.plays > 0),
   };
 
+  // Plan-aware analytics gate — Free shows aggregated counts only;
+  // Lifetime / Pro see the full per-artist breakdown (TopFan,
+  // LikedBy, WhoListened table). 'frustration calibrée' from the
+  // pricing doc.
+  const plan = await getCurrentUserPlan();
+  const hasFullTracking = PLAN_QUOTAS[plan].hasFullTracking;
+
   return (
     <BeatDetailPage
       beat={beat}
       servers={servers}
       feedback={feedback}
       audience={audience}
+      hasFullTracking={hasFullTracking}
     />
   );
 }

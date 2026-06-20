@@ -54,6 +54,8 @@ import { TagInput } from "@/components/ui/TagInput";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { VisBadge } from "@/components/ui/VisBadge";
 import { usePlayer, type Beat } from "@/components/app/PlayerContext";
+import { UpgradeRequiredModal } from "@/components/billing/UpgradeRequiredModal";
+import type { PlanKey } from "@/lib/billing/plans";
 import {
   ARTIST_TYPE_SUGGEST,
   COPRODUCER_SUGGEST,
@@ -125,6 +127,13 @@ export function UploadBeatPage({
   const [serverIds, setServerIds] = React.useState<string[]>([]);
 
   const [serverError, setServerError] = React.useState<string | null>(null);
+  /** Quota / format gate hit — swap the red banner for the
+   *  UpgradeRequiredModal, which puts Stripe Checkout one click
+   *  away. */
+  const [upgradeCtx, setUpgradeCtx] = React.useState<{
+    plan: PlanKey;
+    reason: string;
+  } | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
 
@@ -416,7 +425,18 @@ export function UploadBeatPage({
       });
 
       if (result?.error) {
-        setServerError(result.error);
+        if (result.upgradeRequired) {
+          // Quota / format gate fired — pop the upgrade modal
+          // instead of the red inline banner. The modal shows the
+          // exact tier that unlocks the action (WAV → Pro, more
+          // beats → Lifetime / Pro).
+          setUpgradeCtx({
+            plan: result.upgradeRequired.plan,
+            reason: result.error,
+          });
+        } else {
+          setServerError(result.error);
+        }
         setSubmitting(false);
       }
     });
@@ -642,6 +662,14 @@ export function UploadBeatPage({
           </div>
         )}
       </div>
+
+      {/* Upgrade modal — fires on quota-beats / format-WAV gates. */}
+      <UpgradeRequiredModal
+        open={upgradeCtx !== null}
+        onClose={() => setUpgradeCtx(null)}
+        currentPlan={upgradeCtx?.plan ?? "free"}
+        reason={upgradeCtx?.reason ?? ""}
+      />
     </>
   );
 }

@@ -68,6 +68,12 @@ interface BeatDetailPageProps {
   /** Aggregated audience: unique listeners count, top fan, like
    *  pills, and the per-contact listened table. */
   audience: Audience;
+  /** True when the user's plan unlocks per-artist tracking.
+   *  Free → false (sees aggregated counts only, with a teaser).
+   *  Lifetime / Pro → true (full Top Fan + Liked By + Who
+   *  Listened table). The 'frustration calibrée' from the
+   *  pricing doc. */
+  hasFullTracking: boolean;
 }
 
 import type { Audience, AudienceRow } from "./page";
@@ -95,6 +101,7 @@ export function BeatDetailPage({
   servers,
   feedback,
   audience,
+  hasFullTracking,
 }: BeatDetailPageProps) {
   const router = useRouter();
   const player = usePlayer();
@@ -333,7 +340,12 @@ export function BeatDetailPage({
         />
 
         {tab === "audience" ? (
-          <AudienceTab beat={beat} servers={servers} audience={audience} />
+          <AudienceTab
+            beat={beat}
+            servers={servers}
+            audience={audience}
+            hasFullTracking={hasFullTracking}
+          />
         ) : tab === "feedback" ? (
           <FeedbackTab feedback={feedback} />
         ) : (
@@ -529,10 +541,12 @@ function AudienceTab({
   beat,
   servers,
   audience,
+  hasFullTracking,
 }: {
   beat: BeatWithStatsRow;
   servers: ServerRow[];
   audience: Audience;
+  hasFullTracking: boolean;
 }) {
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -581,17 +595,97 @@ function AudienceTab({
         </div>
       )}
 
-      {/* Two-column row: Top fan card on the left, "LIKED BY"
-              pills on the right. Stacks vertically under lg. */}
-      <div
-        className="grid grid-cols-1 lg:grid-cols-2"
-        style={{ gap: 18 }}
-      >
-        <TopFanBlock fan={audience.topFan} />
-        <LikedByBlock likers={audience.likedBy} />
-      </div>
+      {/* Per-artist tracking — Lifetime + Pro see the full
+          breakdown (Top Fan + Liked By + Who Listened). Free sees
+          the LockedAnalyticsTeaser instead, which preserves the
+          layout footprint and pushes upgrade. */}
+      {hasFullTracking ? (
+        <>
+          <div
+            className="grid grid-cols-1 lg:grid-cols-2"
+            style={{ gap: 18 }}
+          >
+            <TopFanBlock fan={audience.topFan} />
+            <LikedByBlock likers={audience.likedBy} />
+          </div>
+          <WhoListenedTable listeners={audience.listeners} />
+        </>
+      ) : (
+        <LockedAnalyticsTeaser />
+      )}
+    </div>
+  );
+}
 
-      <WhoListenedTable listeners={audience.listeners} />
+/* ============================================================
+   LockedAnalyticsTeaser — replaces per-artist tracking on Free.
+   The 'frustration calibrée' from the pricing doc: the producer
+   sees their counts are real (the aggregated cards above show
+   non-zero numbers), but can't see who specifically — that's
+   what Lifetime / Pro unlocks.
+   ============================================================ */
+
+function LockedAnalyticsTeaser() {
+  return (
+    <div
+      className="flex flex-col items-center text-center"
+      style={{
+        padding: "36px 22px",
+        gap: 14,
+        borderRadius: "var(--r-md)",
+        background:
+          "linear-gradient(180deg, var(--accent-surface) 0%, var(--bg-1) 70%)",
+        border: "1px solid var(--accent)",
+      }}
+    >
+      <Icon
+        name="lock"
+        size={28}
+        style={{ color: "var(--accent-text)" }}
+      />
+      <div
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 700,
+          fontSize: 20,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        See who&apos;s actually listening.
+      </div>
+      <p
+        className="t-body-s"
+        style={{
+          color: "var(--fg-2)",
+          maxWidth: 440,
+          lineHeight: 1.55,
+          margin: 0,
+        }}
+      >
+        Your Free plan shows total plays and likes — Lifetime and Pro
+        reveal which artists pressed play, who liked, who looped your
+        beat 10× over the weekend.
+      </p>
+      <Link
+        href="/pricing"
+        className="inline-flex items-center justify-center"
+        style={{
+          marginTop: 6,
+          height: 42,
+          padding: "0 18px",
+          gap: 8,
+          background: "var(--accent)",
+          color: "#fff",
+          borderRadius: "var(--r-md)",
+          textDecoration: "none",
+          fontFamily: "var(--font-body)",
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        See plans
+        <Icon name="arrow-right" size={14} />
+      </Link>
     </div>
   );
 }

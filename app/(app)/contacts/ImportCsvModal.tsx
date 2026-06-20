@@ -41,6 +41,8 @@ import Papa from "papaparse";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { UpgradeRequiredModal } from "@/components/billing/UpgradeRequiredModal";
+import type { PlanKey } from "@/lib/billing/plans";
 import { importContactsAction, type CsvContactRow } from "./actions";
 import type { ServerStub } from "./page";
 
@@ -93,6 +95,12 @@ export function ImportCsvModal({ allServers, onClose }: ImportCsvModalProps) {
     skipped: number;
   } | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
+  /** Quota gate fired on the CSV size — pop the upgrade modal
+   *  instead of the inline banner. */
+  const [upgradeCtx, setUpgradeCtx] = React.useState<{
+    plan: PlanKey;
+    reason: string;
+  } | null>(null);
   const [pending, startTransition] = React.useTransition();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -176,7 +184,17 @@ export function ImportCsvModal({ allServers, onClose }: ImportCsvModalProps) {
     startTransition(async () => {
       const res = await importContactsAction(rows, serverIds);
       if (res.error) {
-        setActionError(res.error);
+        if (res.upgradeRequired) {
+          // CSV row count would blow past the artists quota for
+          // this plan — pop the upgrade modal instead of the
+          // banner so the producer can fix it in one click.
+          setUpgradeCtx({
+            plan: res.upgradeRequired.plan,
+            reason: res.error,
+          });
+        } else {
+          setActionError(res.error);
+        }
         return;
       }
       setResult({ imported: res.imported, skipped: res.skipped });
@@ -188,6 +206,7 @@ export function ImportCsvModal({ allServers, onClose }: ImportCsvModalProps) {
   };
 
   return (
+    <>
     <div
       role="dialog"
       aria-modal="true"
@@ -479,6 +498,17 @@ export function ImportCsvModal({ allServers, onClose }: ImportCsvModalProps) {
         </div>
       </div>
     </div>
+
+    {/* Upgrade modal — fires when the CSV row count would push
+        the producer past their artists quota. Layered above the
+        importer so their draft selection stays intact. */}
+    <UpgradeRequiredModal
+      open={upgradeCtx !== null}
+      onClose={() => setUpgradeCtx(null)}
+      currentPlan={upgradeCtx?.plan ?? "free"}
+      reason={upgradeCtx?.reason ?? ""}
+    />
+    </>
   );
 }
 
