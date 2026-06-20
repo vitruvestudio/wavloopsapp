@@ -44,6 +44,7 @@ import { useRouter } from "next/navigation";
 import { BeatRow } from "@/components/app/BeatRow";
 import { PageHeader } from "@/components/app/PageHeader";
 import { ServerCard } from "@/components/app/ServerCard";
+import { UpgradeRequiredModal } from "@/components/billing/UpgradeRequiredModal";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
@@ -120,6 +121,14 @@ export function CreateServerPage({
   const [beatSearch, setBeatSearch] = React.useState("");
 
   const [serverError, setServerError] = React.useState<string | null>(null);
+  /** When the action fails with a billing-gate error, we swap the
+   *  red inline banner for the UpgradeRequiredModal — same info,
+   *  much better conversion: the producer sees exactly which plan
+   *  unlocks what they tried, one click to Stripe Checkout. */
+  const [upgradeCtx, setUpgradeCtx] = React.useState<{
+    plan: import("@/lib/billing/plans").PlanKey;
+    reason: string;
+  } | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   /** Frozen at mount — used at submit time to detect whether the
@@ -345,7 +354,20 @@ export function CreateServerPage({
       }
 
       const result = await createServerAction(sharedPayload);
-      if (result?.error) setServerError(result.error);
+      if (result?.error) {
+        if (result.upgradeRequired) {
+          // Billing gate fired — show the upgrade modal instead of
+          // the red inline banner. The reason copy is identical
+          // either way, but the modal gets the user one click
+          // from Stripe Checkout.
+          setUpgradeCtx({
+            plan: result.upgradeRequired.plan,
+            reason: result.error,
+          });
+        } else {
+          setServerError(result.error);
+        }
+      }
     });
   };
 
@@ -714,6 +736,17 @@ export function CreateServerPage({
           </div>
         </div>
       </div>
+
+      {/* Upgrade modal — mounted once, shown only when the billing
+          gate fires. State holds the plan + the verbatim gate
+          reason so the modal copy stays accurate even if quotas
+          shift later. */}
+      <UpgradeRequiredModal
+        open={upgradeCtx !== null}
+        onClose={() => setUpgradeCtx(null)}
+        currentPlan={upgradeCtx?.plan ?? "free"}
+        reason={upgradeCtx?.reason ?? ""}
+      />
     </>
   );
 }

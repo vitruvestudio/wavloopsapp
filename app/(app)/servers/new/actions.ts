@@ -63,8 +63,15 @@ export interface CreateServerPayload {
   beat_ids: string[];
 }
 
+import type { PlanKey } from "@/lib/billing/plans";
+
 export interface CreateServerResult {
   error: string | null;
+  /** Set when the error came from a billing gate — the client
+   *  uses this to swap the inline banner for the UpgradeRequired
+   *  modal. Carries the current plan so the modal can render the
+   *  right tiers. */
+  upgradeRequired?: { plan: PlanKey };
 }
 
 const POSTGRES_UNIQUE_VIOLATION = "23505";
@@ -97,7 +104,11 @@ export async function createServerAction(
   // checkServerQuota() reads the cached plan + live usage; this is
   // the only place that knows about quotas. Phase 4.
   const serverGate = await checkServerQuota();
-  if (!serverGate.ok) return { error: serverGate.reason };
+  if (!serverGate.ok)
+    return {
+      error: serverGate.reason,
+      upgradeRequired: { plan: serverGate.plan },
+    };
 
   const cleanName = payload.name.trim();
   if (!cleanName) return { error: "Server name is required." };

@@ -191,6 +191,7 @@ export interface AddContactPayload {
 export interface AddContactResult {
   error: string | null;
   contactId: string | null;
+  upgradeRequired?: { plan: import("@/lib/billing/plans").PlanKey };
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -231,7 +232,11 @@ export async function addContactAction(
   // upgrade lands.
   const artistGate = await checkArtistQuota(1);
   if (!artistGate.ok)
-    return { error: artistGate.reason, contactId: null };
+    return {
+      error: artistGate.reason,
+      contactId: null,
+      upgradeRequired: { plan: artistGate.plan },
+    };
 
   // Drop empty socials so we don't store noise.
   const cleanSocials: Record<string, string> = {};
@@ -437,6 +442,7 @@ export interface ImportContactsResult {
   imported: number;
   skipped: number;
   error: string | null;
+  upgradeRequired?: { plan: import("@/lib/billing/plans").PlanKey };
 }
 
 export async function importContactsAction(
@@ -476,7 +482,12 @@ export async function importContactsAction(
   // partial-insert.
   const artistGate = await checkArtistQuota(rows.length);
   if (!artistGate.ok)
-    return { imported: 0, skipped: 0, error: artistGate.reason };
+    return {
+      imported: 0,
+      skipped: 0,
+      error: artistGate.reason,
+      upgradeRequired: { plan: artistGate.plan },
+    };
 
   // Dedupe by email within the batch — if the CSV has the same
   // email twice, Postgres' upsert would still work, but PostgREST

@@ -58,6 +58,7 @@ export interface SaveBeatPayload {
 
 export interface SaveBeatResult {
   error: string | null;
+  upgradeRequired?: { plan: import("@/lib/billing/plans").PlanKey };
 }
 
 export async function saveBeatAction(
@@ -101,11 +102,19 @@ export async function saveBeatAction(
   // in depth on a quota that costs real egress (Pro-only formats
   // are typically 5-10× heavier than MP3).
   const beatGate = await checkBeatQuota();
-  if (!beatGate.ok) return { error: beatGate.reason };
+  if (!beatGate.ok)
+    return {
+      error: beatGate.reason,
+      upgradeRequired: { plan: beatGate.plan },
+    };
 
   const ext = payload.audio_path.split(".").pop()?.toLowerCase() ?? "";
   const formatGate = await checkAudioFormat(ext);
-  if (!formatGate.ok) return { error: formatGate.reason };
+  if (!formatGate.ok)
+    return {
+      error: formatGate.reason,
+      upgradeRequired: { plan: formatGate.plan },
+    };
 
   // 1) Insert beat row
   const { data: inserted, error: insertErr } = await supabase
