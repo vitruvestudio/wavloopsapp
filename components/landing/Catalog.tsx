@@ -101,6 +101,12 @@ export function LandingCatalog() {
         paddingTop: "clamp(64px, 10vw, 120px)",
         paddingBottom: "clamp(64px, 10vw, 120px)",
         backgroundColor: "#D9D9D9",
+        // 50px rounded top corners — the section juts into the
+        // dark canvas above as a 'card peeking from the page'.
+        // Bottom stays squared so the next section flows from
+        // a clean horizontal edge.
+        borderTopLeftRadius: 50,
+        borderTopRightRadius: 50,
       }}
     >
       {/* Title — dark text on light gray. 'catalog' kept in the
@@ -164,8 +170,9 @@ export function LandingCatalog() {
           }}
           style={{
             width: "max-content",
-            gap: 20,
-            padding: "12px 0",
+            // Wider gap — covers breathe instead of packing.
+            gap: "clamp(28px, 3vw, 48px)",
+            padding: "16px 0",
             animation: "wl-marquee 60s linear infinite",
             animationPlayState: paused ? "paused" : "running",
             willChange: "transform",
@@ -213,17 +220,23 @@ function CoverTile({
       onMouseEnter={onEnter}
       className="relative overflow-hidden shrink-0"
       style={{
-        width: "clamp(180px, 18vw, 260px)",
+        // Larger tiles — covers are the hero of this section.
+        width: "clamp(220px, 22vw, 340px)",
         aspectRatio: "1 / 1",
-        borderRadius: 18,
+        borderRadius: 20,
         // No border on light bg — the cover's own image content
         // gives it edge against the panel.
         transition:
           "transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out)",
         transform: active ? "translateY(-4px) scale(1.04)" : "translateY(0) scale(1)",
+        // Softer drop shadows — the previous values left a visible
+        // dark horizontal band along the bottom of every tile.
+        // Wider spread + lower opacity + larger -Y offset on the
+        // softening blur diffuse the shadow into the gray instead
+        // of stamping a line.
         boxShadow: active
-          ? "0 30px 50px -16px rgba(0,0,0,0.35), 0 0 50px -8px var(--accent-glow)"
-          : "0 12px 28px -12px rgba(0,0,0,0.25)",
+          ? "0 40px 70px -28px rgba(0,0,0,0.22), 0 0 60px -10px var(--accent-glow)"
+          : "0 24px 50px -28px rgba(0,0,0,0.18)",
         cursor: "pointer",
       }}
     >
