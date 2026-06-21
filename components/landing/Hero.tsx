@@ -144,19 +144,15 @@ export function LandingHero() {
           and who&apos;s ready to lock in.
         </p>
 
-        {/* CTAs */}
-        <div
-          className="flex flex-wrap items-center justify-center"
-          style={{ gap: 12 }}
-        >
+        {/* CTA — single primary. Theo: 'UN SEUL BUTTON'. The
+                'See how it works' secondary was removed: the
+                anchor still exists in the Topbar nav and the
+                next section IS How it works, so the visitor
+                lands on it by scrolling. */}
+        <div className="flex items-center justify-center">
           <Link href="/auth?intent=signup">
             <Button size="lg" iconRight="arrow-right">
-              Get started — free
-            </Button>
-          </Link>
-          <Link href="#how-it-works">
-            <Button size="lg" variant="secondary">
-              See how it works
+              Create your first server
             </Button>
           </Link>
         </div>
