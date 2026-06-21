@@ -103,10 +103,16 @@ export function LandingHero() {
           id="hero-title"
           className="t-display-xl"
           style={{
-            // The clamp() inside .t-display-xl handles fluid sizing;
-            // we just need to widen the maximum so the headline can
-            // breathe on big screens.
-            fontSize: "clamp(48px, 7vw, 96px)",
+            // Smaller minimum + steeper vw rate so the headline
+            // stops breaking into a 6-line column on phones.
+            // Was clamp(48, 7vw, 96) → 380-px viewport gave 48 px
+            // and the title piled up word-per-line. Now starts
+            // at 34 px on phones (≈ 2-3 lines max) and still hits
+            // 96 px on desktop. Negative letter-spacing tightens
+            // the line breaks too.
+            fontSize: "clamp(34px, 8.5vw, 96px)",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.04,
             maxWidth: 900,
             marginBottom: 22,
           }}

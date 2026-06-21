@@ -85,9 +85,11 @@ export function HeroEyebrow({
         <Sparkles size={14} />
       </span>
 
-      {/* Pill body */}
+      {/* Pill body — fixed 35-px height on desktop, but on
+              mobile the description hides via .hidden + sm:inline
+              so the pill stays a single-line CTA chip. */}
       <div
-        className="inline-flex items-center"
+        className="inline-flex items-center flex-nowrap"
         style={{
           height: 35,
           gap: 8,
@@ -98,6 +100,7 @@ export function HeroEyebrow({
             "1px solid color-mix(in oklch, var(--accent-text) 22%, transparent)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
+          whiteSpace: "nowrap",
         }}
       >
         <Link
@@ -118,18 +121,23 @@ export function HeroEyebrow({
             textUnderlineOffset: 5,
             transition:
               "color 0.15s var(--ease), text-decoration-color 0.15s var(--ease)",
+            whiteSpace: "nowrap",
           }}
         >
           {buttonText}
         </Link>
 
+        {/* Description hidden on phones — pill stays compact.
+                Visible from sm (≥ 640 px) on. */}
         <span
+          className="hidden sm:inline"
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 12.5,
             letterSpacing: "0.04em",
             color: "var(--accent-text)",
             textTransform: "uppercase",
+            whiteSpace: "nowrap",
           }}
         >
           {description}
