@@ -48,16 +48,16 @@ export function LandingMetrics() {
               letterSpacing: "-0.018em",
             }}
           >
-            Metrics you&apos;ll be a{" "}
+            Know{" "}
             <span
               style={{
                 color: "var(--accent-text)",
                 textShadow: "0 0 32px var(--accent-glow)",
               }}
             >
-              fan
-            </span>{" "}
-            of.
+              exactly who
+            </span>
+            &apos;s into your beats.
           </h2>
           <p
             className="t-body-l"
@@ -65,12 +65,12 @@ export function LandingMetrics() {
               fontSize: 19,
               lineHeight: 1.55,
               color: "var(--fg-2)",
-              maxWidth: 640,
+              maxWidth: 680,
               margin: "0 auto",
             }}
           >
-            Every play, every like, every artist — visible in real time. The
-            signal that tells you what to make next.
+            Every play, every like, every artist — in real time. See who&apos;s
+            hooked, who&apos;s coming back, and who&apos;s ready to lock in.
           </p>
         </div>
 
