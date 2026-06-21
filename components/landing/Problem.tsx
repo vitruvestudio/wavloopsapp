@@ -36,17 +36,10 @@ export function LandingProblem() {
         backgroundColor: "var(--bg-0)",
       }}
     >
-      {/* Soft brand halo across the canvas so the connecting
-              line reads as 'energy travelling through the page'. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 50% 40% at 50% 60%, var(--accent-glow) 0%, transparent 70%)",
-          opacity: 0.3,
-        }}
-      />
+      {/* Theo: 'aucun background, pas de glow derrière, couleur
+              de fond uni'. The ambient accent halo that used to
+              wash the canvas behind the curve is gone — section
+              is flat bg-0 from edge to edge. */}
 
       <div
         className="relative mx-auto"
@@ -547,34 +540,26 @@ function NotifDiscord() {
    ============================================================ */
 
 function ProductShot() {
+  // Theo: 'aucun background, pas de glow derrière, couleur de
+  // fond uni'. The screenshot already carries its own chrome
+  // (server header + table) inside the PNG, so any extra
+  // border / shadow / accent halo would double-frame it.
+  // Render the raw image, no wrapper styling.
   return (
     <div
       className="relative w-full mx-auto"
-      style={{
-        maxWidth: 560,
-      }}
+      style={{ maxWidth: 620 }}
     >
-      <div
-        className="relative overflow-hidden"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/Photos/Section_2.png"
+        alt="Wavloops — Atlanta Nights server detail with live stats and beats."
         style={{
-          borderRadius: 18,
-          border:
-            "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
-          boxShadow:
-            "0 50px 100px -32px oklch(0 0 0 / 0.7), 0 0 60px -16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)",
+          width: "100%",
+          height: "auto",
+          display: "block",
         }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/Photos/Section_2.png"
-          alt="Wavloops — Atlanta Nights server detail with live stats and beats."
-          style={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-          }}
-        />
-      </div>
+      />
     </div>
   );
 }
@@ -620,27 +605,19 @@ function ConnectorFlow() {
           <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.7" />
           <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <filter id="wl-flow-glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
 
-      {/* S-curve. From the right side of the left card area
-              (≈ x=420, y=160) down and across to the left edge of
-              the product shot (≈ x=620, y=300). Cubic Bezier
-              with two opposite-side control points produces the
-              fluid 'wave' Theo sketched. */}
+      {/* S-curve. Cubic Bezier from the right edge of the left
+              card to the left edge of the product shot, sweeping
+              down through a soft S-shape. No gaussian glow
+              behind it — Theo wants the curve as a clean line
+              on the flat bg-0, not an emitted beam. */}
       <path
         d="M 380 160 C 470 160, 470 320, 620 320"
         stroke="url(#wl-flow-base)"
         strokeWidth={4}
         fill="none"
         strokeLinecap="round"
-        filter="url(#wl-flow-glow)"
       />
       {/* Flowing highlight on top — continuous, no gap. The
               dasharray uses a long lit run + medium gap so the
