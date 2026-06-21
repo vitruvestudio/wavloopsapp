@@ -337,6 +337,16 @@
   50%      { transform: scaleY(1); }
 }
 
+/* Catalog carousel — infinite horizontal marquee. The component
+   triples its content (A,B,…N,A,B,…N,A,B,…N) and translates by
+   exactly one-third of the total width per cycle so the loop is
+   seamless: when the animation snaps back, the next visible
+   covers are identical to where they were a frame earlier. */
+@keyframes wl-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-33.3333%); }
+}
+
 /* Activity row enters from the top of the feed with a small
    slide + fade. Applied once per new row appended to the live
    feed. */

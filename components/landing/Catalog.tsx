@@ -1,0 +1,330 @@
+/**
+ * Landing — Section 07. Catalog carousel.
+ *
+ * Inspired by the 'Your New Favorite Cloud' reference Theo
+ * shared: big centered title + a horizontal marquee of square
+ * cover-art tiles, edges bleeding off the panel. Adapted for
+ * the Wavloops dark aesthetic — elevated bg-1 panel with
+ * rounded corners, indigo accent on the title's hook word,
+ * and a brand-flavored hover state per cover (scale up +
+ * accent-glow shadow + accent play disc overlay).
+ *
+ * Dynamic behaviour
+ * ─────────────────
+ *   - Covers scroll continuously L→R via wl-marquee. Pause on
+ *     hover anywhere over the carousel.
+ *   - Per-cover hover: cover scales 1.04, picks up an accent
+ *     drop shadow, and reveals a title + meta gradient strip
+ *     at the bottom plus a play disc top-right.
+ *   - Audio preview: a single shared <audio> element plays
+ *     /audio/preview.mp3 (when present) the moment a cover is
+ *     hovered, pauses when the visitor moves off. Silently
+ *     fails if no file exists — Theo can drop one in later.
+ *
+ * Source covers
+ * ─────────────
+ * Real seeded covers from the Supabase beat-covers bucket
+ * (public). Same images that already power the producer's
+ * library, so the carousel is showing the *real* product
+ * surface rather than stock visuals.
+ */
+
+"use client";
+
+import * as React from "react";
+import { Icon } from "@/components/ui/Icon";
+
+const BUCKET_BASE =
+  "https://sgowrqzkdugbarfbvlqk.supabase.co/storage/v1/object/public/beat-covers/d0ee3e41-45c5-47ce-9ca0-04b52b0474d4";
+
+interface Beat {
+  id: string;
+  title: string;
+  meta: string;
+  cover: string;
+}
+
+const BEATS: Beat[] = [
+  { id: "00", title: "Night Shift 03",  meta: "80 BPM · F MIN",  cover: `${BUCKET_BASE}/seed-00.jpg` },
+  { id: "01", title: "Midnight Drift",  meta: "142 BPM · F MIN", cover: `${BUCKET_BASE}/seed-01.jpg` },
+  { id: "02", title: "Velvet Glow",     meta: "98 BPM · A MIN",  cover: `${BUCKET_BASE}/seed-02.jpg` },
+  { id: "03", title: "Honeybloom",      meta: "110 BPM · C MAJ", cover: `${BUCKET_BASE}/seed-03.jpg` },
+  { id: "04", title: "Cobalt",          meta: "134 BPM · G MIN", cover: `${BUCKET_BASE}/seed-04.jpg` },
+  { id: "05", title: "Golden Hour",     meta: "78 BPM · C MIN",  cover: `${BUCKET_BASE}/seed-05.jpg` },
+  { id: "06", title: "Lavender Sky",    meta: "92 BPM · D MAJ",  cover: `${BUCKET_BASE}/seed-06.jpg` },
+  { id: "07", title: "Smoke Lounge",    meta: "86 BPM · E MIN",  cover: `${BUCKET_BASE}/seed-07.jpg` },
+  { id: "08", title: "Crystal Coast",   meta: "124 BPM · B MIN", cover: `${BUCKET_BASE}/seed-08.jpg` },
+  { id: "09", title: "Sunset Drive",    meta: "100 BPM · F MAJ", cover: `${BUCKET_BASE}/seed-09.jpg` },
+];
+
+export function LandingCatalog() {
+  const [paused, setPaused] = React.useState(false);
+  const [hoveredId, setHoveredId] = React.useState<string | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  // Drive a single shared <audio> element from the currently
+  // hovered cover. play() is wrapped in catch() so a missing
+  // /audio/preview.mp3 (or autoplay block) doesn't surface as
+  // an unhandled rejection — the visual hover state still
+  // works either way.
+  React.useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (hoveredId !== null) {
+      a.currentTime = 0;
+      a.volume = 0.7;
+      void a.play().catch(() => {});
+    } else {
+      a.pause();
+    }
+  }, [hoveredId]);
+
+  // Triple the list so the marquee can translate by exactly
+  // -33.333% and snap back to a visually identical frame.
+  const items = React.useMemo(
+    () => [...BEATS, ...BEATS, ...BEATS],
+    [],
+  );
+
+  return (
+    <section
+      id="catalog"
+      aria-label="Catalog carousel"
+      className="relative"
+      style={{
+        paddingTop: "clamp(64px, 10vw, 120px)",
+        paddingBottom: "clamp(64px, 10vw, 120px)",
+        backgroundColor: "var(--bg-0)",
+      }}
+    >
+      {/* Soft brand halo behind the panel */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 50% at 50% 50%, var(--accent-glow) 0%, transparent 65%)",
+          opacity: 0.18,
+        }}
+      />
+
+      <div
+        className="relative mx-auto"
+        style={{ maxWidth: 1280, padding: "0 24px" }}
+      >
+        {/* Elevated panel — matches the reference's 'card peeking
+                from the page' look but in Wavloops dark tones. */}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%)",
+            borderRadius: 32,
+            border: "1px solid var(--border-1)",
+            boxShadow:
+              "0 50px 100px -32px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
+            paddingTop: "clamp(40px, 5vw, 64px)",
+            paddingBottom: "clamp(40px, 5vw, 64px)",
+          }}
+        >
+          {/* Title */}
+          <h2
+            className="t-display text-center"
+            style={{
+              fontSize: "clamp(40px, 5.4vw, 68px)",
+              lineHeight: 1.04,
+              letterSpacing: "-0.018em",
+              marginBottom: "clamp(32px, 4vw, 56px)",
+              padding: "0 24px",
+            }}
+          >
+            Your new favorite{" "}
+            <span
+              style={{
+                color: "var(--accent-text)",
+                textShadow: "0 0 32px var(--accent-glow)",
+              }}
+            >
+              catalog
+            </span>
+            .
+          </h2>
+
+          {/* Marquee viewport — overflow-hidden so covers bleed
+                  cleanly off the left + right edges. */}
+          <div className="relative" style={{ overflow: "hidden" }}>
+            {/* Edge fade masks — left + right gradients so covers
+                    don't hard-cut at the panel edges. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 pointer-events-none"
+              style={{
+                width: "clamp(40px, 6vw, 80px)",
+                background:
+                  "linear-gradient(to right, var(--bg-1) 0%, transparent 100%)",
+                zIndex: 2,
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 right-0 pointer-events-none"
+              style={{
+                width: "clamp(40px, 6vw, 80px)",
+                background:
+                  "linear-gradient(to left, var(--bg-2) 0%, transparent 100%)",
+                zIndex: 2,
+              }}
+            />
+
+            <div
+              className="flex"
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => {
+                setPaused(false);
+                setHoveredId(null);
+              }}
+              style={{
+                width: "max-content",
+                gap: 20,
+                padding: "12px 0",
+                animation: "wl-marquee 60s linear infinite",
+                animationPlayState: paused ? "paused" : "running",
+                willChange: "transform",
+              }}
+            >
+              {items.map((b, i) => (
+                <CoverTile
+                  key={`${b.id}-${i}`}
+                  beat={b}
+                  active={hoveredId === `${b.id}-${i}`}
+                  onEnter={() => setHoveredId(`${b.id}-${i}`)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Shared audio element. Path points to a sample loop the
+              producer can drop in. preload='none' keeps the page
+              weight zero until first hover. */}
+      <audio
+        ref={audioRef}
+        src="/audio/preview.mp3"
+        preload="none"
+        loop
+      />
+    </section>
+  );
+}
+
+/* ============================================================
+   CoverTile — single square cover with hover affordances.
+   ============================================================ */
+
+function CoverTile({
+  beat,
+  active,
+  onEnter,
+}: {
+  beat: Beat;
+  active: boolean;
+  onEnter: () => void;
+}) {
+  return (
+    <div
+      onMouseEnter={onEnter}
+      className="relative overflow-hidden shrink-0"
+      style={{
+        width: "clamp(180px, 18vw, 260px)",
+        aspectRatio: "1 / 1",
+        borderRadius: 18,
+        border: "1px solid var(--border-1)",
+        transition:
+          "transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out)",
+        transform: active ? "translateY(-4px) scale(1.04)" : "translateY(0) scale(1)",
+        boxShadow: active
+          ? "0 36px 60px -18px oklch(0 0 0 / 0.65), 0 0 50px -8px var(--accent-glow)"
+          : "0 12px 28px -12px oklch(0 0 0 / 0.55)",
+        cursor: "pointer",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={beat.cover}
+        alt={beat.title}
+        loading="lazy"
+        draggable={false}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+          userSelect: "none",
+        }}
+      />
+
+      {/* Bottom-up gradient + title/meta — revealed on hover */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 flex flex-col justify-end"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 75%)",
+          padding: "14px 16px",
+          opacity: active ? 1 : 0,
+          transition: "opacity 0.3s var(--ease-out)",
+          zIndex: 2,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 700,
+            fontSize: "clamp(15px, 1.4vw, 19px)",
+            letterSpacing: "-0.01em",
+            color: "#fff",
+            lineHeight: 1.15,
+          }}
+        >
+          {beat.title}
+        </span>
+        <span
+          className="t-mono"
+          style={{
+            marginTop: 6,
+            color: "rgba(255,255,255,0.78)",
+            fontSize: 10.5,
+          }}
+        >
+          {beat.meta}
+        </span>
+      </div>
+
+      {/* Play disc top-right — appears on hover */}
+      <div
+        aria-hidden="true"
+        className="absolute flex items-center justify-center"
+        style={{
+          top: 14,
+          right: 14,
+          width: 46,
+          height: 46,
+          borderRadius: "50%",
+          background: "var(--accent)",
+          color: "var(--accent-fg)",
+          border: "1px solid color-mix(in oklch, var(--accent-fg) 18%, transparent)",
+          boxShadow:
+            "0 0 0 6px color-mix(in oklch, var(--accent) 18%, transparent), 0 16px 32px -10px var(--accent-glow)",
+          opacity: active ? 1 : 0,
+          transform: active ? "scale(1)" : "scale(0.82)",
+          transition:
+            "opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out)",
+          zIndex: 3,
+        }}
+      >
+        <Icon name="play" size={20} />
+      </div>
+    </div>
+  );
+}
