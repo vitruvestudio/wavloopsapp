@@ -33,6 +33,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { HeroEyebrow } from "@/components/landing/HeroEyebrow";
 
 export function LandingHero() {
   return (
@@ -90,33 +91,11 @@ export function LandingHero() {
           padding: "0 24px",
         }}
       >
-        {/* Kicker — mono uppercase pill, sits above the title.
-                Catches the eye before they read, anchors the
-                product category. */}
-        <div
-          className="t-mono inline-flex items-center"
-          style={{
-            gap: 8,
-            padding: "6px 12px",
-            borderRadius: "var(--r-pill)",
-            background: "var(--accent-surface)",
-            color: "var(--accent-text)",
-            border: "1px solid color-mix(in oklch, var(--accent-text) 22%, transparent)",
-            marginBottom: 28,
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "var(--r-pill)",
-              background: "var(--accent-text)",
-              boxShadow: "0 0 12px var(--accent-glow)",
-            }}
-          />
-          Beat sharing for serious producers
-        </div>
+        {/* Eyebrow — interactive Vercel-style announcement
+                banner. Underlined CTA + description, with two
+                sparkle icons flying out on hover. Routes to
+                /#pricing. */}
+        <HeroEyebrow />
 
         {/* Title — display-xl, two lines. The accent span on
                 "one link" carries the promise. */}
