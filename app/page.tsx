@@ -28,6 +28,7 @@ import { LandingHero } from "@/components/landing/Hero";
 import { LandingProblem } from "@/components/landing/Problem";
 import { LandingHowItWorks } from "@/components/landing/HowItWorks";
 import { LandingNeverAgain } from "@/components/landing/NeverAgain";
+import { LandingGrowAudience } from "@/components/landing/GrowAudience";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -43,6 +44,7 @@ export default async function HomePage() {
       <LandingProblem />
       <LandingHowItWorks />
       <LandingNeverAgain />
+      <LandingGrowAudience />
       {/* Follow-on sections (Pricing, FAQ, CTA)
               will land here as separate components. */}
     </main>
