@@ -78,7 +78,7 @@ export default function RefundsPage() {
 
       <h2>5. How to request a refund</h2>
       <p>
-        Write to <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>{" "}
+        Write to <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>{" "}
         from the email address linked to your account, with the receipt or
         Stripe invoice reference and a short description of the issue. We
         respond within fourteen (14) days. Approved refunds are processed
@@ -88,7 +88,7 @@ export default function RefundsPage() {
       <h2>6. Chargebacks</h2>
       <p>
         Please contact us first. Filing a chargeback before contacting{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a> may result
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a> may result
         in immediate suspension of your account while the dispute is
         investigated.
       </p>

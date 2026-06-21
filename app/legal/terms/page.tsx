@@ -153,7 +153,7 @@ export default function TermsPage() {
       <h2>11. Contact</h2>
       <p>
         Questions or notices about these Terms should be sent to{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>.
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>.
       </p>
     </LegalShell>
   );

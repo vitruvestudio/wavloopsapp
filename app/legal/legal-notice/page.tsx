@@ -22,7 +22,7 @@ export default function LegalNoticePage() {
         <li><strong>SIREN</strong> — 884 465 089</li>
         <li><strong>SIRET</strong> (head office) — 884 465 089 00024</li>
         <li><strong>VAT number</strong> — FR49884465089</li>
-        <li><strong>Email</strong> — <a href="mailto:hello@wavloops.co">hello@wavloops.co</a></li>
+        <li><strong>Email</strong> — <a href="mailto:contact@wavloops.co">contact@wavloops.co</a></li>
       </ul>
 
       <h2>2. Hosting</h2>
@@ -77,7 +77,7 @@ export default function LegalNoticePage() {
         Personal-data processing on Wavloops is described in detail on our{" "}
         <a href="/legal/privacy">Privacy Policy</a>. The data controller is
         Vitruve, reachable at{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>.
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>.
       </p>
 
       <h2>5. Cookies</h2>
@@ -97,7 +97,7 @@ export default function LegalNoticePage() {
       <h2>7. Contact</h2>
       <p>
         For any question related to this notice or the Service:{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>.
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>.
       </p>
     </LegalShell>
   );

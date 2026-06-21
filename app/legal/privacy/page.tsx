@@ -133,7 +133,7 @@ export default function PrivacyPage() {
       </ul>
       <p>
         To exercise any of these rights, email{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a> from the
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a> from the
         address linked to your account. We respond within thirty (30) days.
       </p>
 
@@ -149,7 +149,7 @@ export default function PrivacyPage() {
         Wavloops is not intended for children under 16. We do not knowingly
         collect data from anyone below that age. If you believe a minor has
         opened an account, write to{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a> and we will
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a> and we will
         remove it.
       </p>
 
@@ -168,7 +168,7 @@ export default function PrivacyPage() {
       <h2>11. Contact</h2>
       <p>
         Privacy questions:{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>.
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>.
       </p>
     </LegalShell>
   );

@@ -45,7 +45,7 @@ const COLUMNS: FooterColumn[] = [
     title: "Company",
     links: [
       { label: "About", href: "/about" },
-      { label: "Contact", href: "mailto:hello@wavloops.co" },
+      { label: "Contact", href: "mailto:contact@wavloops.co" },
       { label: "Status", href: "https://status.wavloops.co", external: true },
     ],
   },
@@ -164,7 +164,7 @@ function BrandBlock() {
         <SocialIcon name="instagram" href="https://instagram.com/wavloops" label="Instagram" />
         <SocialIcon name="x-logo" href="https://x.com/wavloops" label="X / Twitter" />
         <SocialIcon name="youtube" href="https://youtube.com/@wavloops" label="YouTube" />
-        <SocialIcon name="mail" href="mailto:hello@wavloops.co" label="Email" />
+        <SocialIcon name="mail" href="mailto:contact@wavloops.co" label="Email" />
       </div>
 
       {/* Status pill */}
