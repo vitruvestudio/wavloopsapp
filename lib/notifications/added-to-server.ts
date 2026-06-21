@@ -24,6 +24,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendAddedToServerEmail } from "@/lib/resend/emails";
+import { generateInviteMagicLink } from "@/lib/auth/invite-link";
 
 /**
  * For each (serverId, contactId) freshly inserted in server_contacts,
@@ -149,10 +150,30 @@ export async function fanOutAddedToServer(
   // 5. Email — fire-and-forget per recipient. Skip when the authed
   //    artist has email=false in notif_prefs. Cold contacts (no
   //    auth_user_id) always get the email.
+  //
+  //    For each recipient we pre-generate a one-click magic-link
+  //    via Supabase admin so the 'Join the server' CTA bypasses
+  //    the public gate (and the 'Request access' form they're not
+  //    supposed to see — the producer already added them). On
+  //    success the click verifies the token, /auth/callback
+  //    creates the session, and the artist lands on
+  //    /listen/<slug>. On failure we fall back to the public
+  //    /s/<slug> URL inside sendAddedToServerEmail so the email
+  //    still ships (the existing gate's 'granted' branch will
+  //    catch them eventually after a normal sign-in).
   for (const c of contacts) {
     if (c.auth_user_id) {
       const prefs = prefsFor(c.auth_user_id);
       if (!prefs.email || !prefs.added_to_server) continue;
+    }
+    let inviteUrl: string | null = null;
+    try {
+      inviteUrl = await generateInviteMagicLink({
+        email: c.email,
+        serverSlug,
+      });
+    } catch (e) {
+      console.warn("[fanOutAddedToServer] magic-link generate", c.email, e);
     }
     try {
       await sendAddedToServerEmail({
@@ -160,6 +181,7 @@ export async function fanOutAddedToServer(
         producerHandle,
         serverName: serverRow.name,
         serverSlug,
+        inviteUrl,
       });
     } catch (e) {
       console.warn("[fanOutAddedToServer] email", c.email, e);

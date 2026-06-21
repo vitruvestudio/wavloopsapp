@@ -297,14 +297,23 @@ export interface AddedToServerEmailPayload {
   producerHandle: string;
   serverName: string;
   serverSlug: string;
+  /** When set, the 'Join the server' CTA points here instead of
+   *  the public /s/<slug> gate. Used by the fan-out to embed an
+   *  admin-generated magic-link so the recipient lands on
+   *  /listen/<slug> in one click instead of being asked to
+   *  request access on the gate. */
+  inviteUrl?: string | null;
 }
 
 export async function sendAddedToServerEmail(
   p: AddedToServerEmailPayload,
 ): Promise<SendResult> {
-  // /s/<slug> works for authed (auto-redirect to /listen) and
-  // unauthed (magic-link flow) — keeps a single entry URL.
-  const url = `${siteUrl()}/s/${p.serverSlug}`;
+  // Prefer the one-click magic-link when the fan-out managed to
+  // generate one. Falls back to the public /s/<slug> gate URL
+  // when the inviteUrl is null (Supabase admin generateLink
+  // hiccup, or the email arrives via a path that doesn't
+  // pre-generate).
+  const url = p.inviteUrl ?? `${siteUrl()}/s/${p.serverSlug}`;
   const html = brandShell({
     preheader: `${p.producerHandle} added you to ${p.serverName}.`,
     meta: `INVITE &middot; BY ${escape(p.producerHandle).toUpperCase()}`,
