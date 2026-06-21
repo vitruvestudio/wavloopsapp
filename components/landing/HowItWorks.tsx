@@ -16,7 +16,7 @@
  *   │                                                      │
  *   └──────────────────────────────────────────────────────┘
  *
- * Each tab gets its own video file in /public/videos/:
+ * Each tab gets its own video file in /public/Videos/:
  *   Build  → Wavloops_1.mp4
  *   Share  → Wavloops_2.mp4
  *   Track  → Wavloops_3.mp4
@@ -49,7 +49,7 @@ const STEPS: Step[] = [
     icon: "library",
     title: "Build your server.",
     hook: "Upload your beats, organize them your way. Your catalog lives in one place — always.",
-    video: "/videos/Wavloops_1.mp4",
+    video: "/Videos/Wavloops_1.mp4",
   },
   {
     id: "share",
@@ -58,7 +58,7 @@ const STEPS: Step[] = [
     icon: "link",
     title: "Share one link.",
     hook: "One link. Send it once. Artists get in with their email — no app to download, no friction.",
-    video: "/videos/Wavloops_2.mp4",
+    video: "/Videos/Wavloops_2.mp4",
   },
   {
     id: "track",
@@ -67,7 +67,7 @@ const STEPS: Step[] = [
     icon: "heart",
     title: "See who's vibing.",
     hook: "Every listen, every like, every artist — tracked live. You know exactly who's ready to lock in.",
-    video: "/videos/Wavloops_3.mp4",
+    video: "/Videos/Wavloops_3.mp4",
   },
 ];
 
