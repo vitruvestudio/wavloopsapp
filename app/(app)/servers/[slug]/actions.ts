@@ -100,6 +100,48 @@ export interface AddArtistsResult {
   added: number;
 }
 
+export interface RemoveArtistResult {
+  error: string | null;
+}
+
+/**
+ * removeArtistFromServerAction — DELETE the (server_id, contact_id)
+ * row from server_contacts so the artist loses access to this
+ * specific server. The contact itself stays in the address book,
+ * any other server memberships are untouched.
+ *
+ * RLS (server_contacts_owner_all) already gates that the caller
+ * owns the server; we still re-check ownership here so the UI
+ * surfaces a clean error string instead of a silent no-op when
+ * the policy denies the delete.
+ */
+export async function removeArtistFromServerAction(
+  serverId: string,
+  contactId: string,
+  serverSlug: string,
+): Promise<RemoveArtistResult> {
+  const supabase = await createClient();
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error };
+
+  const { error } = await supabase
+    .from("server_contacts")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("contact_id", contactId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/servers/${serverSlug}`, "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/contacts", "page");
+  // Refresh the artist surface so the removed artist's bell stops
+  // surfacing this server in their list without waiting for the
+  // next realtime tick.
+  revalidatePath("/listen", "layout");
+  return { error: null };
+}
+
 export async function addArtistsToServerAction(
   serverId: string,
   contactIds: string[],
