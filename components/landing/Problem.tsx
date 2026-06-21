@@ -1,31 +1,28 @@
 /**
- * Landing — Section 02. Orbital diagram (v6).
+ * Landing — Section 02. Old way → new way (v7).
  *
- * Theo's Figma sketch swap: drop the two-card composition and
- * draw a planetary orbit instead.
+ * Final Figma direction from Theo:
+ *   - LEFT  card: the chaotic 'old way'. Producers juggling
+ *                 Instagram, Gmail, DMs to share a pack — a
+ *                 collage of fake notifications stacked
+ *                 in a card.
+ *   - RIGHT card: a real screenshot of the Wavloops app
+ *                 (/Photos/Section_2.png — Atlanta Nights
+ *                 server detail). No mockup, no vector;
+ *                 the actual product surface.
+ *   - BETWEEN them: ONE single continuous fluid blue curve,
+ *                 an SVG path with an accent gradient and a
+ *                 flowing noodle on top. The line slides from
+ *                 the right edge of the left card to the left
+ *                 edge of the right card on a smooth S-shape.
  *
- *   - W mark at the centre, in a solid accent disc.
- *   - Two concentric blue rings around it:
- *       * Inner ring (thicker stroke) — 'new way', containing
- *         only the W. Wavloops is the calm centre.
- *       * Outer ring (thin stroke) — 'Old way', where the five
- *         producer-burning apps sit as orbiting nodes:
- *         Gmail, Instagram, WhatsApp, Discord, WeTransfer.
- *   - Each pair of outer nodes is joined by a chaotic red wire
- *     with the same flowing-noodle animation we use on every
- *     other landing diagram — Theo: 'EN GARDANT L'IDÉE DE LIEN
- *     FLUIDE'. Hatred-of-the-old-tools made visible: the
- *     producer's life is a tangled web that doesn't even
- *     touch Wavloops.
- *
- * Header copy (title + producer verbatim) is unchanged from
- * v5 — Theo: 'le textuel est ok'.
+ * Header (title + producer verbatim) unchanged — Theo: 'le
+ * textuel est ok'.
  */
 
 "use client";
 
 import * as React from "react";
-import { Logomark } from "@/components/ui/Logo";
 
 export function LandingProblem() {
   return (
@@ -39,15 +36,15 @@ export function LandingProblem() {
         backgroundColor: "var(--bg-0)",
       }}
     >
-      {/* Ambient accent halo centred behind the orbit, picks up
-              from the rest of the landing's lighting language. */}
+      {/* Soft brand halo across the canvas so the connecting
+              line reads as 'energy travelling through the page'. */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 40% 40% at 50% 70%, var(--accent-glow) 0%, transparent 70%)",
-          opacity: 0.4,
+            "radial-gradient(ellipse 50% 40% at 50% 60%, var(--accent-glow) 0%, transparent 70%)",
+          opacity: 0.3,
         }}
       />
 
@@ -56,11 +53,8 @@ export function LandingProblem() {
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
         <SectionHeader />
-        <div
-          style={{ marginTop: "clamp(40px, 6vw, 72px)" }}
-          className="flex justify-center"
-        >
-          <OrbitGraphic />
+        <div style={{ marginTop: "clamp(40px, 6vw, 72px)" }}>
+          <CardsWithFlow />
         </div>
       </div>
     </section>
@@ -68,7 +62,7 @@ export function LandingProblem() {
 }
 
 /* ============================================================
-   Editorial header — 02 / OUR PROMISE / title / quote
+   Editorial header — unchanged
    ============================================================ */
 
 function SectionHeader() {
@@ -136,283 +130,538 @@ function SectionHeader() {
 }
 
 /* ============================================================
-   ORBIT GRAPHIC
+   Cards with flowing connector
    ────────────────────────────────────────────────────────────
-   ViewBox 0 0 800 800. All positions derived from a single
-   layout constant so the rings, nodes and wires move together.
+   Two columns of equal width, S-curve SVG drawn over both. The
+   SVG sits in an absolute layer so the curve crosses the gap
+   without being clipped by the cards' overflow.
    ============================================================ */
 
-const VIEWBOX = 800;
-const CENTER = VIEWBOX / 2; // 400, 400
-const INNER_RADIUS = 130;   // new-way ring (Wavloops own orbit)
-const OUTER_RADIUS = 290;   // old-way ring (where chaos apps sit)
-const NODE_RADIUS = 280;    // brand-node centres (slightly inside outer ring)
-const NODE_SIZE = 78;       // glass node diameter (px in viewBox space)
-
-interface BrandNode {
-  id: string;
-  label: string;
-  color: string;
-  bg: string;
-  fg: string;
-  angle: number; // degrees, 0 = right, -90 = top
-  Icon: React.ComponentType<{ size?: number }>;
-}
-
-const BRAND_NODES: BrandNode[] = [
-  { id: "gmail",      label: "Gmail",      color: "#EA4335", bg: "#FFFFFF", fg: "#EA4335", angle: -90, Icon: GmailLogo },
-  { id: "instagram",  label: "Instagram",  color: "#D62976", bg: "linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%)", fg: "#FFFFFF", angle: -18, Icon: InstagramLogo },
-  { id: "whatsapp",   label: "WhatsApp",   color: "#25D366", bg: "#25D366", fg: "#FFFFFF", angle: 54,  Icon: WhatsappLogo },
-  { id: "discord",    label: "Discord",    color: "#5865F2", bg: "#5865F2", fg: "#FFFFFF", angle: 126, Icon: DiscordLogo },
-  { id: "wetransfer", label: "WeTransfer", color: "#406AFF", bg: "#406AFF", fg: "#FFFFFF", angle: 198, Icon: WetransferLogo },
-];
-
-/** Polar → cartesian inside the viewBox. */
-function polar(radius: number, deg: number): { x: number; y: number } {
-  const rad = (deg * Math.PI) / 180;
-  return {
-    x: CENTER + radius * Math.cos(rad),
-    y: CENTER + radius * Math.sin(rad),
-  };
-}
-
-// NB — earlier drafts crossed every non-adjacent pair of the
-// five outer nodes to draw a 'chaotic web'. With exactly five
-// nodes evenly spaced on a circle, that geometry inevitably
-// renders a pentagram. Wires removed; the fluid-link idea
-// Theo asked for now lives on the rings themselves (the
-// animated pulse around the inner orbit, below).
-
-function OrbitGraphic() {
+function CardsWithFlow() {
   return (
-    <div
-      className="relative w-full"
-      style={{
-        aspectRatio: "1 / 1",
-        maxWidth: 720,
-      }}
-    >
-      <svg
-        viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-        preserveAspectRatio="xMidYMid meet"
-        className="absolute inset-0 w-full h-full"
-        aria-hidden="true"
-      >
-        <defs>
-          <filter id="wl-inner-ring-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="4" />
-          </filter>
-        </defs>
-
-        {/* Outer ring — Old way */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={OUTER_RADIUS}
-          stroke="color-mix(in oklch, var(--accent-text) 50%, transparent)"
-          strokeWidth={1.5}
-          fill="none"
-          opacity={0.8}
-        />
-
-        {/* Inner ring — new way (thicker + soft glow under it
-                so it reads as 'the calm orbit, lit from within'). */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={INNER_RADIUS}
-          stroke="var(--accent)"
-          strokeWidth={5}
-          fill="none"
-          filter="url(#wl-inner-ring-glow)"
-          opacity={0.35}
-        />
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={INNER_RADIUS}
-          stroke="var(--accent)"
-          strokeWidth={3}
-          fill="none"
-        />
-
-        {/* Inner ring — accent pulse travels around it forever.
-                Carries the 'fluid link' idea Theo asked to keep
-                without drawing any chord across the orbit.
-                stroke-dasharray of a short lit segment + a much
-                longer dark gap, animated via wl-noodle-flow on
-                stroke-dashoffset. The circle's circumference is
-                2 π r ≈ 816 viewBox units, so the dasharray
-                pattern circulates around the full ring on
-                every cycle. */}
-        <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={INNER_RADIUS}
-          stroke="var(--accent-text)"
-          strokeWidth={3.5}
-          fill="none"
-          strokeLinecap="round"
-          style={{
-            strokeDasharray: "80 740",
-            animation: "wl-noodle-flow 8s linear infinite",
-            filter: "drop-shadow(0 0 6px var(--accent-glow))",
-          }}
-        />
-      </svg>
-
-      {/* HTML overlay — W chip at centre, brand nodes around
-              the outer ring, labels for the two zones. */}
-      <div className="absolute inset-0 pointer-events-none">
-        <CenterMark />
-        {BRAND_NODES.map((node) => (
-          <BrandOrbitNode key={node.id} node={node} />
-        ))}
-        <Label
-          text="Old way"
-          xPct={(polar(NODE_RADIUS, -135).x / VIEWBOX) * 100}
-          yPct={(polar(NODE_RADIUS, -135).y / VIEWBOX) * 100 - 4}
-          dim
-        />
-        <Label
-          text="new way"
-          // Place just above the W chip, inside the inner ring.
-          xPct={50}
-          yPct={((CENTER - 70) / VIEWBOX) * 100}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   Centre W mark
-   ============================================================ */
-
-function CenterMark() {
-  return (
-    <div
-      className="absolute flex items-center justify-center"
-      style={{
-        top: `${(CENTER / VIEWBOX) * 100}%`,
-        left: `${(CENTER / VIEWBOX) * 100}%`,
-        transform: "translate(-50%, -50%)",
-        width: "11%",
-        aspectRatio: "1 / 1",
-        borderRadius: "var(--r-pill)",
-        background: "var(--accent)",
-        border: "1px solid color-mix(in oklch, var(--accent-text) 50%, transparent)",
-        boxShadow:
-          "0 24px 48px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.2)",
-      }}
-    >
-      <span
-        style={{
-          color: "#fff",
-          filter: "drop-shadow(0 0 18px rgba(255,255,255,0.5))",
-          display: "flex",
-        }}
-      >
-        <Logomark size={36} />
-      </span>
-    </div>
-  );
-}
-
-/* ============================================================
-   Brand orbit node — placed at a polar position around the
-   outer ring.
-   ============================================================ */
-
-function BrandOrbitNode({ node }: { node: BrandNode }) {
-  const pos = polar(NODE_RADIUS, node.angle);
-  const Icon = node.Icon;
-  return (
-    <div
-      className="absolute"
-      style={{
-        top: `${(pos.y / VIEWBOX) * 100}%`,
-        left: `${(pos.x / VIEWBOX) * 100}%`,
-        transform: "translate(-50%, -50%)",
-        width: "9.8%",
-        aspectRatio: "1 / 1",
-      }}
-      aria-label={node.label}
-    >
+    <div className="relative">
       <div
-        className="relative w-full h-full flex items-center justify-center"
+        className="grid grid-cols-1 md:grid-cols-2 items-center"
+        style={{ gap: "clamp(40px, 6vw, 96px)" }}
+      >
+        <ChaosCard />
+        <ProductShot />
+      </div>
+
+      {/* Connector — full-width SVG behind/over the row. md+
+              only: on mobile the cards stack vertically and the
+              S-shape has no horizontal room to read. */}
+      <ConnectorFlow />
+    </div>
+  );
+}
+
+/* ============================================================
+   LEFT — Chaos card
+   ============================================================ */
+
+function ChaosCard() {
+  return (
+    <div
+      className="relative w-full mx-auto"
+      style={{
+        maxWidth: 440,
+        aspectRatio: "1 / 0.86",
+        background:
+          "linear-gradient(180deg, var(--bg-inset) 0%, var(--bg-1) 100%)",
+        border: "1px solid var(--border-1)",
+        borderRadius: 24,
+        boxShadow:
+          "0 40px 80px -28px oklch(0 0 0 / 0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+        overflow: "hidden",
+        padding: 24,
+      }}
+    >
+      {/* Header pill — 'The old way' / CHAOS */}
+      <div
+        className="flex items-center"
         style={{
-          borderRadius: "var(--r-pill)",
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          boxShadow:
-            "0 18px 40px -16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)",
+          gap: 10,
+          marginBottom: 18,
+          position: "relative",
+          zIndex: 3,
         }}
       >
-        {/* Brand tile */}
         <span
+          aria-hidden="true"
           className="flex items-center justify-center"
           style={{
-            width: "52%",
-            aspectRatio: "1 / 1",
-            borderRadius: "var(--r-md)",
-            background: node.bg,
-            color: node.fg,
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+            width: 22,
+            height: 22,
+            borderRadius: "var(--r-pill)",
+            background:
+              "color-mix(in oklch, var(--danger) 18%, transparent)",
+            color: "var(--danger)",
           }}
         >
-          <Icon size={20} />
+          <XGlyph />
         </span>
+        <span className="t-title" style={{ fontSize: 13.5 }}>
+          The old way
+        </span>
+        <span
+          className="t-mono"
+          style={{
+            marginLeft: "auto",
+            color: "var(--danger)",
+            background:
+              "color-mix(in oklch, var(--danger) 14%, transparent)",
+            padding: "3px 8px",
+            borderRadius: "var(--r-pill)",
+            fontSize: 9,
+          }}
+        >
+          Chaos
+        </span>
+      </div>
+
+      {/* Collage area — 4 fake notifications, tilted, overlapping. */}
+      <div className="relative" style={{ height: "calc(100% - 50px)" }}>
+        <FloatingNotif
+          top="0%"
+          left="2%"
+          width="62%"
+          rotate={-3}
+          delay={0}
+          duration={5.2}
+        >
+          <NotifGmail />
+        </FloatingNotif>
+        <FloatingNotif
+          top="22%"
+          right="0%"
+          width="60%"
+          rotate={2.5}
+          delay={1.4}
+          duration={5.8}
+        >
+          <NotifInstagram />
+        </FloatingNotif>
+        <FloatingNotif
+          bottom="14%"
+          left="0%"
+          width="64%"
+          rotate={-1.5}
+          delay={0.7}
+          duration={5.5}
+        >
+          <NotifWhatsapp />
+        </FloatingNotif>
+        <FloatingNotif
+          bottom="0%"
+          right="6%"
+          width="48%"
+          rotate={3}
+          delay={2}
+          duration={6.1}
+        >
+          <NotifDiscord />
+        </FloatingNotif>
+
+        {/* Bottom soft fade so the collage bleeds off the card. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 pointer-events-none"
+          style={{
+            height: 60,
+            background:
+              "linear-gradient(to bottom, transparent, var(--bg-inset))",
+          }}
+        />
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   Zone label
-   ============================================================ */
-
-function Label({
-  text,
-  xPct,
-  yPct,
-  dim,
+function FloatingNotif({
+  top,
+  left,
+  right,
+  bottom,
+  width,
+  rotate,
+  delay,
+  duration,
+  children,
 }: {
-  text: string;
-  xPct: number;
-  yPct: number;
-  dim?: boolean;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  width: string;
+  rotate: number;
+  delay: number;
+  duration: number;
+  children: React.ReactNode;
 }) {
   return (
     <div
       className="absolute"
       style={{
-        top: `${yPct}%`,
-        left: `${xPct}%`,
-        transform: "translate(-50%, -50%)",
+        top,
+        left,
+        right,
+        bottom,
+        width,
+        animation: `wl-float ${duration}s ease-in-out infinite`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <div style={{ transform: `rotate(${rotate}deg)` }}>{children}</div>
+    </div>
+  );
+}
+
+function NotifShell({
+  brandStripColor,
+  children,
+}: {
+  brandStripColor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="relative"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--border-1)",
+        borderRadius: "var(--r-md)",
+        padding: "12px 14px",
+        boxShadow:
+          "0 14px 30px -16px oklch(0 0 0 / 0.62), 0 2px 6px -3px oklch(0 0 0 / 0.4)",
+        overflow: "hidden",
       }}
     >
       <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0"
+        style={{ height: 2, background: brandStripColor }}
+      />
+      {children}
+    </div>
+  );
+}
+
+function NotifHeader({
+  brand,
+  name,
+  right,
+}: {
+  brand: React.ReactNode;
+  name: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex items-center"
+      style={{ gap: 10, marginBottom: 8 }}
+    >
+      {brand}
+      <span className="t-mono" style={{ color: "var(--fg-3)", fontSize: 9 }}>
+        {name}
+      </span>
+      {right && <div style={{ marginLeft: "auto" }}>{right}</div>}
+    </div>
+  );
+}
+
+function BrandTile({
+  bg,
+  color,
+  children,
+}: {
+  bg: string;
+  color: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className="flex items-center justify-center shrink-0"
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: "var(--r-sm)",
+        background: bg,
+        color,
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function NotifGmail() {
+  const BRAND = "#EA4335";
+  return (
+    <NotifShell brandStripColor={BRAND}>
+      <NotifHeader
+        brand={
+          <BrandTile bg="#FFFFFF" color={BRAND}>
+            <GmailLogo size={12} />
+          </BrandTile>
+        }
+        name="Gmail"
+        right={
+          <span
+            className="t-mono"
+            style={{
+              color: BRAND,
+              background:
+                "color-mix(in oklch, var(--danger) 14%, transparent)",
+              padding: "2px 7px",
+              borderRadius: "var(--r-pill)",
+              fontSize: 8,
+            }}
+          >
+            7 new
+          </span>
+        }
+      />
+      <div className="t-title" style={{ color: "var(--fg-1)", fontSize: 12.5 }}>
+        Re: Re: Re: BEATS V2 FINAL
+      </div>
+      <div
+        className="t-mono"
+        style={{ color: "var(--fg-4)", fontSize: 8.5, marginTop: 4 }}
+      >
+        From: kai · 14 sep
+      </div>
+    </NotifShell>
+  );
+}
+
+function NotifInstagram() {
+  const IG_GRADIENT =
+    "linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%)";
+  return (
+    <NotifShell brandStripColor="#D62976">
+      <NotifHeader
+        brand={
+          <BrandTile bg={IG_GRADIENT} color="#FFFFFF">
+            <InstagramLogo size={12} />
+          </BrandTile>
+        }
+        name="@prodbyleo"
+        right={
+          <span
+            className="t-mono"
+            style={{ color: "var(--fg-4)", fontSize: 8 }}
+          >
+            2d
+          </span>
+        }
+      />
+      <div
+        className="t-body"
         style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 700,
-          fontSize: "clamp(12px, 1.4vw, 16px)",
-          letterSpacing: "-0.005em",
-          color: dim ? "var(--fg-3)" : "var(--fg-1)",
-          textShadow: dim ? "none" : "0 0 18px rgba(0,0,0,0.7)",
+          color: "var(--fg-1)",
+          fontSize: 12,
+          background: "var(--bg-3)",
+          padding: "8px 10px",
+          borderRadius: "var(--r-md)",
+          display: "inline-block",
+          maxWidth: "100%",
         }}
       >
-        {text}
-      </span>
+        yo did u send the pack??
+      </div>
+    </NotifShell>
+  );
+}
+
+function NotifWhatsapp() {
+  const BRAND = "#25D366";
+  return (
+    <NotifShell brandStripColor={BRAND}>
+      <NotifHeader
+        brand={
+          <BrandTile bg={BRAND} color="#FFFFFF">
+            <WhatsappLogo size={12} />
+          </BrandTile>
+        }
+        name="WhatsApp"
+        right={
+          <span
+            className="t-mono"
+            style={{ color: "var(--fg-4)", fontSize: 8 }}
+          >
+            5m
+          </span>
+        }
+      />
+      <div className="t-title" style={{ color: "var(--fg-1)", fontSize: 12.5 }}>
+        Manager
+      </div>
+      <div
+        className="t-mono"
+        style={{ color: "var(--fg-4)", fontSize: 8.5, marginTop: 4 }}
+      >
+        drop the new pack pls 🙏
+      </div>
+    </NotifShell>
+  );
+}
+
+function NotifDiscord() {
+  const BRAND = "#5865F2";
+  return (
+    <NotifShell brandStripColor={BRAND}>
+      <NotifHeader
+        brand={
+          <BrandTile bg={BRAND} color="#FFFFFF">
+            <DiscordLogo size={12} />
+          </BrandTile>
+        }
+        name="ATL Producers"
+        right={
+          <span
+            aria-hidden="true"
+            className="t-mono"
+            style={{
+              background: "var(--danger)",
+              color: "#FFFFFF",
+              padding: "1px 6px",
+              borderRadius: "var(--r-pill)",
+              fontSize: 8,
+            }}
+          >
+            3
+          </span>
+        }
+      />
+      <div className="t-body" style={{ color: "var(--fg-1)", fontSize: 11.5 }}>
+        new pack when??
+      </div>
+    </NotifShell>
+  );
+}
+
+/* ============================================================
+   RIGHT — Real product screenshot
+   ============================================================ */
+
+function ProductShot() {
+  return (
+    <div
+      className="relative w-full mx-auto"
+      style={{
+        maxWidth: 560,
+      }}
+    >
+      <div
+        className="relative overflow-hidden"
+        style={{
+          borderRadius: 18,
+          border:
+            "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
+          boxShadow:
+            "0 50px 100px -32px oklch(0 0 0 / 0.7), 0 0 60px -16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/Photos/Section_2.png"
+          alt="Wavloops — Atlanta Nights server detail with live stats and beats."
+          style={{
+            width: "100%",
+            height: "auto",
+            display: "block",
+          }}
+        />
+      </div>
     </div>
   );
 }
 
 /* ============================================================
-   Brand SVG icons (inline, viewBox 0 0 24 24)
+   Connector — single flowing S-curve between the cards
+   ============================================================ */
+
+function ConnectorFlow() {
+  // The SVG fills the row in absolute layer. ViewBox 1000×360.
+  // The curve starts somewhere around the right edge of the
+  // left card and ends near the left edge of the right card,
+  // sweeping down through a soft S-shape. Hidden on mobile —
+  // the cards stack vertically there and a horizontal curve
+  // would collapse to nothing.
+  return (
+    <svg
+      viewBox="0 0 1000 360"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      className="absolute hidden md:block pointer-events-none"
+      style={{
+        // Cover the row, ignoring the grid gap.
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: "100%",
+        height: "100%",
+        zIndex: 2,
+      }}
+    >
+      <defs>
+        <linearGradient id="wl-flow-base" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0" />
+          <stop offset="22%" stopColor="var(--accent)" stopOpacity="0.85" />
+          <stop offset="50%" stopColor="var(--accent)" stopOpacity="1" />
+          <stop offset="78%" stopColor="var(--accent)" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="wl-flow-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
+          <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.7" />
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+        </linearGradient>
+        <filter id="wl-flow-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* S-curve. From the right side of the left card area
+              (≈ x=420, y=160) down and across to the left edge of
+              the product shot (≈ x=620, y=300). Cubic Bezier
+              with two opposite-side control points produces the
+              fluid 'wave' Theo sketched. */}
+      <path
+        d="M 380 160 C 470 160, 470 320, 620 320"
+        stroke="url(#wl-flow-base)"
+        strokeWidth={4}
+        fill="none"
+        strokeLinecap="round"
+        filter="url(#wl-flow-glow)"
+      />
+      {/* Flowing highlight on top — continuous, no gap. The
+              dasharray uses a long lit run + medium gap so the
+              motion never feels broken. */}
+      <path
+        d="M 380 160 C 470 160, 470 320, 620 320"
+        stroke="url(#wl-flow-noodle)"
+        strokeWidth={2.4}
+        fill="none"
+        strokeLinecap="round"
+        style={{
+          strokeDasharray: "300 200",
+          animation: "wl-noodle-flow 4s linear infinite",
+        }}
+      />
+    </svg>
+  );
+}
+
+/* ============================================================
+   Brand SVG icons (inline)
    ============================================================ */
 
 function GmailLogo({ size = 16 }: { size?: number }) {
@@ -447,10 +696,19 @@ function DiscordLogo({ size = 16 }: { size?: number }) {
   );
 }
 
-function WetransferLogo({ size = 16 }: { size?: number }) {
+function XGlyph() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M0 6.75A.74.74 0 0 1 .73 6h2.49a.73.73 0 0 1 .71.55l1.69 7.05L7.7 6.55a.74.74 0 0 1 .74-.55h2.42a.75.75 0 0 1 .74.55l2.08 7.05 1.71-7.05a.74.74 0 0 1 .73-.55h2.46a.74.74 0 0 1 .73.9l-3 11.81a.75.75 0 0 1-.73.55h-2.7a.74.74 0 0 1-.73-.54l-1.69-6.21-1.78 6.21a.74.74 0 0 1-.73.54h-2.7a.74.74 0 0 1-.73-.55L0 6.93a.75.75 0 0 1 0-.18zm23 6.41A1 1 0 1 0 24 14.16a1 1 0 0 0-1-1zm0 3.2a1 1 0 1 0 1 1 1 1 0 0 0-1-1z" />
+    <svg
+      width={12}
+      height={12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
     </svg>
   );
 }
