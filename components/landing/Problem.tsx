@@ -171,15 +171,24 @@ function CardsWithFlow() {
    ============================================================ */
 
 function FloatingNotifications() {
+  // Theo: 'ressert les card socials'. v7.3 spread the four
+  // tiles across the full column height with ~28-percentage-
+  // -point gaps between rows. Tighter now: container is
+  // shorter (aspect 1 / 0.7 instead of 1 / 0.92) and the
+  // rows sit closer together (≈ 18 pp between rows) so the
+  // four tiles read as one packed collage instead of a sparse
+  // list. The slight overlap between adjacent tiles is
+  // intentional — that's what makes it look like a
+  // notification dump.
   return (
     <div
       className="relative w-full"
       style={{
-        aspectRatio: "1 / 0.92",
+        aspectRatio: "1 / 0.7",
       }}
     >
       <FloatingNotif
-        top="2%"
+        top="0%"
         left="0%"
         width="74%"
         rotate={-3}
@@ -189,7 +198,7 @@ function FloatingNotifications() {
         <NotifGmail />
       </FloatingNotif>
       <FloatingNotif
-        top="26%"
+        top="22%"
         right="0%"
         width="70%"
         rotate={2.5}
@@ -199,7 +208,7 @@ function FloatingNotifications() {
         <NotifInstagram />
       </FloatingNotif>
       <FloatingNotif
-        bottom="14%"
+        top="54%"
         left="0%"
         width="76%"
         rotate={-1.5}
@@ -209,8 +218,8 @@ function FloatingNotifications() {
         <NotifWhatsapp />
       </FloatingNotif>
       <FloatingNotif
-        bottom="0%"
-        right="4%"
+        top="76%"
+        right="2%"
         width="58%"
         rotate={3}
         delay={2}
@@ -491,13 +500,18 @@ function NotifDiscord() {
    ============================================================ */
 
 function ProductShot() {
-  // Theo: 'augmente la taille du design à droite'. No max-width
-  // constraint — the screenshot fills its grid column, which
-  // sits at ~58 % of the 1600-px-wide visual band on desktop
-  // (≈ 900 px effective max). Raw image: no border, no shadow,
-  // no halo (already stripped in v7.1).
+  // Theo: 'fait aussi floter l'image de droite'. Same wl-float
+  // keyframe the notification tiles use, but slower (7.4 s
+  // vs 5-6 s) and with no delay — slower so a calm app
+  // surface still reads as composed, not jittery, while the
+  // chaos tiles on the left move at producer-anxiety speed.
   return (
-    <div className="relative w-full">
+    <div
+      className="relative w-full"
+      style={{
+        animation: "wl-float 7.4s ease-in-out infinite",
+      }}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/Photos/Section_2.png"
