@@ -100,12 +100,17 @@ export function LandingHeader({ isAuthed }: LandingHeaderProps) {
           </Link>
         </nav>
 
-        {/* Right — CTA pair. Signed-in visitor gets a single primary. */}
+        {/* Right — CTA. Single primary 'Create your first server'
+                CTA in every state, so the wording across header
+                + hero is consistent. Signed-in users land
+                directly on the create-server form; anonymous
+                visitors route through /auth?intent=signup → onboarding
+                → create server, ending on the same screen. */}
         <div className="flex items-center" style={{ gap: 8 }}>
           {isAuthed ? (
-            <Link href="/dashboard">
+            <Link href="/servers/new">
               <Button size="sm" iconRight="arrow-right">
-                Open app
+                Create your first server
               </Button>
             </Link>
           ) : (
@@ -117,7 +122,7 @@ export function LandingHeader({ isAuthed }: LandingHeaderProps) {
               </Link>
               <Link href="/auth?intent=signup">
                 <Button size="sm" iconRight="arrow-right">
-                  Get started
+                  Create your first server
                 </Button>
               </Link>
             </>
