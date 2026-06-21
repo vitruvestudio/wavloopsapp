@@ -43,6 +43,7 @@ import {
   addBeatsToServerAction,
   approveAccessRequestAction,
   declineAccessRequestAction,
+  removeArtistFromServerAction,
 } from "./actions";
 import { AddArtistsModal } from "./AddArtistsModal";
 import { AddContactModal } from "../../contacts/AddContactModal";
@@ -157,6 +158,32 @@ export function ServerDetailPage({
         server.slug,
       );
       setPendingActionId(null);
+      if (result.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  /** Drop an artist from server_contacts so they lose access to
+   *  THIS server. The contact record + their other server
+   *  memberships are untouched. Same in-flight state as
+   *  approve/decline so the row's menu disables while the
+   *  delete runs. */
+  const [pendingRemoveContactId, setPendingRemoveContactId] = React.useState<
+    string | null
+  >(null);
+  const [, startRemoveArtist] = React.useTransition();
+  const removeArtist = (contactId: string) => {
+    setPendingRemoveContactId(contactId);
+    startRemoveArtist(async () => {
+      const result = await removeArtistFromServerAction(
+        server.id,
+        contactId,
+        server.slug,
+      );
+      setPendingRemoveContactId(null);
       if (result.error) {
         window.alert(result.error);
         return;
@@ -497,6 +524,8 @@ export function ServerDetailPage({
             contacts={contacts}
             now={now}
             onAdd={() => setAddArtistsOpen(true)}
+            onRemove={removeArtist}
+            removingContactId={pendingRemoveContactId}
           />
         ) : (
           <RequestsTab
@@ -840,10 +869,17 @@ function ArtistsTab({
   contacts,
   now,
   onAdd,
+  onRemove,
+  removingContactId,
 }: {
   contacts: Array<{ contact: ContactRow; grantedAt: string }>;
   now: Date;
   onAdd: () => void;
+  onRemove: (contactId: string) => void;
+  /** Contact id currently being deleted from server_contacts. The
+   *  matching row disables its menu + dims while the action is
+   *  in flight so a double-click can't fire the action twice. */
+  removingContactId: string | null;
 }) {
   return (
     <div className="flex flex-col" style={{ gap: 8 }}>
@@ -903,6 +939,8 @@ function ArtistsTab({
           contact={c.contact}
           grantedAt={c.grantedAt}
           now={now}
+          onRemove={() => onRemove(c.contact.id)}
+          removing={removingContactId === c.contact.id}
         />
       ))}
     </div>
@@ -913,6 +951,8 @@ function ContactRowItem({
   contact,
   grantedAt,
   now,
+  onRemove,
+  removing,
 }: {
   contact: ContactRow;
   /** When this contact got access to THIS server. Used for the
@@ -920,6 +960,12 @@ function ContactRowItem({
    *  time rather than the contact's global first_seen_at. */
   grantedAt: string;
   now: Date;
+  /** Fires the server action that DELETEs the (server_id,
+   *  contact_id) pair from server_contacts. */
+  onRemove: () => void;
+  /** True while the delete is in flight — dims the row and
+   *  disables the menu so the producer can't double-fire. */
+  removing: boolean;
 }) {
   const [hovered, setHovered] = React.useState(false);
   return (
@@ -932,6 +978,8 @@ function ContactRowItem({
         padding: "12px 14px",
         borderRadius: "var(--r-md)",
         background: hovered ? "var(--bg-2)" : "transparent",
+        opacity: removing ? 0.5 : 1,
+        pointerEvents: removing ? "none" : undefined,
       }}
     >
       <Avatar
@@ -986,6 +1034,129 @@ function ContactRowItem({
           <Icon name="mail" size={15} />
         </a>
       </div>
+
+      {/* 3-dot row menu — single action ('Remove from server'),
+              danger style + confirm-on-click. Pattern mirrors the
+              BeatRow action menu so the row affordance is
+              consistent across the app. */}
+      <ContactRowMenu
+        label={`More actions for ${contact.email}`}
+        onRemove={onRemove}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   ContactRowMenu — ⋯ button + popover with a single danger
+   action ('Remove from server'). First click flips to
+   'Click again to confirm'; second click fires onRemove.
+   Closes on outside-pointer / Escape.
+   ============================================================ */
+
+function ContactRowMenu({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onPtr = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setConfirming(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setConfirming(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPtr);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPtr);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }} className="shrink-0">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((o) => !o);
+          setConfirming(false);
+        }}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center justify-center text-fg-4 hover:text-fg-1 transition-colors"
+        style={{ width: 32, height: 32, borderRadius: "var(--r-sm)" }}
+      >
+        <Icon name="more" size={18} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute bg-bg-2 border border-border-2"
+          style={{
+            top: "calc(100% + 4px)",
+            right: 0,
+            width: 220,
+            borderRadius: "var(--r-md)",
+            boxShadow: "var(--shadow-pop)",
+            padding: 6,
+            zIndex: 30,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              onRemove();
+              setOpen(false);
+              setConfirming(false);
+            }}
+            className="flex w-full items-center cursor-pointer transition-colors duration-fast border-0"
+            style={{
+              height: 36,
+              padding: "0 10px",
+              gap: 10,
+              borderRadius: "var(--r-sm)",
+              background: "transparent",
+              color: "var(--danger)",
+              fontFamily: "var(--font-body)",
+              fontSize: 14,
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--danger-surface)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            <Icon name="trash" size={15} />
+            {confirming ? "Click again to confirm" : "Remove from server"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
