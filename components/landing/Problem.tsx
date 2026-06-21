@@ -41,14 +41,29 @@ export function LandingProblem() {
               wash the canvas behind the curve is gone — section
               is flat bg-0 from edge to edge. */}
 
+      {/* Header keeps the same 1280 reading column so the
+              title / quote don't sprawl edge-to-edge. */}
       <div
         className="relative mx-auto"
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
         <SectionHeader />
-        <div style={{ marginTop: "clamp(40px, 6vw, 72px)" }}>
-          <CardsWithFlow />
-        </div>
+      </div>
+
+      {/* Visual block uses a wider, near-full-width container —
+              Theo: 'prend toute la place de taille pour la
+              section'. 1600 px lets the screenshot scale up
+              and gives the floating notifications room to
+              spread out on the left. */}
+      <div
+        className="relative mx-auto"
+        style={{
+          maxWidth: 1600,
+          padding: "0 24px",
+          marginTop: "clamp(40px, 6vw, 72px)",
+        }}
+      >
+        <CardsWithFlow />
       </div>
     </section>
   );
@@ -131,19 +146,19 @@ function SectionHeader() {
    ============================================================ */
 
 function CardsWithFlow() {
+  // Asymmetric split — the screenshot side gets ~58 % of the
+  // row so it reads as the dominant 'new way' surface; the
+  // floating notifications get the remaining ~42 % on the
+  // left. Mobile stacks both as a single column.
   return (
     <div className="relative">
       <div
-        className="grid grid-cols-1 md:grid-cols-2 items-center"
-        style={{ gap: "clamp(40px, 6vw, 96px)" }}
+        className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] items-center"
+        style={{ gap: "clamp(40px, 5vw, 80px)" }}
       >
-        <ChaosCard />
+        <FloatingNotifications />
         <ProductShot />
       </div>
-
-      {/* Connector — full-width SVG behind/over the row. md+
-              only: on mobile the cards stack vertically and the
-              S-shape has no horizontal room to read. */}
       <ConnectorFlow />
     </div>
   );
@@ -153,120 +168,66 @@ function CardsWithFlow() {
    LEFT — Chaos card
    ============================================================ */
 
-function ChaosCard() {
+/* ============================================================
+   LEFT — Free-floating notifications (no card frame)
+   ────────────────────────────────────────────────────────────
+   Theo: 'retire la card à gauche, laisse les cards des
+   reseaux flooter dans le site sans qu'elles soient dans une
+   card'. So no outer wrap — just an aspect-ratio positioning
+   shell that anchors the four notifications absolutely.
+   Each individual notification keeps its own glass shell
+   (NotifShell), they're just no longer contained in a parent
+   panel.
+   ============================================================ */
+
+function FloatingNotifications() {
   return (
     <div
-      className="relative w-full mx-auto"
+      className="relative w-full"
       style={{
-        maxWidth: 440,
-        aspectRatio: "1 / 0.86",
-        background:
-          "linear-gradient(180deg, var(--bg-inset) 0%, var(--bg-1) 100%)",
-        border: "1px solid var(--border-1)",
-        borderRadius: 24,
-        boxShadow:
-          "0 40px 80px -28px oklch(0 0 0 / 0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
-        overflow: "hidden",
-        padding: 24,
+        aspectRatio: "1 / 0.92",
       }}
     >
-      {/* Header pill — 'The old way' / CHAOS */}
-      <div
-        className="flex items-center"
-        style={{
-          gap: 10,
-          marginBottom: 18,
-          position: "relative",
-          zIndex: 3,
-        }}
+      <FloatingNotif
+        top="2%"
+        left="0%"
+        width="74%"
+        rotate={-3}
+        delay={0}
+        duration={5.2}
       >
-        <span
-          aria-hidden="true"
-          className="flex items-center justify-center"
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: "var(--r-pill)",
-            background:
-              "color-mix(in oklch, var(--danger) 18%, transparent)",
-            color: "var(--danger)",
-          }}
-        >
-          <XGlyph />
-        </span>
-        <span className="t-title" style={{ fontSize: 13.5 }}>
-          The old way
-        </span>
-        <span
-          className="t-mono"
-          style={{
-            marginLeft: "auto",
-            color: "var(--danger)",
-            background:
-              "color-mix(in oklch, var(--danger) 14%, transparent)",
-            padding: "3px 8px",
-            borderRadius: "var(--r-pill)",
-            fontSize: 9,
-          }}
-        >
-          Chaos
-        </span>
-      </div>
-
-      {/* Collage area — 4 fake notifications, tilted, overlapping. */}
-      <div className="relative" style={{ height: "calc(100% - 50px)" }}>
-        <FloatingNotif
-          top="0%"
-          left="2%"
-          width="62%"
-          rotate={-3}
-          delay={0}
-          duration={5.2}
-        >
-          <NotifGmail />
-        </FloatingNotif>
-        <FloatingNotif
-          top="22%"
-          right="0%"
-          width="60%"
-          rotate={2.5}
-          delay={1.4}
-          duration={5.8}
-        >
-          <NotifInstagram />
-        </FloatingNotif>
-        <FloatingNotif
-          bottom="14%"
-          left="0%"
-          width="64%"
-          rotate={-1.5}
-          delay={0.7}
-          duration={5.5}
-        >
-          <NotifWhatsapp />
-        </FloatingNotif>
-        <FloatingNotif
-          bottom="0%"
-          right="6%"
-          width="48%"
-          rotate={3}
-          delay={2}
-          duration={6.1}
-        >
-          <NotifDiscord />
-        </FloatingNotif>
-
-        {/* Bottom soft fade so the collage bleeds off the card. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 pointer-events-none"
-          style={{
-            height: 60,
-            background:
-              "linear-gradient(to bottom, transparent, var(--bg-inset))",
-          }}
-        />
-      </div>
+        <NotifGmail />
+      </FloatingNotif>
+      <FloatingNotif
+        top="26%"
+        right="0%"
+        width="70%"
+        rotate={2.5}
+        delay={1.4}
+        duration={5.8}
+      >
+        <NotifInstagram />
+      </FloatingNotif>
+      <FloatingNotif
+        bottom="14%"
+        left="0%"
+        width="76%"
+        rotate={-1.5}
+        delay={0.7}
+        duration={5.5}
+      >
+        <NotifWhatsapp />
+      </FloatingNotif>
+      <FloatingNotif
+        bottom="0%"
+        right="4%"
+        width="58%"
+        rotate={3}
+        delay={2}
+        duration={6.1}
+      >
+        <NotifDiscord />
+      </FloatingNotif>
     </div>
   );
 }
@@ -540,16 +501,13 @@ function NotifDiscord() {
    ============================================================ */
 
 function ProductShot() {
-  // Theo: 'aucun background, pas de glow derrière, couleur de
-  // fond uni'. The screenshot already carries its own chrome
-  // (server header + table) inside the PNG, so any extra
-  // border / shadow / accent halo would double-frame it.
-  // Render the raw image, no wrapper styling.
+  // Theo: 'augmente la taille du design à droite'. No max-width
+  // constraint — the screenshot fills its grid column, which
+  // sits at ~58 % of the 1600-px-wide visual band on desktop
+  // (≈ 900 px effective max). Raw image: no border, no shadow,
+  // no halo (already stripped in v7.1).
   return (
-    <div
-      className="relative w-full mx-auto"
-      style={{ maxWidth: 620 }}
-    >
+    <div className="relative w-full">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/Photos/Section_2.png"
@@ -673,19 +631,3 @@ function DiscordLogo({ size = 16 }: { size?: number }) {
   );
 }
 
-function XGlyph() {
-  return (
-    <svg
-      width={12}
-      height={12}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M6 6l12 12M18 6L6 18" />
-    </svg>
-  );
-}
