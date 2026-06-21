@@ -27,6 +27,7 @@ import { LandingHeader } from "@/components/landing/Header";
 import { LandingHero } from "@/components/landing/Hero";
 import { LandingProblem } from "@/components/landing/Problem";
 import { LandingHowItWorks } from "@/components/landing/HowItWorks";
+import { LandingAllInOne } from "@/components/landing/AllInOne";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -41,6 +42,7 @@ export default async function HomePage() {
       <LandingHero />
       <LandingProblem />
       <LandingHowItWorks />
+      <LandingAllInOne />
       {/* Follow-on sections (Pricing, FAQ, CTA)
               will land here as separate components. */}
     </main>
