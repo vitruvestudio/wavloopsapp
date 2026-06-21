@@ -78,17 +78,30 @@ export function ServerCard({
   const overlayHue = server.accent_hue ?? null;
 
   return (
-    <Link
-      href={`/servers/${server.slug}`}
+    // Outer positioning wrapper. The Link is overflow-hidden (so
+    // the cover mosaic clips into the card's rounded corners),
+    // which previously clipped the action-menu dropdown too. The
+    // menu now lives OUTSIDE the Link, as a sibling, so its
+    // popover can extend below the cover without being cut off.
+    // The hover lift transform moves to this wrapper so the menu
+    // travels with the card when it floats up.
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="block overflow-hidden border border-border-1 bg-bg-1 transition-all"
+      className="relative transition-all"
       style={{
-        borderRadius: "var(--r-lg)",
         transform: hovered ? "translateY(-3px)" : "none",
         boxShadow: hovered ? "var(--shadow-md)" : "none",
+        borderRadius: "var(--r-lg)",
         transitionDuration: "var(--dur)",
         transitionTimingFunction: "var(--ease)",
+      }}
+    >
+    <Link
+      href={`/servers/${server.slug}`}
+      className="block overflow-hidden border border-border-1 bg-bg-1"
+      style={{
+        borderRadius: "var(--r-lg)",
       }}
     >
       {/* Cover surface — uploaded image (artwork_mode 'image') OR
@@ -168,11 +181,6 @@ export function ServerCard({
           }}
         />
 
-        {/* Action menu — ⋯ button top-right, opens dropdown
-                with Edit / Preview / Delete. Sits above the Link
-                so clicks here don't trigger navigation. */}
-        <ServerActionMenu server={server} />
-
         {/* Bottom strip — name + style + visibility */}
         <div
           className="absolute flex items-end justify-between"
@@ -244,6 +252,15 @@ export function ServerCard({
         />
       </div>
     </Link>
+
+    {/* Action menu — sibling of the Link, NOT inside it. Sits
+            absolutely positioned over the cover top-right. The
+            button stays anchored to the wrapper (so the dropdown
+            can extend below without being clipped by the Link's
+            overflow-hidden), while still appearing visually inside
+            the cover surface. */}
+    <ServerActionMenu server={server} />
+  </div>
   );
 }
 
