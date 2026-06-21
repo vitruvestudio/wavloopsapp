@@ -91,7 +91,7 @@ export default function CookiesPage() {
       <h2>5. Contact</h2>
       <p>
         Questions about cookies:{" "}
-        <a href="mailto:hello@wavloops.co">hello@wavloops.co</a>.
+        <a href="mailto:contact@wavloops.co">contact@wavloops.co</a>.
       </p>
     </LegalShell>
   );
