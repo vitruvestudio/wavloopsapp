@@ -176,25 +176,12 @@ function polar(radius: number, deg: number): { x: number; y: number } {
   };
 }
 
-/** Build a list of unique node pairs to draw chaos wires
- *  between. We skip adjacent pairs (cleaner read) and keep the
- *  long diagonals — that's where the eye reads 'tangled web'.  */
-const CHAOS_PAIRS = (() => {
-  const pairs: Array<[number, number]> = [];
-  const n = BRAND_NODES.length;
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      // Skip same-index pair and the two visually-adjacent
-      // pairs (those would draw a short edge along the outer
-      // ring instead of a crossing diagonal). Keep every other
-      // pair.
-      const dist = Math.min(j - i, n - (j - i));
-      if (dist === 1) continue; // adjacent → skip
-      pairs.push([i, j]);
-    }
-  }
-  return pairs;
-})();
+// NB — earlier drafts crossed every non-adjacent pair of the
+// five outer nodes to draw a 'chaotic web'. With exactly five
+// nodes evenly spaced on a circle, that geometry inevitably
+// renders a pentagram. Wires removed; the fluid-link idea
+// Theo asked for now lives on the rings themselves (the
+// animated pulse around the inner orbit, below).
 
 function OrbitGraphic() {
   return (
@@ -212,20 +199,6 @@ function OrbitGraphic() {
         aria-hidden="true"
       >
         <defs>
-          {/* Chaos noodle — red gradient, fades in/out so the
-                  lit segment looks like a moving pulse. */}
-          <linearGradient id="wl-chaos-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ff3b5c" stopOpacity="0" />
-            <stop offset="50%" stopColor="#ff5b73" stopOpacity="1" />
-            <stop offset="100%" stopColor="#ff3b5c" stopOpacity="0" />
-          </linearGradient>
-          <filter id="wl-chaos-glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
           <filter id="wl-inner-ring-glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="4" />
           </filter>
@@ -263,54 +236,29 @@ function OrbitGraphic() {
           fill="none"
         />
 
-        {/* Chaos wires — static faint baseline + animated red
-                noodle on top. */}
-        {CHAOS_PAIRS.map(([i, j], idx) => {
-          const a = polar(NODE_RADIUS, BRAND_NODES[i].angle);
-          const b = polar(NODE_RADIUS, BRAND_NODES[j].angle);
-          // Pull the line endpoints slightly toward the centre
-          // so they enter UNDER the node (no visible stub past
-          // the brand tile).
-          const trim = NODE_SIZE / 2.1;
-          const aDir = Math.atan2(b.y - a.y, b.x - a.x);
-          const bDir = aDir + Math.PI;
-          const aTrim = {
-            x: a.x + Math.cos(aDir) * trim,
-            y: a.y + Math.sin(aDir) * trim,
-          };
-          const bTrim = {
-            x: b.x + Math.cos(bDir) * trim,
-            y: b.y + Math.sin(bDir) * trim,
-          };
-          const d = `M ${aTrim.x} ${aTrim.y} L ${bTrim.x} ${bTrim.y}`;
-          const delay = (idx * 0.35) % 3;
-          const duration = 2.8 + (idx % 3) * 0.3;
-          return (
-            <g key={`${i}-${j}`}>
-              {/* Faint baseline so the wire is readable even
-                      when the noodle is in its dark phase. */}
-              <path
-                d={d}
-                stroke="rgba(255,71,87,0.22)"
-                strokeWidth={1.5}
-                fill="none"
-              />
-              {/* Animated noodle */}
-              <path
-                d={d}
-                stroke="url(#wl-chaos-noodle)"
-                strokeWidth={2.4}
-                fill="none"
-                filter="url(#wl-chaos-glow)"
-                style={{
-                  strokeDasharray: "80 220",
-                  animation: `wl-noodle-flow ${duration}s linear infinite`,
-                  animationDelay: `${delay}s`,
-                }}
-              />
-            </g>
-          );
-        })}
+        {/* Inner ring — accent pulse travels around it forever.
+                Carries the 'fluid link' idea Theo asked to keep
+                without drawing any chord across the orbit.
+                stroke-dasharray of a short lit segment + a much
+                longer dark gap, animated via wl-noodle-flow on
+                stroke-dashoffset. The circle's circumference is
+                2 π r ≈ 816 viewBox units, so the dasharray
+                pattern circulates around the full ring on
+                every cycle. */}
+        <circle
+          cx={CENTER}
+          cy={CENTER}
+          r={INNER_RADIUS}
+          stroke="var(--accent-text)"
+          strokeWidth={3.5}
+          fill="none"
+          strokeLinecap="round"
+          style={{
+            strokeDasharray: "80 740",
+            animation: "wl-noodle-flow 8s linear infinite",
+            filter: "drop-shadow(0 0 6px var(--accent-glow))",
+          }}
+        />
       </svg>
 
       {/* HTML overlay — W chip at centre, brand nodes around
