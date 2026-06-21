@@ -103,11 +103,14 @@ export function LandingAllInOne() {
           </p>
         </div>
 
-        {/* 2×2 card grid */}
+        {/* Strict 2×2 card grid — 1 column on mobile, exactly
+                2 columns from md+. The previous auto-fit/minmax
+                rule was happy to fit 3 cards per row on a wide
+                container, which broke the 2×2 shape Theo asked
+                for. */}
         <div
-          className="grid"
+          className="grid grid-cols-1 md:grid-cols-2"
           style={{
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
             gap: "clamp(16px, 2vw, 24px)",
             marginTop: "clamp(48px, 6vw, 72px)",
           }}
