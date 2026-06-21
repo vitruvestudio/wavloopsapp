@@ -9,9 +9,9 @@ export default function PrivacyPage() {
     <LegalShell title="Privacy Policy" lastUpdated="June 21, 2026">
       <p>
         This Privacy Policy explains what personal data{" "}
-        <strong>Wavloops</strong> (operated by Vitruve) collects, how it is
-        used, and the rights you have under the European General Data
-        Protection Regulation (GDPR).
+        <strong>Wavloops</strong> (operated by VITRUVE STUDIO, SIREN
+        884 465 089) collects, how it is used, and the rights you have under
+        the European General Data Protection Regulation (GDPR).
       </p>
 
       <h2>1. Data we collect</h2>

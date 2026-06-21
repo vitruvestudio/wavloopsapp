@@ -16,19 +16,13 @@ export default function LegalNoticePage() {
 
       <h2>1. Editor of the website</h2>
       <ul>
-        <li><strong>Name</strong> — Théo Gherbi</li>
-        <li><strong>Business name</strong> — Vitruve (sole-trader)</li>
+        <li><strong>Business name</strong> — VITRUVE STUDIO</li>
+        <li><strong>Director of publication</strong> — Théo Gherbi</li>
         <li><strong>Address</strong> — 33 Rue Hippolyte Rouquette, 34800 Clermont-l&apos;Hérault, France</li>
-        <li>
-          <strong>SIRET</strong> — to be inserted (numéro SIRET de Vitruve)
-        </li>
-        <li>
-          <strong>VAT number</strong> — to be inserted if applicable
-        </li>
+        <li><strong>SIREN</strong> — 884 465 089</li>
+        <li><strong>SIRET</strong> (head office) — 884 465 089 00024</li>
+        <li><strong>VAT number</strong> — FR49884465089</li>
         <li><strong>Email</strong> — <a href="mailto:hello@wavloops.co">hello@wavloops.co</a></li>
-        <li>
-          <strong>Director of publication</strong> — Théo Gherbi
-        </li>
       </ul>
 
       <h2>2. Hosting</h2>

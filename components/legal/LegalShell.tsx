@@ -140,7 +140,7 @@ export function LegalShell({ title, lastUpdated, children }: LegalShellProps) {
           style={{ maxWidth: 1080, gap: 16 }}
         >
           <span className="t-mono" style={{ color: "var(--fg-4)" }}>
-            © 2026 Wavloops · Built by Vitruve
+            © 2026 Wavloops · Built by Vitruve Studio
           </span>
           <div className="flex items-center" style={{ gap: 18 }}>
             <LegalCrossLink href="/legal/terms" label="Terms" />
