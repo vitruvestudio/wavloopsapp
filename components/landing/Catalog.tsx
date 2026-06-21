@@ -115,7 +115,7 @@ export function LandingCatalog() {
       <div
         className="mx-auto text-center"
         style={{
-          maxWidth: 760,
+          maxWidth: 880,
           padding: "0 24px",
           marginBottom: "clamp(32px, 4vw, 56px)",
         }}
@@ -123,14 +123,15 @@ export function LandingCatalog() {
         <h2
           className="t-display"
           style={{
-            fontSize: "clamp(40px, 5.4vw, 68px)",
+            fontSize: "clamp(36px, 5vw, 64px)",
             lineHeight: 1.04,
             letterSpacing: "-0.018em",
             color: "#0F0F12",
             marginBottom: 18,
           }}
         >
-          Your beats library,{" "}
+          Your beats library,
+          <br />
           <span
             style={{
               color: "var(--accent)",
