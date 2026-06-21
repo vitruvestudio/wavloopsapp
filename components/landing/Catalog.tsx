@@ -109,31 +109,52 @@ export function LandingCatalog() {
         borderTopRightRadius: 50,
       }}
     >
-      {/* Title — dark text on light gray. 'catalog' kept in the
-              brand accent so the typographic move stays consistent
-              across every section. */}
-      <h2
-        className="t-display text-center"
+      {/* Title + subtitle — dark text on light gray. 'cloud'
+              kept in the brand accent so the typographic move
+              stays consistent across every section. */}
+      <div
+        className="mx-auto text-center"
         style={{
-          fontSize: "clamp(40px, 5.4vw, 68px)",
-          lineHeight: 1.04,
-          letterSpacing: "-0.018em",
-          marginBottom: "clamp(32px, 4vw, 56px)",
+          maxWidth: 760,
           padding: "0 24px",
-          color: "#0F0F12",
+          marginBottom: "clamp(32px, 4vw, 56px)",
         }}
       >
-        Your new favorite{" "}
-        <span
+        <h2
+          className="t-display"
           style={{
-            color: "var(--accent)",
-            textShadow: "0 0 28px color-mix(in oklch, var(--accent) 35%, transparent)",
+            fontSize: "clamp(40px, 5.4vw, 68px)",
+            lineHeight: 1.04,
+            letterSpacing: "-0.018em",
+            color: "#0F0F12",
+            marginBottom: 18,
           }}
         >
-          catalog
-        </span>
-        .
-      </h2>
+          Your favorite{" "}
+          <span
+            style={{
+              color: "var(--accent)",
+              textShadow: "0 0 28px color-mix(in oklch, var(--accent) 35%, transparent)",
+            }}
+          >
+            cloud
+          </span>
+          .
+        </h2>
+        <p
+          className="t-body-l"
+          style={{
+            fontSize: 18,
+            lineHeight: 1.55,
+            color: "#4a4a52",
+            maxWidth: 560,
+            margin: "0 auto",
+          }}
+        >
+          Real beats from real producers, all in one place. Hover any cover
+          to preview — and let the catalog scroll itself.
+        </p>
+      </div>
 
       {/* Marquee viewport — overflow-hidden so covers bleed
               cleanly off the left + right edges. */}
