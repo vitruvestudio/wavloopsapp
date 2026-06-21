@@ -56,6 +56,7 @@ const COLUMNS: FooterColumn[] = [
       { label: "Privacy policy", href: "/legal/privacy" },
       { label: "Refund policy", href: "/legal/refunds" },
       { label: "Cookies", href: "/legal/cookies" },
+      { label: "Legal notice", href: "/legal/legal-notice" },
     ],
   },
 ];
