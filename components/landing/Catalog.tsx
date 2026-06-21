@@ -130,14 +130,14 @@ export function LandingCatalog() {
             marginBottom: 18,
           }}
         >
-          Your favorite{" "}
+          Your beats library,{" "}
           <span
             style={{
               color: "var(--accent)",
               textShadow: "0 0 28px color-mix(in oklch, var(--accent) 35%, transparent)",
             }}
           >
-            cloud
+            always live
           </span>
           .
         </h2>
@@ -147,12 +147,12 @@ export function LandingCatalog() {
             fontSize: 18,
             lineHeight: 1.55,
             color: "#4a4a52",
-            maxWidth: 560,
+            maxWidth: 620,
             margin: "0 auto",
           }}
         >
-          Real beats from real producers, all in one place. Hover any cover
-          to preview — and let the catalog scroll itself.
+          Every beat you make lives in one catalog — no re-uploads, no
+          re-sends. Your artists browse, preview, and come back anytime.
         </p>
       </div>
 
