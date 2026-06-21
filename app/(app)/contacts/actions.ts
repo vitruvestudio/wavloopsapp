@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { checkArtistQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
+import { fanOutAddedToServer } from "@/lib/notifications/added-to-server";
 
 /* ================================================================
    fetchOgImageAction — given a public social URL, returns the
@@ -278,7 +279,22 @@ export async function addContactAction(
 
   // Attach to servers — ON CONFLICT DO NOTHING so re-saving an
   // existing (server, contact) pair is a no-op rather than an error.
+  // Tracks the SUBSET of server_ids the contact wasn't already in,
+  // so the fan-out below only emails / pings for fresh memberships
+  // (re-saving an existing contact to its existing servers must not
+  // re-send the 'added to server' email).
+  let freshServerIds: string[] = [];
   if (payload.server_ids.length > 0) {
+    const { data: alreadyInRows } = await supabase
+      .from("server_contacts")
+      .select("server_id")
+      .eq("contact_id", contact.id)
+      .in("server_id", payload.server_ids);
+    const alreadyIn = new Set(
+      (alreadyInRows ?? []).map((r) => r.server_id as string),
+    );
+    freshServerIds = payload.server_ids.filter((sid) => !alreadyIn.has(sid));
+
     const rows = payload.server_ids.map((sid) => ({
       server_id: sid,
       contact_id: contact.id,
@@ -291,6 +307,39 @@ export async function addContactAction(
         error: `Contact saved but couldn't attach to servers: ${pivotErr.message}`,
         contactId: contact.id,
       };
+    }
+  }
+
+  // Fan-out — same in-app notif + email this contact would have
+  // received via addArtistsToServerAction. Until 3.9.7.2 this path
+  // was silent: producers who created a new contact directly into a
+  // server (AddContactModal with defaultServerIds set, e.g. the
+  // 'Create new' button inside the picker on /servers/[slug])
+  // never triggered the added_to_server email. Bug discovered when
+  // an artist added via this path never received the invite mail.
+  //
+  // One call per fresh server because fanOutAddedToServer is keyed
+  // on (server, contacts) — the email + URL must name a single
+  // server. Fetch slugs in ONE round-trip then loop. Best-effort:
+  // a Resend hiccup must not roll back the contact save.
+  if (freshServerIds.length > 0) {
+    try {
+      const { data: serverRows } = await supabase
+        .from("servers")
+        .select("id, slug")
+        .in("id", freshServerIds)
+        .returns<Array<{ id: string; slug: string }>>();
+      for (const s of serverRows ?? []) {
+        await fanOutAddedToServer(supabase, s.id, s.slug, [contact.id]);
+        // Refresh that server's detail page so the producer sees
+        // the new artist on the Artists tab without a hard reload.
+        revalidatePath(`/servers/${s.slug}`, "page");
+      }
+      // Artist surface refresh — in-app bell delivery without
+      // waiting for the realtime sub.
+      revalidatePath("/listen", "layout");
+    } catch (e) {
+      console.warn("[addContact] notif fan-out failed", e);
     }
   }
 
@@ -379,6 +428,18 @@ export async function updateContactAction(
     };
   }
 
+  // Snapshot the BEFORE state so we can fan out only for memberships
+  // that genuinely change from absent → present. Without this, the
+  // DELETE+INSERT below would treat every save as "fresh" and re-
+  // email artists who were already on the server.
+  const { data: existingPivot } = await supabase
+    .from("server_contacts")
+    .select("server_id")
+    .eq("contact_id", payload.id);
+  const previouslyIn = new Set(
+    (existingPivot ?? []).map((r) => r.server_id as string),
+  );
+
   // Replace the server_contacts pivot to match the new selection.
   // DELETE + INSERT is simpler than diffing and the row counts here
   // are tiny (≤ a few servers per contact at V1 scale).
@@ -406,6 +467,29 @@ export async function updateContactAction(
         error: `Contact updated but couldn't re-attach servers: ${pivotErr.message}`,
         contactId: payload.id,
       };
+    }
+  }
+
+  // Fan-out for memberships newly added by this save. A producer
+  // editing a contact and ticking a new server here should produce
+  // the same 'added to server' email an Add-Artist click would.
+  const freshServerIds = payload.server_ids.filter(
+    (sid) => !previouslyIn.has(sid),
+  );
+  if (freshServerIds.length > 0) {
+    try {
+      const { data: serverRows } = await supabase
+        .from("servers")
+        .select("id, slug")
+        .in("id", freshServerIds)
+        .returns<Array<{ id: string; slug: string }>>();
+      for (const s of serverRows ?? []) {
+        await fanOutAddedToServer(supabase, s.id, s.slug, [payload.id]);
+        revalidatePath(`/servers/${s.slug}`, "page");
+      }
+      revalidatePath("/listen", "layout");
+    } catch (e) {
+      console.warn("[updateContact] notif fan-out failed", e);
     }
   }
 

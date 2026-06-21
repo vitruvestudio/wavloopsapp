@@ -19,10 +19,8 @@
 import { revalidatePath } from "next/cache";
 import { assertServerOwnership } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
-import {
-  sendAccessGrantedEmail,
-  sendAddedToServerEmail,
-} from "@/lib/resend/emails";
+import { sendAccessGrantedEmail } from "@/lib/resend/emails";
+import { fanOutAddedToServer } from "@/lib/notifications/added-to-server";
 
 export interface AddBeatsResult {
   error: string | null;
@@ -176,7 +174,7 @@ export async function addArtistsToServerAction(
   // the producer already saw "X added" and the contacts will
   // appear on the server. Errors are logged for ops triage.
   try {
-    await fanOutAddedToServer(serverId, fresh, serverSlug);
+    await fanOutAddedToServer(supabase, serverId, serverSlug, fresh);
   } catch (e) {
     console.warn("[addArtistsToServer] notif fan-out failed", e);
   }
@@ -190,127 +188,6 @@ export async function addArtistsToServerAction(
   return { error: null, added: fresh.length };
 }
 
-/** Resolves producer + server + recipient details and sends
- *  (a) an "added to server" email and (b) an in-app notification
- *  row per freshly added artist. Skips artists whose contact has
- *  no auth_user_id (they're not yet authenticated on Wavloops) —
- *  they still get the email so they know about the invite. */
-async function fanOutAddedToServer(
-  serverId: string,
-  freshContactIds: string[],
-  serverSlug: string,
-): Promise<void> {
-  if (freshContactIds.length === 0) return;
-  const supabase = await createClient();
-
-  // 1. Server + producer identity for the email + notif body.
-  const { data: serverRow } = await supabase
-    .from("servers")
-    .select("name, owner_id")
-    .eq("id", serverId)
-    .maybeSingle<{ name: string; owner_id: string }>();
-  if (!serverRow) return;
-
-  const { data: producer } = await supabase
-    .from("profiles")
-    .select("handle, name, user_id")
-    .eq("id", serverRow.owner_id)
-    .maybeSingle<{
-      handle: string | null;
-      name: string | null;
-      user_id: string;
-    }>();
-  const rawHandle = producer?.handle ?? producer?.name ?? "the producer";
-  const producerHandle = rawHandle.startsWith("@")
-    ? rawHandle
-    : `@${rawHandle}`;
-
-  // 2. Recipient contacts in one IN() round-trip.
-  const { data: contacts } = await supabase
-    .from("contacts")
-    .select("id, email, auth_user_id")
-    .in("id", freshContactIds);
-  if (!contacts?.length) return;
-
-  // 3. Phase 3.9.7.1 — fetch notif_prefs for authed contacts so
-  //    we can honor `added_to_server` (in-app) + `email` (channel)
-  //    toggles. Cold contacts (no auth_user_id) get the email by
-  //    default — they're not yet on Wavloops and can't have a
-  //    preference; the email IS the channel they have.
-  const authedUserIds = contacts
-    .map((c) => c.auth_user_id as string | null)
-    .filter((id): id is string => id !== null);
-  const prefsByUser = new Map<
-    string,
-    { added_to_server: boolean; email: boolean }
-  >();
-  if (authedUserIds.length > 0) {
-    const { data: prefRows } = await supabase
-      .from("artist_profiles")
-      .select("user_id, notif_prefs")
-      .in("user_id", authedUserIds)
-      .returns<
-        Array<{
-          user_id: string;
-          notif_prefs: Record<string, unknown> | null;
-        }>
-      >();
-    for (const row of prefRows ?? []) {
-      const np = row.notif_prefs ?? {};
-      prefsByUser.set(row.user_id, {
-        added_to_server: np.added_to_server !== false,
-        email: np.email !== false,
-      });
-    }
-  }
-  // Default-on for missing prefs row — matches the Settings page
-  // initial state so unopened-Settings artists still get pinged.
-  const prefsFor = (uid: string) =>
-    prefsByUser.get(uid) ?? { added_to_server: true, email: true };
-
-  // 4. Batch the notification INSERTs for authed contacts that
-  //    haven't opted out of added_to_server.
-  const notifRows = contacts
-    .filter((c) => c.auth_user_id !== null)
-    .filter((c) => prefsFor(c.auth_user_id as string).added_to_server)
-    .map((c) => ({
-      recipient_user_id: c.auth_user_id as string,
-      kind: "added_to_server" as const,
-      actor_name: producerHandle,
-      actor_seed: producerHandle,
-      actor_user_id: producer?.user_id ?? null,
-      body: `added you to ${serverRow.name}.`,
-      server_id: serverId,
-    }));
-  if (notifRows.length > 0) {
-    const { error: notifErr } = await supabase
-      .from("notifications")
-      .insert(notifRows);
-    if (notifErr) {
-      console.warn("[fanOutAddedToServer] notif insert", notifErr.message);
-    }
-  }
-
-  // 5. Email — fire-and-forget per recipient. Skip when the
-  //    authed artist has email=false in notif_prefs. Cold
-  //    contacts (no auth_user_id) always get the email.
-  for (const c of contacts) {
-    if (c.auth_user_id) {
-      const prefs = prefsFor(c.auth_user_id);
-      if (!prefs.email || !prefs.added_to_server) continue;
-    }
-    try {
-      await sendAddedToServerEmail({
-        artistEmail: c.email,
-        producerHandle,
-        serverName: serverRow.name,
-        serverSlug,
-      });
-    } catch (e) {
-      console.warn("[fanOutAddedToServer] email", c.email, e);
-    }
-  }
-}
 
 /* ============================================================
    Access-request approval flow (Phase 3.8.5)
