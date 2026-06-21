@@ -41,29 +41,21 @@ export function LandingProblem() {
               wash the canvas behind the curve is gone — section
               is flat bg-0 from edge to edge. */}
 
-      {/* Header keeps the same 1280 reading column so the
-              title / quote don't sprawl edge-to-edge. */}
+      {/* One shared 1280-px container for the whole section
+              so the visual block aligns with the heading and
+              with every other landing section above and below.
+              Theo (v7.3): the 1600 px experiment broke the
+              landing rhythm — notifications spilled left of
+              the H2 and the screenshot pushed past the right
+              edge. Back to 1280. */}
       <div
         className="relative mx-auto"
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
         <SectionHeader />
-      </div>
-
-      {/* Visual block uses a wider, near-full-width container —
-              Theo: 'prend toute la place de taille pour la
-              section'. 1600 px lets the screenshot scale up
-              and gives the floating notifications room to
-              spread out on the left. */}
-      <div
-        className="relative mx-auto"
-        style={{
-          maxWidth: 1600,
-          padding: "0 24px",
-          marginTop: "clamp(40px, 6vw, 72px)",
-        }}
-      >
-        <CardsWithFlow />
+        <div style={{ marginTop: "clamp(40px, 6vw, 72px)" }}>
+          <CardsWithFlow />
+        </div>
       </div>
     </section>
   );
@@ -146,15 +138,13 @@ function SectionHeader() {
    ============================================================ */
 
 function CardsWithFlow() {
-  // Asymmetric split — the screenshot side gets ~58 % of the
-  // row so it reads as the dominant 'new way' surface; the
-  // floating notifications get the remaining ~42 % on the
-  // left. Mobile stacks both as a single column.
+  // Even 50/50 split inside the 1280 container. Mobile stacks
+  // both as a single column.
   return (
     <div className="relative">
       <div
-        className="grid grid-cols-1 md:grid-cols-[1fr_1.4fr] items-center"
-        style={{ gap: "clamp(40px, 5vw, 80px)" }}
+        className="grid grid-cols-1 md:grid-cols-2 items-center"
+        style={{ gap: "clamp(40px, 5vw, 72px)" }}
       >
         <FloatingNotifications />
         <ProductShot />
