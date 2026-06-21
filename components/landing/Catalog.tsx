@@ -87,6 +87,12 @@ export function LandingCatalog() {
   );
 
   return (
+    // Full-width edge-to-edge section. Theo: 'it should take the
+    // whole screen, full width, color D9D9D9 hardcoded'. The
+    // section IS the panel now — no outer dark margins, no
+    // max-width constraint, no rounded corners. The light gray
+    // contrasts hard with the rest of the dark landing, which
+    // mirrors the reference's 'card peeking from the page' move.
     <section
       id="catalog"
       aria-label="Catalog carousel"
@@ -94,114 +100,85 @@ export function LandingCatalog() {
       style={{
         paddingTop: "clamp(64px, 10vw, 120px)",
         paddingBottom: "clamp(64px, 10vw, 120px)",
-        backgroundColor: "var(--bg-0)",
+        backgroundColor: "#D9D9D9",
       }}
     >
-      {/* Soft brand halo behind the panel */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
+      {/* Title — dark text on light gray. 'catalog' kept in the
+              brand accent so the typographic move stays consistent
+              across every section. */}
+      <h2
+        className="t-display text-center"
         style={{
-          background:
-            "radial-gradient(ellipse 50% 50% at 50% 50%, var(--accent-glow) 0%, transparent 65%)",
-          opacity: 0.18,
+          fontSize: "clamp(40px, 5.4vw, 68px)",
+          lineHeight: 1.04,
+          letterSpacing: "-0.018em",
+          marginBottom: "clamp(32px, 4vw, 56px)",
+          padding: "0 24px",
+          color: "#0F0F12",
         }}
-      />
-
-      <div
-        className="relative mx-auto"
-        style={{ maxWidth: 1280, padding: "0 24px" }}
       >
-        {/* Elevated panel — matches the reference's 'card peeking
-                from the page' look but in Wavloops dark tones. */}
-        <div
-          className="relative overflow-hidden"
+        Your new favorite{" "}
+        <span
           style={{
-            background:
-              "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%)",
-            borderRadius: 32,
-            border: "1px solid var(--border-1)",
-            boxShadow:
-              "0 50px 100px -32px oklch(0 0 0 / 0.7), inset 0 1px 0 rgba(255,255,255,0.04)",
-            paddingTop: "clamp(40px, 5vw, 64px)",
-            paddingBottom: "clamp(40px, 5vw, 64px)",
+            color: "var(--accent)",
+            textShadow: "0 0 28px color-mix(in oklch, var(--accent) 35%, transparent)",
           }}
         >
-          {/* Title */}
-          <h2
-            className="t-display text-center"
-            style={{
-              fontSize: "clamp(40px, 5.4vw, 68px)",
-              lineHeight: 1.04,
-              letterSpacing: "-0.018em",
-              marginBottom: "clamp(32px, 4vw, 56px)",
-              padding: "0 24px",
-            }}
-          >
-            Your new favorite{" "}
-            <span
-              style={{
-                color: "var(--accent-text)",
-                textShadow: "0 0 32px var(--accent-glow)",
-              }}
-            >
-              catalog
-            </span>
-            .
-          </h2>
+          catalog
+        </span>
+        .
+      </h2>
 
-          {/* Marquee viewport — overflow-hidden so covers bleed
-                  cleanly off the left + right edges. */}
-          <div className="relative" style={{ overflow: "hidden" }}>
-            {/* Edge fade masks — left + right gradients so covers
-                    don't hard-cut at the panel edges. */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-y-0 left-0 pointer-events-none"
-              style={{
-                width: "clamp(40px, 6vw, 80px)",
-                background:
-                  "linear-gradient(to right, var(--bg-1) 0%, transparent 100%)",
-                zIndex: 2,
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-y-0 right-0 pointer-events-none"
-              style={{
-                width: "clamp(40px, 6vw, 80px)",
-                background:
-                  "linear-gradient(to left, var(--bg-2) 0%, transparent 100%)",
-                zIndex: 2,
-              }}
-            />
+      {/* Marquee viewport — overflow-hidden so covers bleed
+              cleanly off the left + right edges. */}
+      <div className="relative" style={{ overflow: "hidden" }}>
+        {/* Edge fade masks — fade into the panel's #D9D9D9 so
+                covers don't hard-cut at the viewport edges. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 pointer-events-none"
+          style={{
+            width: "clamp(40px, 6vw, 100px)",
+            background:
+              "linear-gradient(to right, #D9D9D9 0%, transparent 100%)",
+            zIndex: 2,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 right-0 pointer-events-none"
+          style={{
+            width: "clamp(40px, 6vw, 100px)",
+            background:
+              "linear-gradient(to left, #D9D9D9 0%, transparent 100%)",
+            zIndex: 2,
+          }}
+        />
 
-            <div
-              className="flex"
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => {
-                setPaused(false);
-                setHoveredId(null);
-              }}
-              style={{
-                width: "max-content",
-                gap: 20,
-                padding: "12px 0",
-                animation: "wl-marquee 60s linear infinite",
-                animationPlayState: paused ? "paused" : "running",
-                willChange: "transform",
-              }}
-            >
-              {items.map((b, i) => (
-                <CoverTile
-                  key={`${b.id}-${i}`}
-                  beat={b}
-                  active={hoveredId === `${b.id}-${i}`}
-                  onEnter={() => setHoveredId(`${b.id}-${i}`)}
-                />
-              ))}
-            </div>
-          </div>
+        <div
+          className="flex"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => {
+            setPaused(false);
+            setHoveredId(null);
+          }}
+          style={{
+            width: "max-content",
+            gap: 20,
+            padding: "12px 0",
+            animation: "wl-marquee 60s linear infinite",
+            animationPlayState: paused ? "paused" : "running",
+            willChange: "transform",
+          }}
+        >
+          {items.map((b, i) => (
+            <CoverTile
+              key={`${b.id}-${i}`}
+              beat={b}
+              active={hoveredId === `${b.id}-${i}`}
+              onEnter={() => setHoveredId(`${b.id}-${i}`)}
+            />
+          ))}
         </div>
       </div>
 
@@ -239,13 +216,14 @@ function CoverTile({
         width: "clamp(180px, 18vw, 260px)",
         aspectRatio: "1 / 1",
         borderRadius: 18,
-        border: "1px solid var(--border-1)",
+        // No border on light bg — the cover's own image content
+        // gives it edge against the panel.
         transition:
           "transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out)",
         transform: active ? "translateY(-4px) scale(1.04)" : "translateY(0) scale(1)",
         boxShadow: active
-          ? "0 36px 60px -18px oklch(0 0 0 / 0.65), 0 0 50px -8px var(--accent-glow)"
-          : "0 12px 28px -12px oklch(0 0 0 / 0.55)",
+          ? "0 30px 50px -16px rgba(0,0,0,0.35), 0 0 50px -8px var(--accent-glow)"
+          : "0 12px 28px -12px rgba(0,0,0,0.25)",
         cursor: "pointer",
       }}
     >
