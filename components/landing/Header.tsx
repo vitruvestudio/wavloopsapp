@@ -71,9 +71,17 @@ export function LandingHeader({ isAuthed }: LandingHeaderProps) {
           padding: "16px 24px",
         }}
       >
-        {/* Left — logo links home so the visitor can always reset. */}
+        {/* Left — logo links home. Two sizes wired through
+                responsive show/hide so the mark stays compact on
+                phones (where the primary CTA already eats half
+                the topbar) and grows back to 28 px from md+. */}
         <Link href="/" aria-label="Wavloops home" className="flex items-center">
-          <Logo size={28} />
+          <span className="md:hidden">
+            <Logo size={22} />
+          </span>
+          <span className="hidden md:inline-flex">
+            <Logo size={28} />
+          </span>
         </Link>
 
         {/* Centre — minimal nav. Pricing is the only public anchor
