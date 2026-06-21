@@ -23,8 +23,10 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 import { LandingHeader } from "@/components/landing/Header";
 import { LandingHero } from "@/components/landing/Hero";
+import { LandingBanner } from "@/components/landing/Banner";
 import { LandingProblem } from "@/components/landing/Problem";
 import { LandingHowItWorks } from "@/components/landing/HowItWorks";
 import { LandingNeverAgain } from "@/components/landing/NeverAgain";
@@ -43,8 +45,36 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
   const isAuthed = Boolean(user);
 
+  // Promo banner — singleton row from /admin. Fetched server-
+  // side on every request (no cache) so an admin save is live
+  // on the next visitor refresh. Read goes through the admin
+  // client because the banner table's RLS allows public reads
+  // anyway but the admin client skips the policy check entirely
+  // (slightly cheaper).
+  const adminDb = getAdminSupabase();
+  const { data: banner } = await adminDb
+    .from("landing_banner")
+    .select("is_active, message, cta_label, cta_href, variant")
+    .eq("id", true)
+    .maybeSingle<{
+      is_active: boolean;
+      message: string;
+      cta_label: string | null;
+      cta_href: string | null;
+      variant: "info" | "promo" | "warning";
+    }>();
+
   return (
     <main style={{ backgroundColor: "var(--bg-0)" }}>
+      {banner && (
+        <LandingBanner
+          isActive={banner.is_active}
+          message={banner.message}
+          ctaLabel={banner.cta_label}
+          ctaHref={banner.cta_href}
+          variant={banner.variant}
+        />
+      )}
       <LandingHeader isAuthed={isAuthed} />
       <LandingHero />
       <LandingProblem />
