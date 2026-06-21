@@ -123,7 +123,7 @@ export function LandingFooter() {
                 borderBottom: "1px solid color-mix(in oklch, var(--fg-3) 30%, transparent)",
               }}
             >
-              Vitruve
+              Vitruve Studio
             </a>
           </span>
           <span

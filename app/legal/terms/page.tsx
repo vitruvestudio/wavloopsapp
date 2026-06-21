@@ -14,10 +14,10 @@ export default function TermsPage() {
         not agree, you may not use the Service.
       </p>
       <p>
-        Wavloops is operated by <strong>Vitruve</strong>, a sole-trader
-        business registered in France. Throughout this document
+        Wavloops is operated by <strong>VITRUVE STUDIO</strong> (SIREN
+        884 465 089), registered in France. Throughout this document
         &ldquo;we&rdquo;, &ldquo;us&rdquo;, and &ldquo;our&rdquo; refer to
-        Vitruve.
+        Vitruve Studio.
       </p>
 
       <h2>2. Your account</h2>
