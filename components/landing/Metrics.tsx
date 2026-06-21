@@ -77,24 +77,35 @@ export function LandingMetrics() {
         {/* Metrics screenshot — no glow per Theo. Hairline border
                 + a flat dark drop shadow keep the image grounded
                 without the accent halo treatment the other sections
-                use. */}
+                use.
+                A <picture> swap delivers Metrics_mobile.png on
+                viewports < md (768px) and the wide metrics.png at
+                md+ so the dashboard reads as intended at every
+                breakpoint. The browser picks one source on first
+                paint, no JS, no layout shift. */}
         <div
           className="mx-auto"
           style={{ maxWidth: 1120 }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Photos/metrics.png"
-            alt="Wavloops analytics dashboard — total plays, total likes, top fan, audience activity."
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
-              borderRadius: "var(--r-xl)",
-              border: "1px solid var(--border-1)",
-              boxShadow: "0 40px 80px -28px oklch(0 0 0 / 0.6)",
-            }}
-          />
+          <picture>
+            <source
+              media="(max-width: 767px)"
+              srcSet="/Photos/Metrics_mobile.png"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/Photos/metrics.png"
+              alt="Wavloops analytics dashboard — total plays, total likes, top fan, audience activity."
+              style={{
+                width: "100%",
+                height: "auto",
+                display: "block",
+                borderRadius: "var(--r-xl)",
+                border: "1px solid var(--border-1)",
+                boxShadow: "0 40px 80px -28px oklch(0 0 0 / 0.6)",
+              }}
+            />
+          </picture>
         </div>
       </div>
     </section>
