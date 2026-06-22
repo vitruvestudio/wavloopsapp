@@ -58,7 +58,12 @@ export async function generateInviteMagicLink(
 ): Promise<string | null> {
   const { email, serverSlug } = input;
   const next = `/listen/${serverSlug}`;
-  const redirectTo = `${siteOrigin()}/auth/callback?next=${encodeURIComponent(
+  // /auth/finish (client page) handles the implicit-flow callback
+  // admin.generateLink returns. It picks up access_token +
+  // refresh_token from the URL hash and calls setSession on the
+  // browser client. /auth/callback is a route handler and can't
+  // see the fragment, which is why we don't reuse it here.
+  const redirectTo = `${siteOrigin()}/auth/finish?next=${encodeURIComponent(
     next,
   )}&as=artist`;
 
