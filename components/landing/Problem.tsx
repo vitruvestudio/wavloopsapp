@@ -1,23 +1,25 @@
 /**
- * Landing — Section 02. Old way → new way (v7).
+ * Landing — Section 02. The 'old way' headache (v8).
  *
- * Final Figma direction from Theo:
- *   - LEFT  card: the chaotic 'old way'. Producers juggling
- *                 Instagram, Gmail, DMs to share a pack — a
- *                 collage of fake notifications stacked
- *                 in a card.
- *   - RIGHT card: a real screenshot of the Wavloops app
- *                 (/Photos/Section_2.png — Atlanta Nights
- *                 server detail). No mockup, no vector;
- *                 the actual product surface.
- *   - BETWEEN them: ONE single continuous fluid blue curve,
- *                 an SVG path with an accent gradient and a
- *                 flowing noodle on top. The line slides from
- *                 the right edge of the left card to the left
- *                 edge of the right card on a smooth S-shape.
+ * Theo (v8): 'garde uniquement le design old way. Met le
+ * design à droite et à gauche title + sub. Retire l'image
+ * screen de l'app et le fluide, nous allons rester simple'.
  *
- * Header (title + producer verbatim) unchanged — Theo: 'le
- * textuel est ok'.
+ * Layout:
+ *   ┌────────────────────────┬────────────────────────┐
+ *   │ 02 ─── OUR PROMISE     │                        │
+ *   │ The beat-sending       │  📧 Gmail              │
+ *   │ headache ends here.    │       📷 Instagram     │
+ *   │                        │  💬 WhatsApp           │
+ *   │ "Organizing            │         💬 Discord     │
+ *   │  contacts…" — quote    │                        │
+ *   │                        │                        │
+ *   └────────────────────────┴────────────────────────┘
+ *
+ * No product shot, no S-curve, no overlay. The chaos card
+ * collage IS the visual: producers see their current life
+ * (Gmail / IG / WhatsApp / Discord notification dump) sitting
+ * across from the text that names the pain.
  */
 
 "use client";
@@ -36,25 +38,16 @@ export function LandingProblem() {
         backgroundColor: "var(--bg-0)",
       }}
     >
-      {/* Theo: 'aucun background, pas de glow derrière, couleur
-              de fond uni'. The ambient accent halo that used to
-              wash the canvas behind the curve is gone — section
-              is flat bg-0 from edge to edge. */}
-
-      {/* One shared 1280-px container for the whole section
-              so the visual block aligns with the heading and
-              with every other landing section above and below.
-              Theo (v7.3): the 1600 px experiment broke the
-              landing rhythm — notifications spilled left of
-              the H2 and the screenshot pushed past the right
-              edge. Back to 1280. */}
       <div
         className="relative mx-auto"
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
-        <SectionHeader />
-        <div style={{ marginTop: "clamp(40px, 6vw, 72px)" }}>
-          <CardsWithFlow />
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 items-center"
+          style={{ gap: "clamp(40px, 6vw, 80px)" }}
+        >
+          <SectionHeader />
+          <FloatingNotifications />
         </div>
       </div>
     </section>
@@ -62,7 +55,7 @@ export function LandingProblem() {
 }
 
 /* ============================================================
-   Editorial header — unchanged
+   LEFT — editorial header (kicker + title + verbatim quote)
    ============================================================ */
 
 function SectionHeader() {
@@ -88,7 +81,6 @@ function SectionHeader() {
           fontSize: "clamp(32px, 4vw, 52px)",
           letterSpacing: "-0.02em",
           lineHeight: 1.04,
-          maxWidth: 880,
         }}
       >
         The beat-sending headache{" "}
@@ -103,16 +95,17 @@ function SectionHeader() {
         .
       </h2>
 
-      <figure style={{ maxWidth: 720 }}>
+      <figure style={{ margin: 0 }}>
         <blockquote
           className="t-body-l"
           style={{
-            fontSize: 20,
+            fontSize: 18,
             lineHeight: 1.55,
             fontStyle: "italic",
             color: "var(--fg-1)",
             paddingLeft: 22,
             borderLeft: "2px solid var(--accent-text)",
+            margin: 0,
           }}
         >
           &ldquo;Organizing contacts and keeping track of who I already sent
@@ -131,44 +124,11 @@ function SectionHeader() {
 }
 
 /* ============================================================
-   Cards with flowing connector
+   RIGHT — Free-floating notifications (no card frame)
    ────────────────────────────────────────────────────────────
-   Two columns of equal width, S-curve SVG drawn over both. The
-   SVG sits in an absolute layer so the curve crosses the gap
-   without being clipped by the cards' overflow.
-   ============================================================ */
-
-function CardsWithFlow() {
-  // Even 50/50 split inside the 1280 container. Mobile stacks
-  // both as a single column.
-  return (
-    <div className="relative">
-      <div
-        className="grid grid-cols-1 md:grid-cols-2 items-center"
-        style={{ gap: "clamp(40px, 5vw, 72px)" }}
-      >
-        <FloatingNotifications />
-        <ProductShot />
-      </div>
-      <ConnectorFlow />
-    </div>
-  );
-}
-
-/* ============================================================
-   LEFT — Chaos card
-   ============================================================ */
-
-/* ============================================================
-   LEFT — Free-floating notifications (no card frame)
-   ────────────────────────────────────────────────────────────
-   Theo: 'retire la card à gauche, laisse les cards des
-   reseaux flooter dans le site sans qu'elles soient dans une
-   card'. So no outer wrap — just an aspect-ratio positioning
-   shell that anchors the four notifications absolutely.
    Each individual notification keeps its own glass shell
-   (NotifShell), they're just no longer contained in a parent
-   panel.
+   (NotifShell), they're not contained in a parent panel —
+   they float directly on the section bg.
    ============================================================ */
 
 function FloatingNotifications() {
@@ -493,110 +453,6 @@ function NotifDiscord() {
         new pack when??
       </div>
     </NotifShell>
-  );
-}
-
-/* ============================================================
-   RIGHT — Real product screenshot
-   ============================================================ */
-
-function ProductShot() {
-  // Theo: 'fait aussi floter l'image de droite'. Same wl-float
-  // keyframe the notification tiles use, but slower (7.4 s
-  // vs 5-6 s) and with no delay — slower so a calm app
-  // surface still reads as composed, not jittery, while the
-  // chaos tiles on the left move at producer-anxiety speed.
-  return (
-    <div
-      className="relative w-full"
-      style={{
-        animation: "wl-float 7.4s ease-in-out infinite",
-      }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/Photos/Section_2.png"
-        alt="Wavloops — Atlanta Nights server detail with live stats and beats."
-        style={{
-          width: "100%",
-          height: "auto",
-          display: "block",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ============================================================
-   Connector — single flowing S-curve between the cards
-   ============================================================ */
-
-function ConnectorFlow() {
-  // The SVG fills the row in absolute layer. ViewBox 1000×360.
-  // The curve starts somewhere around the right edge of the
-  // left card and ends near the left edge of the right card,
-  // sweeping down through a soft S-shape. Hidden on mobile —
-  // the cards stack vertically there and a horizontal curve
-  // would collapse to nothing.
-  return (
-    <svg
-      viewBox="0 0 1000 360"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      className="absolute hidden md:block pointer-events-none"
-      style={{
-        // Cover the row, ignoring the grid gap.
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: "100%",
-        height: "100%",
-        zIndex: 2,
-      }}
-    >
-      <defs>
-        <linearGradient id="wl-flow-base" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0" />
-          <stop offset="22%" stopColor="var(--accent)" stopOpacity="0.85" />
-          <stop offset="50%" stopColor="var(--accent)" stopOpacity="1" />
-          <stop offset="78%" stopColor="var(--accent)" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="wl-flow-noodle" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
-          <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.7" />
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {/* S-curve. Cubic Bezier from the right edge of the left
-              card to the left edge of the product shot, sweeping
-              down through a soft S-shape. No gaussian glow
-              behind it — Theo wants the curve as a clean line
-              on the flat bg-0, not an emitted beam. */}
-      <path
-        d="M 380 160 C 470 160, 470 320, 620 320"
-        stroke="url(#wl-flow-base)"
-        strokeWidth={4}
-        fill="none"
-        strokeLinecap="round"
-      />
-      {/* Flowing highlight on top — continuous, no gap. The
-              dasharray uses a long lit run + medium gap so the
-              motion never feels broken. */}
-      <path
-        d="M 380 160 C 470 160, 470 320, 620 320"
-        stroke="url(#wl-flow-noodle)"
-        strokeWidth={2.4}
-        fill="none"
-        strokeLinecap="round"
-        style={{
-          strokeDasharray: "300 200",
-          animation: "wl-noodle-flow 4s linear infinite",
-        }}
-      />
-    </svg>
   );
 }
 
