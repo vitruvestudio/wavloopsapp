@@ -87,6 +87,12 @@ export interface MockServer {
   /** Producer-uploaded artwork URL used when artworkMode === "image".
    *  Same shape as servers.artwork_image_url. */
   artworkImageUrl?: string;
+  /** Producer-side opt-in (servers.downloads_allowed). When true,
+   *  ServerView renders a download icon on every beat row (desktop)
+   *  and adds a 'Download' item to the ⋯ menu (mobile). The
+   *  /api/beats/<id>/download endpoint re-checks the same flag at
+   *  the network layer. */
+  downloadsAllowed?: boolean;
   beats: MockBeat[];
 }
 

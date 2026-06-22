@@ -76,6 +76,16 @@ interface BeatRowProps {
   /** Action menu items shown when the ⋯ button is clicked. When
    *  omitted, the ⋯ button is hidden. */
   actions?: BeatRowAction[];
+  /** When set, an inline download icon is rendered between the
+   *  engagement counters and the ⋯ button on sm+ (desktop). The
+   *  href targets /api/beats/<id>/download — the route handler
+   *  re-checks RLS + the parent server's downloads_allowed flag
+   *  before signing the audio URL. UI hiding alone is not
+   *  security; this prop only controls the affordance.
+   *  Phones (< sm) skip the inline icon; producers add a
+   *  'Download' item to `actions` so it lands in the ⋯ menu
+   *  instead. */
+  downloadHref?: string;
 }
 
 export function BeatRow({
@@ -92,6 +102,7 @@ export function BeatRow({
   checked,
   onCheck,
   actions,
+  downloadHref,
 }: BeatRowProps) {
   const [hovered, setHovered] = React.useState(false);
 
@@ -307,6 +318,22 @@ export function BeatRow({
             {beat.likes_count}
           </span>
         </div>
+      )}
+
+      {/* Inline download icon — sm+ (desktop). Hidden on phones —
+              there the producer/listen view adds a 'Download' item
+              to the ⋯ menu instead so the row stays compact. */}
+      {downloadHref && (
+        <a
+          href={downloadHref}
+          download
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Download ${beat.title}`}
+          className="hidden sm:inline-flex items-center justify-center shrink-0 text-fg-4 hover:text-fg-1 transition-colors"
+          style={{ width: 32, height: 32, borderRadius: "var(--r-sm)" }}
+        >
+          <Icon name="download" size={16} />
+        </a>
       )}
 
       {/* Action menu — popover anchored to the ⋯ button, opens to the
