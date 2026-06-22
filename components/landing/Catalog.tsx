@@ -115,7 +115,7 @@ export function LandingCatalog() {
       <div
         className="mx-auto text-center"
         style={{
-          maxWidth: 880,
+          maxWidth: 1040,
           padding: "0 24px",
           marginBottom: "clamp(32px, 4vw, 56px)",
         }}
@@ -123,9 +123,9 @@ export function LandingCatalog() {
         <h2
           className="t-display"
           style={{
-            fontSize: "clamp(36px, 5vw, 64px)",
-            lineHeight: 1.04,
-            letterSpacing: "-0.018em",
+            fontSize: "clamp(30px, 4.2vw, 52px)",
+            lineHeight: 1.06,
+            letterSpacing: "-0.02em",
             color: "#0F0F12",
             marginBottom: 18,
           }}
