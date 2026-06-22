@@ -79,7 +79,7 @@ export default async function InviteClickThroughPage({
               letterSpacing: "-0.018em",
             }}
           >
-            One click to your beats.
+            You&apos;re invited.
           </h1>
           <p
             className="t-body"
@@ -89,8 +89,8 @@ export default async function InviteClickThroughPage({
               lineHeight: 1.55,
             }}
           >
-            Press Continue to sign in and land on the server the producer just
-            invited you to.
+            Tap below to join the private server the producer just shared with
+            you.
           </p>
         </div>
 
@@ -125,7 +125,7 @@ export default async function InviteClickThroughPage({
                 "0 18px 40px -16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.18)",
             }}
           >
-            Continue to sign in →
+            Join the private server →
           </button>
         </form>
 
@@ -191,5 +191,5 @@ function FallbackShell({ title, body }: { title: string; body: string }) {
 }
 
 export const metadata = {
-  title: "Sign in — Wavloops",
+  title: "Your invite — Wavloops",
 };
