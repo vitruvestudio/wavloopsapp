@@ -69,9 +69,9 @@ export function LandingPricing() {
           <h2
             className="t-display"
             style={{
-              fontSize: "clamp(40px, 5.4vw, 68px)",
+              fontSize: "clamp(32px, 4vw, 52px)",
               lineHeight: 1.04,
-              letterSpacing: "-0.018em",
+              letterSpacing: "-0.02em",
               marginBottom: 18,
             }}
           >

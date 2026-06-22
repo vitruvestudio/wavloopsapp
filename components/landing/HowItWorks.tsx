@@ -108,8 +108,9 @@ export function LandingHowItWorks() {
           <h2
             className="t-display"
             style={{
-              fontSize: "clamp(40px, 5.6vw, 72px)",
+              fontSize: "clamp(32px, 4vw, 52px)",
               lineHeight: 1.04,
+              letterSpacing: "-0.02em",
               marginBottom: 22,
             }}
           >

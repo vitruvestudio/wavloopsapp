@@ -133,9 +133,9 @@ export function LandingTestimonials() {
             <h2
               className="t-display"
               style={{
-                fontSize: "clamp(36px, 4.6vw, 56px)",
+                fontSize: "clamp(32px, 4vw, 52px)",
                 lineHeight: 1.04,
-                letterSpacing: "-0.018em",
+                letterSpacing: "-0.02em",
               }}
             >
               Testimonials
