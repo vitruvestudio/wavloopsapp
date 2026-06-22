@@ -136,7 +136,11 @@ function VideoWithNotifOverlay() {
           muted
           loop
           playsInline
-          preload="metadata"
+          // Below-the-fold — defer the fetch entirely. autoPlay
+          // still works: the browser starts the request when the
+          // <video> becomes visible. Saves megabytes from the
+          // initial page load budget.
+          preload="none"
           aria-hidden="true"
           style={{
             width: "100%",
@@ -169,6 +173,10 @@ function VideoWithNotifOverlay() {
         <img
           src="/Photos/Notif_artist.png"
           alt="Wavloops email digest sent to an artist: 4 new beats in Dish."
+          loading="lazy"
+          decoding="async"
+          width={1200}
+          height={1280}
           style={{
             width: "100%",
             height: "auto",
@@ -186,6 +194,10 @@ function VideoWithNotifOverlay() {
         <img
           src="/Photos/Notif_artist.png"
           alt="Wavloops email digest sent to an artist: 4 new beats in Dish."
+          loading="lazy"
+          decoding="async"
+          width={1200}
+          height={1280}
           style={{
             width: "100%",
             height: "auto",
