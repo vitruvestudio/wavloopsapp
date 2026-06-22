@@ -1,0 +1,52 @@
+# Upload-digest cron — runs every 5 minutes and hits
+# /api/cron/batch-upload-emails on prod, which itself groups
+# pending `upload` notifications by (recipient, server), waits
+# until the oldest row in a group is ≥ 10 min old, then ships
+# one digest email per group.
+#
+# Why GitHub Actions instead of Vercel Cron:
+# Vercel Hobby plan caps crons at 1 invocation / day. We need
+# minute-level granularity so a producer's upload burst gets
+# emailed out within the 10-min window the API enforces.
+# GH Actions schedules are free and run every 5 min (their
+# minimum). The 5-min drift is invisible to producers because
+# the API endpoint itself decides when a group is "ready" —
+# this workflow is just the wake-up call.
+#
+# Auth — Authorization: Bearer ${{ secrets.CRON_SECRET }}
+# must match the CRON_SECRET env var set on Vercel for the
+# wavloopsapp project. Both already exist; this workflow
+# only needs the secret added to the GitHub repo:
+#   Settings → Secrets and variables → Actions → New
+#   repository secret. Name: CRON_SECRET, Value: (paste
+#   the same string set in Vercel).
+
+name: Upload digest cron
+
+on:
+  schedule:
+    # GitHub Actions cron schedules run on UTC and execute at
+    # most every 5 minutes. Drift of a few minutes is normal
+    # during heavy GH load — that's fine here.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # manual fire-button for one-off testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping batch-upload-emails
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret missing from repo settings."
+            exit 1
+          fi
+          # --fail-with-body so we surface the API's error string
+          # in the workflow log when the endpoint returns 4xx/5xx,
+          # not just the curl exit code.
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://wavloops.co/api/cron/batch-upload-emails"
