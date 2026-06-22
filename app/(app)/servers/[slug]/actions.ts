@@ -102,6 +102,46 @@ export interface RemoveArtistResult {
   error: string | null;
 }
 
+export interface RemoveBeatResult {
+  error: string | null;
+}
+
+/**
+ * removeBeatFromServerAction — DELETE the (server_id, beat_id) row
+ * from server_beats so the beat disappears from THIS server's
+ * playlist. The beat itself stays in the producer's library and
+ * any other server memberships are untouched.
+ *
+ * RLS (server_beats_owner_all) already gates the delete; we also
+ * re-check ownership in app code so the UI surfaces a clean
+ * error string instead of a silent no-op when the policy denies.
+ */
+export async function removeBeatFromServerAction(
+  serverId: string,
+  beatId: string,
+  serverSlug: string,
+): Promise<RemoveBeatResult> {
+  const supabase = await createClient();
+
+  const guard = await assertServerOwnership(supabase, serverId);
+  if (guard.error) return { error: guard.error };
+
+  const { error } = await supabase
+    .from("server_beats")
+    .delete()
+    .eq("server_id", serverId)
+    .eq("beat_id", beatId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/servers/${serverSlug}`, "page");
+  revalidatePath("/dashboard", "page");
+  revalidatePath("/library", "page");
+  // Listen layout — granted artists' bell/server list should reflect
+  // the change without waiting for the realtime tick.
+  revalidatePath("/listen", "layout");
+  return { error: null };
+}
+
 /**
  * removeArtistFromServerAction — DELETE the (server_id, contact_id)
  * row from server_contacts so the artist loses access to this

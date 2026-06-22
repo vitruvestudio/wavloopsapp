@@ -44,6 +44,7 @@ import {
   approveAccessRequestAction,
   declineAccessRequestAction,
   removeArtistFromServerAction,
+  removeBeatFromServerAction,
 } from "./actions";
 import { AddArtistsModal } from "./AddArtistsModal";
 import { AddContactModal } from "../../contacts/AddContactModal";
@@ -184,6 +185,25 @@ export function ServerDetailPage({
         server.slug,
       );
       setPendingRemoveContactId(null);
+      if (result.error) {
+        window.alert(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  /** Drop a beat from server_beats so it disappears from this
+   *  server's playlist. The beat row in the producer's library
+   *  is untouched. Mirrors removeArtist's UX. */
+  const [, startRemoveBeat] = React.useTransition();
+  const removeBeat = (beatId: string) => {
+    startRemoveBeat(async () => {
+      const result = await removeBeatFromServerAction(
+        server.id,
+        beatId,
+        server.slug,
+      );
       if (result.error) {
         window.alert(result.error);
         return;
@@ -362,10 +382,15 @@ export function ServerDetailPage({
       {
         icon: "trash",
         label: "Remove from server",
-        onClick: () => stub("Remove from server"),
+        onClick: () => removeBeat(beat.id),
         danger: true,
       },
     ],
+    // removeBeat is stable enough across renders that pinning it in
+    // deps would force actionsFor to re-create every keystroke in a
+    // parent state — left out intentionally; the closure captures
+    // the fresh transition handle on each render anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [openBeat, router],
   );
 
