@@ -43,18 +43,21 @@ export function LandingNeverAgain() {
         className="relative mx-auto"
         style={{ maxWidth: 1280, padding: "0 24px" }}
       >
+        {/* Text column ~40 %, visual column ~60 % so the video
+                gets meaningful screen real estate. Gap tightened so
+                the visual breathes harder still. */}
         <div
-          className="grid grid-cols-1 md:grid-cols-2 items-center"
-          style={{ gap: "clamp(40px, 5vw, 72px)" }}
+          className="grid grid-cols-1 md:grid-cols-[40fr_60fr] items-center"
+          style={{ gap: "clamp(32px, 4vw, 56px)" }}
         >
           {/* ─── LEFT — Text ─── */}
           <div className="flex flex-col">
             <h2
               className="t-display"
               style={{
-                fontSize: "clamp(40px, 5.4vw, 68px)",
+                fontSize: "clamp(32px, 4vw, 52px)",
                 lineHeight: 1.04,
-                marginBottom: 24,
+                marginBottom: 20,
                 letterSpacing: "-0.018em",
               }}
             >
@@ -72,10 +75,10 @@ export function LandingNeverAgain() {
             <p
               className="t-body-l"
               style={{
-                fontSize: 19,
+                fontSize: 17,
                 lineHeight: 1.55,
                 color: "var(--fg-2)",
-                maxWidth: 500,
+                maxWidth: 440,
               }}
             >
               Drop a beat into your server and it&apos;s instantly there for
@@ -106,13 +109,11 @@ function VideoWithNotifOverlay() {
     <div
       className="relative w-full"
       style={{
-        // Reserve extra space above + right so the overlay can
-        // hang outside the video without overflowing the section.
-        // Without this padding the floating notif would be clipped
-        // by an ancestor `overflow:hidden` (the section's brand
-        // halo wrapper).
-        paddingTop: "clamp(20px, 4vw, 56px)",
-        paddingRight: "clamp(0px, 4vw, 56px)",
+        // Reserve space bottom + right where the overlay now
+        // bleeds outside the video frame. Top stays flush so the
+        // video aligns with the title baseline.
+        paddingBottom: "clamp(20px, 4vw, 56px)",
+        paddingRight: "clamp(0px, 4vw, 40px)",
       }}
     >
       {/* Video frame */}
@@ -146,21 +147,19 @@ function VideoWithNotifOverlay() {
         />
       </div>
 
-      {/* Floating email notif — anchored to the top-right edge of
-              the video frame and bleeding slightly outside. Slight
-              drop shadow + hairline border so it reads as a card
-              landing on top of the screen recording, not part of
-              the video. Hidden on small viewports — at < md the
-              video already takes the full width and overlapping
-              the notif would crush the readability of both. */}
+      {/* Floating email notif — anchored to the bottom-right edge
+              of the video frame and bleeding slightly outside.
+              Sized down (42 % vs 62 %) so the video stays the
+              primary surface; the notif reads as a 'side artefact'
+              on top, not the dominant element. Bottom-right anchor
+              keeps the upper-left of the video (where the producer
+              action lives in the screen recording) fully visible. */}
       <div
         className="hidden md:block absolute"
         style={{
-          // Position: hangs off the right edge, biased slightly
-          // upward (mirrors the source mock).
-          right: "-2%",
-          top: "-2%",
-          width: "62%",
+          right: "-4%",
+          bottom: "-6%",
+          width: "42%",
           filter:
             "drop-shadow(0 24px 48px oklch(0 0 0 / 0.55)) drop-shadow(0 0 32px var(--accent-glow))",
           pointerEvents: "none",
