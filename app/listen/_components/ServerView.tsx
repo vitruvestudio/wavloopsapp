@@ -692,6 +692,11 @@ export function ServerView({ producer, server }: ServerViewProps) {
               onTogglePlay={() => togglePlay(b)}
               onToggleLike={() => toggleLike(b.id)}
               onToggleListened={() => toggleHidden(b.id)}
+              downloadHref={
+                server.downloadsAllowed
+                  ? `/api/beats/${b.id}/download`
+                  : undefined
+              }
               onOpenNote={() => setNoteFor(b)}
             />
           ))
@@ -779,12 +784,18 @@ function BeatRow({
   onToggleLike,
   onToggleListened,
   onOpenNote,
+  downloadHref,
 }: {
   beat: MockBeat & { hidden?: boolean };
   /** Producer's @handle — surfaced on the row's first line on
    *  mobile so the artist always knows whose pack they're in,
    *  even when scrolled deep into the beat list. */
   producerHandle: string;
+  /** When set, an inline download icon is rendered on sm+
+   *  before the 'more' dot menu. The producer toggled
+   *  downloads_allowed = true on the parent server, so
+   *  /api/beats/<id>/download will sign the audio URL. */
+  downloadHref?: string;
   /** Visibility of the saved note, or null when no note exists.
    *  Drives the message icon's colour:
    *    null    → fg-4    (no note)
@@ -1091,6 +1102,23 @@ function BeatRow({
           <DetailsPopover beat={beat} />
         )}
       </div>
+      {downloadHref && (
+        <a
+          href={downloadHref}
+          download
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Download ${beat.title}`}
+          className="hidden sm:inline-flex items-center justify-center transition-colors duration-fast"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "var(--r-sm)",
+            color: "var(--fg-4)",
+          }}
+        >
+          <Icon name="download" size={16} />
+        </a>
+      )}
       </div>{/* /action cluster */}
     </div>
   );

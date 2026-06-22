@@ -363,6 +363,11 @@ export interface ArtistServerView {
     artworkMode: "auto" | "color" | "image";
     accentHue: number | null;
     artworkImageUrl: string | null;
+    /** Producer-side opt-in. When true, the listen view shows the
+     *  download affordance on every beat row (and the
+     *  /api/beats/<id>/download endpoint will sign the audio URL).
+     *  When false, the icon is hidden and the endpoint refuses. */
+    downloadsAllowed: boolean;
   };
   beats: ArtistServerViewBeat[];
 }
@@ -387,6 +392,7 @@ export async function loadServerView(
       `
       id, slug, name, style_text,
       artwork_mode, accent_hue, artwork_image_url,
+      downloads_allowed,
       owner_id
     `,
     )
@@ -556,6 +562,8 @@ export async function loadServerView(
       accentHue: (serverRow.accent_hue as number | null) ?? null,
       artworkImageUrl:
         (serverRow.artwork_image_url as string | null) ?? null,
+      downloadsAllowed:
+        (serverRow.downloads_allowed as boolean | null) ?? false,
     },
     beats: beatRows.map((b, i) => ({
       id: b.id,

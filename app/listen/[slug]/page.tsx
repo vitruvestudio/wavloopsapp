@@ -116,6 +116,7 @@ function adapt(view: ArtistServerView): {
     artworkMode: view.server.artworkMode,
     accentHue: view.server.accentHue ?? undefined,
     artworkImageUrl: view.server.artworkImageUrl ?? undefined,
+    downloadsAllowed: view.server.downloadsAllowed,
     beats: view.beats.map(beatToMock),
   };
   return { producer, server };
