@@ -41,10 +41,17 @@ export interface InviteLinkInput {
 }
 
 /**
- * Returns an admin-generated magic-link URL. The user clicks it,
- * Supabase exchanges the token, and our /auth/callback redirects
- * to /listen/<slug>. Returns null if every attempt fails — the
- * caller is responsible for falling back to a non-auth URL.
+ * Returns a click-through URL the email CTA can point to safely.
+ * Shape: <origin>/i?u=<encoded Supabase action_link>. The /i page
+ * renders a 'Continue to sign in' button whose form POSTs to
+ * /i/go, which 303-redirects to the Supabase verify URL. Mail
+ * scanners that auto-GET links (Gmail, Outlook SafeLinks, etc.)
+ * only fetch /i and never trigger the form POST — the single-use
+ * OTP stays unburnt until the recipient deliberately clicks
+ * Continue.
+ *
+ * Returns null if every Supabase attempt fails — the caller is
+ * responsible for falling back to a non-auth URL.
  */
 export async function generateInviteMagicLink(
   input: InviteLinkInput,
@@ -68,7 +75,7 @@ export async function generateInviteMagicLink(
   const magicUrl = magicRes?.data?.properties?.action_link as
     | string
     | undefined;
-  if (magicUrl) return magicUrl;
+  if (magicUrl) return wrapAsClickThrough(magicUrl);
 
   // Fallback — cold contact, no auth.user. type='invite' creates
   // one + returns the action_link in the same shape. Producers who
@@ -82,7 +89,7 @@ export async function generateInviteMagicLink(
   const inviteUrl = inviteRes?.data?.properties?.action_link as
     | string
     | undefined;
-  if (inviteUrl) return inviteUrl;
+  if (inviteUrl) return wrapAsClickThrough(inviteUrl);
 
   console.warn(
     "[invite-link] both magiclink + invite returned no action_link for",
@@ -91,4 +98,10 @@ export async function generateInviteMagicLink(
     inviteRes?.error?.message,
   );
   return null;
+}
+
+/** Build the /i click-through URL around a Supabase action_link.
+ *  See app/i/page.tsx for why this layer exists. */
+function wrapAsClickThrough(actionLink: string): string {
+  return `${siteOrigin()}/i?u=${encodeURIComponent(actionLink)}`;
 }
