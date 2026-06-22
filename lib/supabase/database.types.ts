@@ -71,6 +71,10 @@ export interface ServerRow {
   accent_hue: number | null;
   artwork_image_url: string | null;
   visibility: Visibility;
+  /** When true, granted artists can download beat audio. Default
+   *  false — kept private unless the producer explicitly opens it.
+   *  Added in migration 20260622090000. */
+  downloads_allowed: boolean;
   created_at: string;
   updated_at: string;
 }

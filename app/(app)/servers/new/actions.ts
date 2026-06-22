@@ -37,6 +37,11 @@ export interface UpdateServerPayload {
    *  This action just stores what it's given. */
   artwork_image_url: string | null;
   visibility: Visibility;
+  /** When true, granted artists can download the audio file of
+   *  every beat in this server. UI hides the download affordance
+   *  when false; the /api/beats/<id>/download route re-checks the
+   *  same flag at the network layer (UI hiding is not security). */
+  downloads_allowed: boolean;
   beat_ids: string[];
 }
 
@@ -60,6 +65,8 @@ export interface CreateServerPayload {
    *  performs the upload before calling this action. */
   artwork_image_url: string | null;
   visibility: Visibility;
+  /** See UpdateServerPayload.downloads_allowed. */
+  downloads_allowed: boolean;
   beat_ids: string[];
 }
 
@@ -136,6 +143,7 @@ export async function createServerAction(
         accent_hue: payload.accent_hue,
         artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
+        downloads_allowed: payload.downloads_allowed,
       })
       .select("id, slug")
       .single();
@@ -173,6 +181,7 @@ export async function createServerAction(
         accent_hue: payload.accent_hue,
         artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
+        downloads_allowed: payload.downloads_allowed,
       })
       .select("id, slug")
       .single();
@@ -236,6 +245,7 @@ export async function updateServerAction(
       accent_hue: payload.accent_hue,
       artwork_image_url: payload.artwork_image_url,
       visibility: payload.visibility,
+      downloads_allowed: payload.downloads_allowed,
     })
     .eq("id", payload.id)
     .select("slug")

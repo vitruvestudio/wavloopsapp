@@ -49,6 +49,7 @@ export type IconName =
   | "log-out"
   /* onboarding / forms */
   | "upload"
+  | "download"
   | "instagram"
   | "x-logo"
   | "youtube"
@@ -328,6 +329,15 @@ export function Icon({
           <path d="M21 15v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3" />
           <path d="M17 8l-5-5-5 5" />
           <path d="M12 3v13" />
+        </svg>
+      );
+    case "download":
+      /* Mirror of `upload` — same tray, arrow flipped down. */
+      return (
+        <svg {...common} {...lineProps}>
+          <path d="M21 15v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3" />
+          <path d="M7 11l5 5 5-5" />
+          <path d="M12 16V3" />
         </svg>
       );
     case "instagram":
