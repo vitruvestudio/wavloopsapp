@@ -325,7 +325,13 @@ export async function sendAddedToServerEmail(
     `,
     ctaLabel: "Join the server",
     ctaUrl: url,
-    secondary: pasteLine(url),
+    // No 'OR PASTE THIS LINK' line — the inviteUrl encodes the
+    // raw Supabase action_link as ?u=…&lt;long encoded supabase
+    // URL&gt;. Surfacing it in the email body broke the brand
+    // illusion ('why is wavloops sending me a supabase.co
+    // link?'). The CTA button is enough; the magic-link sits
+    // safely inside its href instead of in plain text.
+    secondary: null,
     footer: `Sent because ${escape(p.producerHandle)} added you on Wavloops`,
   });
   return send({
