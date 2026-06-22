@@ -37,6 +37,7 @@ import { LandingTestimonials } from "@/components/landing/Testimonials";
 import { LandingPricing } from "@/components/landing/Pricing";
 import { LandingFAQ } from "@/components/landing/FAQ";
 import { LandingFooter } from "@/components/landing/Footer";
+import { LandingStructuredData } from "@/components/landing/StructuredData";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -87,8 +88,10 @@ export default async function HomePage() {
       <LandingPricing />
       <LandingFAQ />
       <LandingFooter />
-      {/* Follow-on sections (Pricing, FAQ, CTA)
-              will land here as separate components. */}
+      {/* SEO — invisible JSON-LD graph. SoftwareApplication +
+              Organization + FAQPage in a single payload so Google
+              parses everything in one pass. */}
+      <LandingStructuredData />
     </main>
   );
 }

@@ -35,10 +35,68 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
 });
 
+/** Canonical origin every URL in metadata + Open Graph + sitemap
+ *  resolves against. Set NEXT_PUBLIC_SITE_URL on Vercel for prod
+ *  (https://wavloops.co); falls back to localhost in dev. */
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "Wavloops — Your beats, a living link.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Wavloops — Your beats, a living link.",
+    template: "%s — Wavloops",
+  },
   description:
-    "Drop beats into shareable servers. Send one link — capture every contact and see who listens, in real time. Lifetime $129 · Founding access.",
+    "Stop sending beats. Start sharing one link. Drop beats into private servers, invite artists, labels and A&Rs, and see who plays what — in real time. Lifetime 129 € · Founding access.",
+  keywords: [
+    "share beats with artists",
+    "send beats online",
+    "private beat sharing platform",
+    "wetransfer alternative for producers",
+    "beat sharing for music producers",
+    "track who listens to my beats",
+    "beat server",
+    "beat catalog",
+    "Wavloops",
+  ],
+  authors: [{ name: "Vitruve Studio", url: "https://vitruve.studio" }],
+  creator: "Vitruve Studio",
+  publisher: "Vitruve Studio",
+  category: "Music",
+  applicationName: "Wavloops",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: "Wavloops",
+    title: "Wavloops — Your beats, a living link.",
+    description:
+      "Drop beats into private servers, share one link with the artists, labels and A&Rs you choose, and see who plays what in real time.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@wavloops",
+    creator: "@wavloops",
+    title: "Wavloops — Your beats, a living link.",
+    description:
+      "Drop beats into private servers, share one link, see who plays what — in real time.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({
