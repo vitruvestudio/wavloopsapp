@@ -97,6 +97,14 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
+  verification: {
+    // Google Search Console URL-prefix verification for
+    // https://wavloops.co. Renders as
+    //   <meta name="google-site-verification" content="..." />
+    // inside <head> at build time. Don't rotate this value
+    // unless you also re-verify in GSC.
+    google: "i0wy0QSchFxUh5anFEi8-umnUI371W426aNWIxzUY2k",
+  },
 };
 
 export default function RootLayout({
