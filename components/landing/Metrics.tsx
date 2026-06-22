@@ -42,22 +42,22 @@ export function LandingMetrics() {
           <h2
             className="t-display"
             style={{
-              fontSize: "clamp(40px, 5.4vw, 68px)",
+              fontSize: "clamp(36px, 4.6vw, 60px)",
               lineHeight: 1.04,
               marginBottom: 22,
-              letterSpacing: "-0.018em",
+              letterSpacing: "-0.02em",
             }}
           >
-            Know{" "}
+            Turn your contacts into{" "}
             <span
               style={{
                 color: "var(--accent-text)",
                 textShadow: "0 0 32px var(--accent-glow)",
               }}
             >
-              exactly who
+              placements
             </span>
-            &apos;s into your beats.
+            .
           </h2>
           <p
             className="t-body-l"
@@ -65,12 +65,13 @@ export function LandingMetrics() {
               fontSize: 19,
               lineHeight: 1.55,
               color: "var(--fg-2)",
-              maxWidth: 680,
+              maxWidth: 760,
               margin: "0 auto",
             }}
           >
-            Every play, every like, every artist — in real time. See who&apos;s
-            hooked, who&apos;s coming back, and who&apos;s ready to lock in.
+            Share your latest beats with the artists, labels and A&amp;Rs you
+            already know — in one private hub. See who plays what, who loves
+            what, and who&apos;s ready to work.
           </p>
         </div>
 
