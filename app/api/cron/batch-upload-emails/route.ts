@@ -174,24 +174,42 @@ export async function GET(req: NextRequest) {
   );
   const { data: producers } = await admin
     .from("profiles")
-    .select("id, handle, name")
+    .select("id, handle, name, avatar_url")
     .in("id", ownerIds)
     .returns<
-      Array<{ id: string; handle: string | null; name: string | null }>
+      Array<{
+        id: string;
+        handle: string | null;
+        name: string | null;
+        avatar_url: string | null;
+      }>
     >();
   const producerHandleById = new Map<string, string>();
+  const producerAvatarById = new Map<string, string | null>();
   for (const p of producers ?? []) {
     const raw = p.handle ?? p.name ?? "the producer";
     producerHandleById.set(p.id, raw.startsWith("@") ? raw : `@${raw}`);
+    producerAvatarById.set(p.id, resolvePublicStorageUrl(p.avatar_url));
   }
 
   const { data: beats } = await admin
     .from("beats")
-    .select("id, title")
+    .select("id, title, artwork_url")
     .in("id", beatIds)
-    .returns<Array<{ id: string; title: string }>>();
-  const titleByBeat = new Map(
-    (beats ?? []).map((b) => [b.id, b.title] as const),
+    .returns<
+      Array<{ id: string; title: string; artwork_url: string | null }>
+    >();
+  const beatById = new Map(
+    (beats ?? []).map(
+      (b) =>
+        [
+          b.id,
+          {
+            title: b.title,
+            artworkUrl: resolvePublicStorageUrl(b.artwork_url, "beat-covers"),
+          },
+        ] as const,
+    ),
   );
 
   // Phase 3.9.7.1: respect each artist's notif_prefs.email. We
@@ -250,18 +268,23 @@ export async function GET(req: NextRequest) {
 
     const producerHandle =
       producerHandleById.get(server.owner_id) ?? "@producer";
-    const beatTitles = group.beatIds
-      .map((bid) => titleByBeat.get(bid))
-      .filter((t): t is string => Boolean(t));
-    if (beatTitles.length === 0) continue;
+    const producerAvatarUrl =
+      producerAvatarById.get(server.owner_id) ?? null;
+    const groupBeats = group.beatIds
+      .map((bid) => beatById.get(bid))
+      .filter(
+        (b): b is { title: string; artworkUrl: string | null } => Boolean(b),
+      );
+    if (groupBeats.length === 0) continue;
 
     try {
       await sendBeatsUploadedEmail({
         artistEmail: email,
         producerHandle,
+        producerAvatarUrl,
         serverName: server.name,
         serverSlug: server.slug,
-        beatTitles,
+        beats: groupBeats,
       });
       shipped++;
     } catch (e) {
@@ -288,4 +311,36 @@ export async function GET(req: NextRequest) {
     ripeGroups: ripeGroups.length,
     pendingTotal: pending.length,
   });
+}
+
+/**
+ * Resolve a storage column value (avatar_url / artwork_url) into a
+ * URL we can embed in an HTML email. Three input shapes seen in
+ * production:
+ *   - null → null (caller renders a fallback).
+ *   - Already an absolute URL (https://…) → return as-is.
+ *   - A bucket-relative path like 'user-uuid/cover.jpg' → resolve
+ *     against the public Supabase URL.
+ *
+ * Both `avatars` and `beat-covers` buckets are public-read, so the
+ * <project>/storage/v1/object/public/<bucket>/<path> URL works
+ * indefinitely without signing — required for emails that may sit
+ * in an inbox for days.
+ *
+ * Bucket inference: the column values stored in profiles.avatar_url
+ * are uploaded to the `avatars` bucket, beats.artwork_url to
+ * `beat-covers`. The helper takes a bucket name to handle both.
+ */
+function resolvePublicStorageUrl(
+  value: string | null,
+  // Default to the avatars bucket — most callers in this file pass
+  // an avatar_url; the artwork branch overrides explicitly below.
+  bucket: "avatars" | "beat-covers" = "avatars",
+): string | null {
+  if (!value) return null;
+  if (/^https?:\/\//.test(value)) return value;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  if (!base) return null;
+  const clean = value.replace(/^\//, "");
+  return `${base}/storage/v1/object/public/${bucket}/${clean}`;
 }
