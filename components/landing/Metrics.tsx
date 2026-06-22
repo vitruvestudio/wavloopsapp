@@ -97,6 +97,10 @@ export function LandingMetrics() {
             <img
               src="/Photos/metrics.png"
               alt="Wavloops analytics dashboard — total plays, total likes, top fan, audience activity."
+              loading="lazy"
+              decoding="async"
+              width={1920}
+              height={1080}
               style={{
                 width: "100%",
                 height: "auto",

@@ -252,7 +252,11 @@ export function LandingHowItWorks() {
             muted
             loop
             playsInline
-            preload="metadata"
+            // Below-the-fold tabbed player — never preload until
+            // the user actually scrolls down + lands on this
+            // section. Avoids paying for 3 video metadata fetches
+            // (Wavloops_1/2/3) just to render the home.
+            preload="none"
             className="absolute inset-0 w-full h-full"
             style={{ objectFit: "cover", zIndex: 1 }}
           />

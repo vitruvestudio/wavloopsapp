@@ -119,6 +119,10 @@ function GrowVisual() {
       <img
         src="/Photos/Gorwaudience.png"
         alt="Wavloops — artist insight card showing plays, likes, beats heard, servers and top fans."
+        loading="lazy"
+        decoding="async"
+        width={1920}
+        height={1280}
         style={{
           width: "100%",
           height: "auto",

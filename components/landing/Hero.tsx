@@ -190,7 +190,15 @@ export function LandingHero() {
             muted
             loop
             playsInline
+            // Above-the-fold demo — keep preload metadata so the
+            // browser pulls the first frame quickly. fetchPriority
+            // hints to the resource scheduler that this is the LCP
+            // candidate and shouldn't wait behind images / scripts.
             preload="metadata"
+            // @ts-expect-error fetchPriority is in the DOM spec but
+            // not yet in @types/react's HTMLAttributes. Lower-cased
+            // attribute names are still valid HTML and pass through.
+            fetchpriority="high"
             aria-hidden="true"
             style={{
               width: "100%",
