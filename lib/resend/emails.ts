@@ -237,43 +237,86 @@ export async function sendAccessRequestEmail(
 export interface BeatsUploadedEmailPayload {
   artistEmail: string;
   producerHandle: string;
+  /** Public URL of the producer's avatar (from the `avatars`
+   *  bucket, public-read). Null if the producer never uploaded
+   *  one — we render an accent-coloured initial circle instead. */
+  producerAvatarUrl: string | null;
   serverName: string;
   serverSlug: string;
-  beatTitles: string[];
+  beats: Array<{
+    title: string;
+    /** Public URL of the beat artwork (from `beat-covers`).
+     *  Null beats fall back to an accent square placeholder. */
+    artworkUrl: string | null;
+  }>;
 }
 
 export async function sendBeatsUploadedEmail(
   p: BeatsUploadedEmailPayload,
 ): Promise<SendResult> {
   const url = `${siteUrl()}/listen/${p.serverSlug}`;
-  const count = p.beatTitles.length;
+  const count = p.beats.length;
   const headline =
     count === 1
       ? `1 new beat in ${p.serverName}.`
       : `${count} new beats in ${p.serverName}.`;
-  const list = p.beatTitles
-    .slice(0, 10)
-    .map(
-      (t) =>
-        `<li style="margin:6px 0;font-size:14.5px;color:#0c0c0e;">${escape(t)}</li>`,
-    )
+
+  const initial = (p.producerHandle.replace(/^@/, "")[0] ?? "?").toUpperCase();
+  // Reusable square placeholder for missing artwork — accent block
+  // with a centered initial. Keeps the visual rhythm of the list
+  // even when some beats have no cover yet.
+  const placeholderTile = (letter: string, size: number) => `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="${size}" height="${size}" style="background:#2b25ff;border-radius:10px;">
+      <tr><td align="center" valign="middle" style="color:#ffffff;font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:800;font-size:${Math.round(size * 0.45)}px;line-height:1;">${escape(letter)}</td></tr>
+    </table>
+  `;
+  // Producer avatar — circular 44 px, with first-letter fallback.
+  const avatarBlock = p.producerAvatarUrl
+    ? `<img src="${escape(p.producerAvatarUrl)}" alt="" width="44" height="44" style="display:block;border:0;border-radius:50%;object-fit:cover;">`
+    : `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="44" height="44" style="background:#2b25ff;border-radius:50%;">
+        <tr><td align="center" valign="middle" style="color:#ffffff;font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-weight:800;font-size:18px;line-height:1;">${escape(initial)}</td></tr>
+      </table>`;
+
+  // Beat list as table rows so cover + title align cleanly across
+  // every email client. <td> intrinsic widths beat flex hacks here.
+  const rows = p.beats
+    .slice(0, 8)
+    .map((b) => {
+      const cover = b.artworkUrl
+        ? `<img src="${escape(b.artworkUrl)}" alt="" width="56" height="56" style="display:block;border:0;border-radius:10px;object-fit:cover;">`
+        : placeholderTile(
+            (b.title[0] ?? "?").toUpperCase(),
+            56,
+          );
+      return `
+        <tr>
+          <td style="padding:8px 0;" width="56" valign="middle">${cover}</td>
+          <td style="padding:8px 0 8px 14px;color:#0c0c0e;font-family:'Hanken Grotesk','Inter',sans-serif;font-size:15px;font-weight:600;line-height:1.3;vertical-align:middle;">${escape(b.title)}</td>
+        </tr>`;
+    })
     .join("");
   const more =
-    count > 10
-      ? `<div style="margin:8px 0 0;color:#8e8e98;font-size:13px;">+${count - 10} more…</div>`
+    count > 8
+      ? `<tr><td colspan="2" style="padding:8px 0 0;color:#8e8e98;font-family:'Hanken Grotesk','Inter',sans-serif;font-size:13px;">+${count - 8} more…</td></tr>`
       : "";
+
   const html = brandShell({
     preheader: `${p.producerHandle} just dropped ${count} beat${count === 1 ? "" : "s"} in ${p.serverName}.`,
     meta: `${count} NEW &middot; BY ${escape(p.producerHandle).toUpperCase()}`,
     title: headline,
     bodyHtml: `
-      <p style="margin:0 0 18px;">
-        <strong style="color:#0c0c0e;">${escape(p.producerHandle)}</strong> just dropped fresh material in <strong style="color:#0c0c0e;">${escape(p.serverName)}</strong>.
-      </p>
-      <div style="padding:14px 20px;border-radius:12px;background:#f5f5f7;margin-bottom:8px;">
-        <ul style="margin:0;padding-left:18px;list-style:disc;">${list}</ul>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 22px;">
+        <tr>
+          <td width="44" valign="middle">${avatarBlock}</td>
+          <td valign="middle" style="padding-left:12px;color:#0c0c0e;font-size:15px;line-height:1.4;">
+            <strong style="color:#0c0c0e;">${escape(p.producerHandle)}</strong> just dropped fresh material in <strong style="color:#0c0c0e;">${escape(p.serverName)}</strong>.
+          </td>
+        </tr>
+      </table>
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding:14px 18px;border-radius:12px;background:#f5f5f7;">
+        ${rows}
         ${more}
-      </div>
+      </table>
     `,
     ctaLabel: "Listen now",
     ctaUrl: url,
