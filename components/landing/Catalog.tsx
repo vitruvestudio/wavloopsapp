@@ -130,17 +130,18 @@ export function LandingCatalog() {
             marginBottom: 18,
           }}
         >
-          Your beats library,
-          <br />
+          Your{" "}
           <span
             style={{
               color: "var(--accent)",
               textShadow: "0 0 28px color-mix(in oklch, var(--accent) 35%, transparent)",
             }}
           >
-            always live
-          </span>
-          .
+            private
+          </span>{" "}
+          catalog.
+          <br />
+          Not a public marketplace.
         </h2>
         <p
           className="t-body-l"
@@ -148,12 +149,13 @@ export function LandingCatalog() {
             fontSize: 18,
             lineHeight: 1.55,
             color: "#4a4a52",
-            maxWidth: 620,
+            maxWidth: 720,
             margin: "0 auto",
           }}
         >
-          Every beat you make lives in one catalog — no re-uploads, no
-          re-sends. Your artists browse, preview, and come back anytime.
+          Every beat in one place — shared only with the artists, labels and
+          A&amp;Rs you choose. No noise, no crowd. Just your music, in front
+          of the people who can place it.
         </p>
       </div>
 
