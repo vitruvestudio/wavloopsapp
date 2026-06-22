@@ -115,6 +115,9 @@ export function CreateServerPage({
   const [visibility, setVisibility] = React.useState<Visibility>(
     existing?.visibility ?? "private",
   );
+  const [downloadsAllowed, setDownloadsAllowed] = React.useState<boolean>(
+    existing?.downloads_allowed ?? false,
+  );
   const [beatIds, setBeatIds] = React.useState<string[]>(
     existingBeatIds ?? [],
   );
@@ -261,6 +264,7 @@ export function CreateServerPage({
       artwork_image_url:
         artworkMode === "image" ? artworkPreviewUrl : null,
       visibility,
+      downloads_allowed: downloadsAllowed,
       created_at: "",
       updated_at: "",
     }),
@@ -274,6 +278,7 @@ export function CreateServerPage({
       accentHue,
       artworkPreviewUrl,
       visibility,
+      downloadsAllowed,
     ],
   );
 
@@ -334,6 +339,7 @@ export function CreateServerPage({
         accent_hue: artworkMode === "color" ? accentHue : null,
         artwork_image_url: artwork?.url ?? null,
         visibility,
+        downloads_allowed: downloadsAllowed,
         beat_ids: beatIds,
       };
 
@@ -593,6 +599,101 @@ export function CreateServerPage({
                   features="EMAIL CONFIRMATION · INSTANT ACCESS"
                 />
               </div>
+            </div>
+
+            {/* Downloads — toggle row. Default OFF. When on, granted
+                    artists can download the audio file of every beat
+                    in this server (icon on the row desktop, '⋯ → Download'
+                    on mobile). When off, the affordance is hidden and
+                    the download endpoint refuses the request even if
+                    the artist forges the URL. */}
+            <div>
+              <div className="t-mono-s" style={{ marginBottom: 10 }}>
+                DOWNLOADS
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={downloadsAllowed}
+                onClick={() => setDownloadsAllowed((v) => !v)}
+                className="flex w-full items-center text-left transition-colors duration-fast cursor-pointer border-0"
+                style={{
+                  gap: 14,
+                  padding: "14px 16px",
+                  borderRadius: "var(--r-md)",
+                  background: downloadsAllowed
+                    ? "var(--accent-surface)"
+                    : "var(--bg-2)",
+                  border: `1px solid ${
+                    downloadsAllowed
+                      ? "color-mix(in oklch, var(--accent-text) 35%, transparent)"
+                      : "var(--border-1)"
+                  }`,
+                }}
+              >
+                <span
+                  className="flex items-center justify-center shrink-0"
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "var(--r-sm)",
+                    background: downloadsAllowed
+                      ? "var(--accent)"
+                      : "var(--bg-3)",
+                    color: downloadsAllowed
+                      ? "var(--accent-fg)"
+                      : "var(--fg-3)",
+                  }}
+                >
+                  <Icon name="download" size={16} />
+                </span>
+                <span className="flex flex-col flex-1 min-w-0">
+                  <span
+                    className="t-title"
+                    style={{ fontSize: 14, color: "var(--fg-1)" }}
+                  >
+                    Allow artists to download
+                  </span>
+                  <span
+                    className="t-mono-s"
+                    style={{ color: "var(--fg-3)", marginTop: 4 }}
+                  >
+                    {downloadsAllowed
+                      ? "ON · ARTISTS CAN SAVE THE AUDIO LOCALLY"
+                      : "OFF · ARTISTS CAN ONLY STREAM IN THE APP"}
+                  </span>
+                </span>
+                {/* Switch glyph — purely visual, the whole row is the
+                        button so this never receives a click. */}
+                <span
+                  aria-hidden="true"
+                  className="shrink-0"
+                  style={{
+                    width: 38,
+                    height: 22,
+                    borderRadius: 11,
+                    background: downloadsAllowed
+                      ? "var(--accent)"
+                      : "var(--bg-3)",
+                    position: "relative",
+                    transition: "background 0.15s var(--ease)",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: downloadsAllowed ? 18 : 2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.15s var(--ease)",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                    }}
+                  />
+                </span>
+              </button>
             </div>
 
             {/* Add beats from library */}
