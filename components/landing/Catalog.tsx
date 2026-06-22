@@ -123,7 +123,7 @@ export function LandingCatalog() {
         <h2
           className="t-display"
           style={{
-            fontSize: "clamp(30px, 4.2vw, 52px)",
+            fontSize: "clamp(32px, 4vw, 52px)",
             lineHeight: 1.06,
             letterSpacing: "-0.02em",
             color: "#0F0F12",

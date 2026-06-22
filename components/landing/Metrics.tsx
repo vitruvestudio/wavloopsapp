@@ -42,7 +42,7 @@ export function LandingMetrics() {
           <h2
             className="t-display"
             style={{
-              fontSize: "clamp(36px, 4.6vw, 60px)",
+              fontSize: "clamp(32px, 4vw, 52px)",
               lineHeight: 1.04,
               marginBottom: 22,
               letterSpacing: "-0.02em",

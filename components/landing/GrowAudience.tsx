@@ -14,7 +14,6 @@
  */
 
 import * as React from "react";
-import { Icon } from "@/components/ui/Icon";
 
 export function LandingGrowAudience() {
   return (
@@ -55,7 +54,7 @@ export function LandingGrowAudience() {
             <h2
               className="t-display"
               style={{
-                fontSize: "clamp(40px, 5.4vw, 68px)",
+                fontSize: "clamp(32px, 4vw, 52px)",
                 lineHeight: 1.04,
                 marginBottom: 24,
                 letterSpacing: "-0.018em",
@@ -91,7 +90,7 @@ export function LandingGrowAudience() {
           {/* Video placeholder — DOM-second, ordered to the LEFT
                   on md+. */}
           <div className="order-2 md:order-1">
-            <VideoPlaceholder />
+            <GrowVisual />
           </div>
         </div>
       </div>
@@ -100,83 +99,32 @@ export function LandingGrowAudience() {
 }
 
 /* ============================================================
-   Video placeholder — same shape as the hero / NeverAgain
-   frame. Drop a <video> in by replacing the inner play disc.
+   Visual — Gorwaudience.png with accent halo.
+   Replaces the idle video placeholder. Raw <img> so the file's
+   own bezel renders without a wrapper card around it.
    ============================================================ */
 
-function VideoPlaceholder() {
+function GrowVisual() {
   return (
     <div
       className="relative w-full"
       style={{
-        aspectRatio: "16 / 9",
         borderRadius: "var(--r-xl)",
-        border: "1px solid var(--border-2)",
-        background:
-          "linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%)",
-        boxShadow:
-          "0 50px 100px -32px oklch(0 0 0 / 0.7), 0 0 60px -16px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)",
         overflow: "hidden",
+        boxShadow:
+          "0 50px 100px -32px oklch(0 0 0 / 0.7), 0 0 60px -16px var(--accent-glow)",
       }}
     >
-      {/* Top-centre accent halo */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/Photos/Gorwaudience.png"
+        alt="Wavloops — artist insight card showing plays, likes, beats heard, servers and top fans."
         style={{
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 0%, var(--accent-glow) 0%, transparent 60%)",
-          opacity: 0.5,
+          width: "100%",
+          height: "auto",
+          display: "block",
         }}
       />
-
-      {/* Faint vertical scan lines fading under the centre. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, var(--border-1) 1px, transparent 1px)",
-          backgroundSize: "48px 100%",
-          maskImage:
-            "radial-gradient(ellipse 40% 40% at 50% 50%, transparent 40%, #000 80%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse 40% 40% at 50% 50%, transparent 40%, #000 80%)",
-          opacity: 0.6,
-        }}
-      />
-
-      {/* Centred play disc + caption */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <button
-          type="button"
-          aria-label="Play demo video"
-          className="inline-flex items-center justify-center transition-transform hover:scale-105"
-          style={{
-            width: 84,
-            height: 84,
-            borderRadius: "var(--r-pill)",
-            background: "var(--accent)",
-            color: "var(--accent-fg)",
-            border:
-              "1px solid color-mix(in oklch, var(--accent-fg) 18%, transparent)",
-            boxShadow:
-              "0 0 0 8px color-mix(in oklch, var(--accent) 18%, transparent), 0 24px 60px -12px var(--accent-glow)",
-            cursor: "pointer",
-          }}
-        >
-          <Icon name="play" size={28} />
-        </button>
-        <span
-          className="t-mono"
-          style={{
-            marginTop: 18,
-            color: "var(--fg-2)",
-          }}
-        >
-          Watch the tracking demo
-        </span>
-      </div>
     </div>
   );
 }

@@ -85,7 +85,8 @@ function SectionHeader() {
         id="problem-title"
         className="t-display"
         style={{
-          fontSize: "clamp(36px, 4.4vw, 56px)",
+          fontSize: "clamp(32px, 4vw, 52px)",
+          letterSpacing: "-0.02em",
           lineHeight: 1.04,
           maxWidth: 880,
         }}
