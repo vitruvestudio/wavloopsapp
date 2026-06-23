@@ -172,15 +172,15 @@ export async function fetchOgImageAction(
     if (imgUrl.startsWith("//")) imgUrl = `https:${imgUrl}`;
 
     // Pipe the image into our own Supabase Storage so the URL we
-    // hand back to the browser is permanent + CDN-served, instead
-    // of the raw social-CDN URL. Instagram in particular signs
-    // og:image URLs with short-lived `oh=`/`oe=` tokens AND seems
-    // to sometimes degrade what it returns to data-center scraping
-    // egress (Vercel IPs); proxying through our own storage
-    // sidesteps both. Failure here drops back to returning the raw
-    // URL — the previous behaviour, so we never regress UX.
+    // hand back to the browser is permanent + CDN-served. When
+    // the proxy returns null (junk image filtered, network error,
+    // upload failed), don't fall back to the raw URL — Instagram's
+    // signed CDN URLs 403 from the browser anyway, and X / TikTok
+    // edges sometimes do the same. Better to surface null and let
+    // the modal degrade to the initials Avatar (+ the new manual
+    // upload button) than to ship a known-broken URL.
     const proxiedUrl = await proxyImageToStorage(imgUrl);
-    return { url: proxiedUrl ?? imgUrl };
+    return { url: proxiedUrl };
   } catch {
     return { url: null };
   }
@@ -215,6 +215,14 @@ const ACCEPTED_IMAGE_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+
+/** Heuristic floor for 'this is the real profile pic, not a generic
+ *  platform fallback'. Real social-thumbnail og:images sit in the
+ *  2-50 KB range (100×100 JPEG). The generic Instagram default-OG
+ *  logo Vercel egress receives instead is a 778 KB PNG at
+ *  4168×4168 — way past anything an actual avatar thumbnail would
+ *  occupy. Anything over this size IS junk. */
+const PROXY_JUNK_BYTE_FLOOR = 200 * 1024; // 200 KB
 
 async function proxyImageToStorage(imageUrl: string): Promise<string | null> {
   let parsed: URL;
@@ -255,6 +263,13 @@ async function proxyImageToStorage(imageUrl: string): Promise<string | null> {
   if (buffer.byteLength === 0 || buffer.byteLength > MAX_PROXY_BYTES) {
     return null;
   }
+  // Generic-fallback rejection — if the file is larger than the
+  // floor, it's almost certainly the platform's default OG asset
+  // (Instagram's 778 KB / 4168×4168 logo, X's 800 KB egg, etc.)
+  // rather than a real profile thumbnail. Returning null here keeps
+  // the bucket clean and lets the UI fall through to the manual
+  // upload affordance.
+  if (buffer.byteLength > PROXY_JUNK_BYTE_FLOOR) return null;
 
   const ext =
     contentType === "image/png"
@@ -280,6 +295,90 @@ async function proxyImageToStorage(imageUrl: string): Promise<string | null> {
     return data.publicUrl ?? null;
   } catch {
     return null;
+  }
+}
+
+/* ================================================================
+   uploadContactAvatarAction — manual upload fallback for the Add /
+   Edit Contact modal. Used when:
+     - the social scrape returned null (Instagram serving a generic
+       fallback / page has no og:image / Vercel egress IP-banned)
+     - or the producer just wants to set a specific photo without
+       pasting any social link.
+
+   Accepts a FormData with a single 'file' part (image/jpeg|png|
+   webp|gif, ≤ 5 MB). Uploads to public 'avatars' bucket under
+   contact-manual/<uuid>.<ext> and returns the public URL. Mirrors
+   the proxy upload shape (same bucket, sibling prefix) so a
+   bucket-listing audit lets you tell apart automatic scrapes from
+   producer-driven uploads.
+   ================================================================ */
+export interface UploadContactAvatarResult {
+  url: string | null;
+  error: string | null;
+}
+
+const MAX_MANUAL_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+
+export async function uploadContactAvatarAction(
+  formData: FormData,
+): Promise<UploadContactAvatarResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { url: null, error: "You're not signed in." };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { url: null, error: "No file uploaded." };
+  }
+  if (file.size === 0) {
+    return { url: null, error: "File is empty." };
+  }
+  if (file.size > MAX_MANUAL_UPLOAD_BYTES) {
+    return { url: null, error: "Image is over 5 MB. Compress and try again." };
+  }
+  const contentType = (file.type || "").toLowerCase().split(";")[0].trim();
+  if (!ACCEPTED_IMAGE_TYPES.has(contentType)) {
+    return {
+      url: null,
+      error: "Use a JPG, PNG, WEBP or GIF image.",
+    };
+  }
+
+  const ext =
+    contentType === "image/png"
+      ? "png"
+      : contentType === "image/webp"
+        ? "webp"
+        : contentType === "image/gif"
+          ? "gif"
+          : "jpg";
+  const path = `contact-manual/${crypto.randomUUID()}.${ext}`;
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const admin = getAdminSupabase();
+    const { error: upErr } = await admin.storage
+      .from("avatars")
+      .upload(path, new Uint8Array(buffer), {
+        contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (upErr) {
+      return { url: null, error: upErr.message };
+    }
+    const { data } = admin.storage.from("avatars").getPublicUrl(path);
+    return { url: data.publicUrl ?? null, error: null };
+  } catch (e) {
+    return {
+      url: null,
+      error: e instanceof Error ? e.message : "Upload failed.",
+    };
   }
 }
 
