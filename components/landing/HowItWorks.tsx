@@ -54,11 +54,11 @@ const STEPS: Step[] = [
   {
     id: "share",
     number: "02",
-    tabLabel: "Share one link",
-    icon: "link",
-    title: "Share one link.",
-    hook: "One link. Send it once. Artists get in with their email — no app to download, no friction.",
-    video: "/Videos/Wavloops_2.mp4",
+    tabLabel: "Add your contact",
+    icon: "users",
+    title: "Add your contact.",
+    hook: "Drop the artists, labels and A&Rs you already work with. Wavloops sends them one link — no app to download, no friction.",
+    video: "/Videos/Addyourcontact.mp4",
   },
   {
     id: "track",
