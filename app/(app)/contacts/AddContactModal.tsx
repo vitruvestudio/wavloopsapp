@@ -45,6 +45,7 @@ import {
   addContactAction,
   fetchOgImageAction,
   updateContactAction,
+  uploadContactAvatarAction,
 } from "./actions";
 import type { ServerStub } from "./page";
 import { parseSocialLink, platformLabel } from "@/lib/socials";
@@ -114,6 +115,15 @@ export function AddContactModal({
 
   /* ─── Auto-fill from a pasted social link ─────────────────────── */
   const [quickFillInput, setQuickFillInput] = React.useState("");
+  /** Manual photo upload — independent of the scrape pipeline.
+   *  When the social scrape fails (Instagram serving its generic
+   *  fallback to Vercel egress, page has no og:image, etc.), the
+   *  producer can pick a local file and uploadContactAvatarAction
+   *  drops it in the avatars bucket. The returned URL replaces
+   *  avatarUrl just like the scrape branch does. */
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [uploadPending, setUploadPending] = React.useState(false);
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
     existing?.avatar_url ?? null,
   );
@@ -234,6 +244,29 @@ export function AddContactModal({
   };
 
   const previewName = name.trim() || "New contact";
+
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!f) return;
+    setUploadError(null);
+    setUploadPending(true);
+    const fd = new FormData();
+    fd.append("file", f);
+    uploadContactAvatarAction(fd)
+      .then((res) => {
+        setUploadPending(false);
+        if (res.error) {
+          setUploadError(res.error);
+          return;
+        }
+        if (res.url) setAvatarUrl(res.url);
+      })
+      .catch(() => {
+        setUploadPending(false);
+        setUploadError("Upload failed. Try again.");
+      });
+  };
   const previewEmail = email.trim() || "NO EMAIL YET";
 
   return (
@@ -346,7 +379,62 @@ export function AddContactModal({
                 {previewEmail}
               </div>
             </div>
+
+            {/* Manual photo upload — always available, escape hatch
+                    when the social scrape returned the generic
+                    fallback (Instagram from Vercel egress) or the
+                    page had no og:image at all. Click anywhere on
+                    the chip → hidden <input> file picker fires. */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={onPickFile}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadPending}
+              className="inline-flex items-center transition-colors duration-fast cursor-pointer shrink-0"
+              style={{
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: "var(--r-pill)",
+                background: avatarUrl ? "var(--bg-2)" : "var(--accent-surface)",
+                border: avatarUrl
+                  ? "1px solid var(--border-1)"
+                  : "1px solid color-mix(in oklch, var(--accent-text) 25%, transparent)",
+                color: avatarUrl ? "var(--fg-2)" : "var(--accent-text)",
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                opacity: uploadPending ? 0.5 : 1,
+              }}
+            >
+              <Icon name="upload" size={11} />
+              {uploadPending
+                ? "Uploading…"
+                : avatarUrl
+                  ? "Change"
+                  : "Upload"}
+            </button>
           </div>
+          {uploadError && (
+            <div
+              className="t-mono-s"
+              style={{
+                color: "var(--danger)",
+                marginTop: -8,
+                marginBottom: 12,
+                paddingLeft: 4,
+              }}
+            >
+              {uploadError}
+            </div>
+          )}
 
           {/* Quick-fill: paste a social link → auto-fill avatar + name + social slot */}
           <div style={{ marginBottom: 18 }}>
