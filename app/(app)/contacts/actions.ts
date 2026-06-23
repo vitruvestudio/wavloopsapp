@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { checkArtistQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 import { fanOutAddedToServer } from "@/lib/notifications/added-to-server";
 
 /* ================================================================
@@ -162,13 +163,123 @@ export async function fetchOgImageAction(
     imgUrl = imgUrl
       .replace(/&amp;/g, "&")
       .replace(/&#x2F;/g, "/")
-      .replace(/&#47;/g, "/");
+      .replace(/&#47;/g, "/")
+      .replace(/&quot;/g, '"')
+      .replace(/&#34;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#39;/g, "'");
     // Protocol-relative → https.
     if (imgUrl.startsWith("//")) imgUrl = `https:${imgUrl}`;
 
-    return { url: imgUrl };
+    // Pipe the image into our own Supabase Storage so the URL we
+    // hand back to the browser is permanent + CDN-served, instead
+    // of the raw social-CDN URL. Instagram in particular signs
+    // og:image URLs with short-lived `oh=`/`oe=` tokens AND seems
+    // to sometimes degrade what it returns to data-center scraping
+    // egress (Vercel IPs); proxying through our own storage
+    // sidesteps both. Failure here drops back to returning the raw
+    // URL — the previous behaviour, so we never regress UX.
+    const proxiedUrl = await proxyImageToStorage(imgUrl);
+    return { url: proxiedUrl ?? imgUrl };
   } catch {
     return { url: null };
+  }
+}
+
+/* ----------------------------------------------------------------
+   proxyImageToStorage — downloads the social CDN image with the
+   same SSRF-guarded fetch we use for HTML, validates it's actually
+   an image under our size budget, then uploads it to the public
+   `avatars` bucket under a contact-scrape/<uuid>.<ext> path. Returns
+   the Supabase public URL, or null on any failure (caller falls
+   back to the raw URL).
+
+   Why admin client: avatars bucket is public-read but writes are
+   policy-gated. We don't have a per-user upload policy for this
+   path, so service-role bypasses the gate. Safe because:
+     - URL is already host-allowlisted upstream (no SSRF re-entry).
+     - Content-type + size validated below.
+     - Output path is a random uuid — no overwrites, no enumeration.
+   --------------------------------------------------------------- */
+
+/** Max bytes we'll ever upload from a scraped CDN — keeps storage
+ *  spam bounded if an attacker repeatedly triggers scrapes. 2 MB is
+ *  generous for a profile picture. */
+const MAX_PROXY_BYTES = 2 * 1024 * 1024;
+
+/** Content-types we accept. Anything else gets dropped so a hostile
+ *  CDN can't make us host arbitrary binary blobs in our bucket. */
+const ACCEPTED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+async function proxyImageToStorage(imageUrl: string): Promise<string | null> {
+  let parsed: URL;
+  try {
+    parsed = new URL(imageUrl);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+
+  let imgRes: Response;
+  try {
+    imgRes = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Accept: "image/avif,image/webp,image/png,image/jpeg,*/*;q=0.8",
+        // Some CDNs (IG included) return higher-quality variants
+        // when the request looks like it came from a real page.
+        Referer: `${parsed.protocol}//${parsed.hostname}/`,
+      },
+      redirect: "follow",
+    });
+  } catch {
+    return null;
+  }
+  if (!imgRes.ok) return null;
+
+  const contentType = (imgRes.headers.get("content-type") ?? "")
+    .toLowerCase()
+    .split(";")[0]
+    .trim();
+  if (!ACCEPTED_IMAGE_TYPES.has(contentType)) return null;
+
+  // Read into ArrayBuffer with a size cap — clip rather than reject
+  // so a CDN that doesn't send Content-Length isn't a denial of
+  // service.
+  const buffer = await imgRes.arrayBuffer();
+  if (buffer.byteLength === 0 || buffer.byteLength > MAX_PROXY_BYTES) {
+    return null;
+  }
+
+  const ext =
+    contentType === "image/png"
+      ? "png"
+      : contentType === "image/webp"
+        ? "webp"
+        : contentType === "image/gif"
+          ? "gif"
+          : "jpg";
+  const path = `contact-scrape/${crypto.randomUUID()}.${ext}`;
+
+  try {
+    const admin = getAdminSupabase();
+    const { error: upErr } = await admin.storage
+      .from("avatars")
+      .upload(path, new Uint8Array(buffer), {
+        contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (upErr) return null;
+    const { data } = admin.storage.from("avatars").getPublicUrl(path);
+    return data.publicUrl ?? null;
+  } catch {
+    return null;
   }
 }
 
