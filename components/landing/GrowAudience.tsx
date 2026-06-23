@@ -80,10 +80,9 @@ export function LandingGrowAudience() {
                 maxWidth: 500,
               }}
             >
-              Every play, every like, every artist — tracked live. You see
-              exactly who&apos;s listening, who&apos;s coming back, and
-              who&apos;s ready to lock in. Spend your time on the artists
-              that move, not the ones that ghost.
+              Switch your server to public and turn every shared link into a
+              lead. Anyone who wants in drops their email + a social — and
+              they land in your contacts before they even hit play.
             </p>
           </div>
 
