@@ -79,11 +79,17 @@ export const PLAN_QUOTAS: Record<PlanKey, PlanQuotas> = {
 
 /** Stripe lookup keys — IDENTICAL in TEST + LIVE. The code resolves
  *  prices via these strings, never hardcodes a `price_id`. Switch a
- *  tarif by editing the underlying Stripe Price object directly. */
+ *  tarif by editing the underlying Stripe Price object directly.
+ *
+ *  USD-suffixed keys point at the USD-denominated prices we shipped
+ *  2026-06-24 as part of the US-market repositioning. The original
+ *  EUR keys (lookup keys without `_usd`) stay live in Stripe so EU
+ *  customers' historical subscriptions keep billing in EUR; new
+ *  sign-ups go through the USD prices. */
 export const STRIPE_LOOKUP_KEYS = {
-  lifetime: "wavloops_lifetime",
-  proMonthly: "wavloops_pro_monthly",
-  proYearly: "wavloops_pro_yearly",
+  lifetime: "wavloops_lifetime_usd",
+  proMonthly: "wavloops_pro_monthly_usd",
+  proYearly: "wavloops_pro_yearly_usd",
 } as const;
 
 export type StripeLookupKey =

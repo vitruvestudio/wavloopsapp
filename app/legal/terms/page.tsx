@@ -44,13 +44,13 @@ export default function TermsPage() {
           required.
         </li>
         <li>
-          <strong>Lifetime</strong> — single payment of 129 €. Three servers,
+          <strong>Lifetime</strong> — single payment of $129. Three servers,
           150 beats, 500 artists, MP3 uploads, full per-artist tracking. No
           recurring billing.
         </li>
         <li>
-          <strong>Pro</strong> — recurring subscription (12 €/month or
-          99 €/year). Unlimited servers and beats, 1,000 artists, all audio
+          <strong>Pro</strong> — recurring subscription ($12/month or
+          $99/year). Unlimited servers and beats, 1,000 artists, all audio
           formats supported, full per-artist tracking.
         </li>
       </ul>
@@ -130,7 +130,7 @@ export default function TermsPage() {
       <p>
         Our aggregate liability under these Terms is capped at the greater of
         (a) the amount you have paid us in the twelve (12) months preceding
-        the claim and (b) 100 €.
+        the claim and (b) $100.
       </p>
 
       <h2>9. Changes to these Terms</h2>

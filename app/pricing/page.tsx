@@ -128,7 +128,7 @@ function buildCards(): PlanCardData[] {
     {
       key: "free",
       name: "Free",
-      price: "0 €",
+      price: "$0",
       cadence: "forever",
       tagline: "Try the workflow with one server.",
       bullets: [
@@ -142,7 +142,7 @@ function buildCards(): PlanCardData[] {
     {
       key: "lifetime",
       name: "Lifetime",
-      price: "129 €",
+      price: "$129",
       cadence: "one payment, forever",
       tagline: "Own it once. No subscription.",
       bullets: [
@@ -158,8 +158,8 @@ function buildCards(): PlanCardData[] {
     {
       key: "pro",
       name: "Pro",
-      price: "12 €",
-      cadence: "/ month — or 99 €/year",
+      price: "$12",
+      cadence: "/ month — or $99/year",
       tagline: "Unlimited everything for serious producers.",
       bullets: [
         "Unlimited servers, beats, artists",
@@ -337,12 +337,12 @@ function renderCta(card: PlanCardData, isCurrent: boolean) {
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <UpgradeButton
         lookupKey={STRIPE_LOOKUP_KEYS.proMonthly}
-        label="Subscribe — 12 €/month"
+        label="Subscribe — $12/month"
         variant="secondary"
       />
       <UpgradeButton
         lookupKey={STRIPE_LOOKUP_KEYS.proYearly}
-        label="Subscribe — 99 €/year"
+        label="Subscribe — $99/year"
         variant="primary"
       />
     </div>

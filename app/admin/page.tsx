@@ -130,7 +130,12 @@ function KpiStrip({ kpis }: { kpis: KpiData }) {
       />
       <KpiCard
         label="MRR (est.)"
-        value={`${kpis.mrrEstimateEur.toLocaleString("en-US")} €`}
+        // Field name retained for backwards compat with existing
+        // metric collectors; the numeric value now reflects USD
+        // since the underlying Stripe prices flipped to USD as of
+        // 2026-06-24. Rename to `mrrEstimateUsd` whenever we get
+        // around to migrating the rest of the call sites.
+        value={`$${kpis.mrrEstimateEur.toLocaleString("en-US")}`}
         sub="pro monthly + pro yearly amortised"
       />
       <KpiCard

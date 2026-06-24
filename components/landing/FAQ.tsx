@@ -89,11 +89,11 @@ const FAQ_ITEMS: FAQItem[] = [
       <>
         <strong>Free</strong> is for trying it out — 1 server, 15 beats, 25
         artists, MP3 uploads, aggregated analytics. <strong>Lifetime</strong>{" "}
-        is a single 129 € payment that gives you 3 servers, 150 beats, 500
+        is a single $129 payment that gives you 3 servers, 150 beats, 500
         artists, full per-artist tracking and top-fan analytics — no recurring
         bill ever. <strong>Pro</strong> removes the caps entirely (unlimited
-        servers and beats, 1,000 artists, all audio formats) for 12 €/month
-        or 99 €/year.
+        servers and beats, 1,000 artists, all audio formats) for $12/month
+        or $99/year.
       </>
     ),
   },

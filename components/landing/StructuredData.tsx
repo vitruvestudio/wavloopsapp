@@ -52,7 +52,7 @@ const FAQ_ENTRIES: FaqEntry[] = [
   },
   {
     q: "What's the difference between Free, Lifetime, and Pro?",
-    a: "Free gives you 1 server, 10 beats and 25 artists to try the product. Lifetime (129 € once) unlocks 3 servers, 150 beats and 500 artists forever. Pro (monthly or yearly) is unlimited servers, beats and artists, plus advanced analytics.",
+    a: "Free gives you 1 server, 10 beats and 25 artists to try the product. Lifetime ($129 once) unlocks 3 servers, 150 beats and 500 artists forever. Pro (monthly or yearly) is unlimited servers, beats and artists, plus advanced analytics.",
   },
   {
     q: "Do I need a credit card to start?",
@@ -84,7 +84,7 @@ export function LandingStructuredData() {
             "@type": "Offer",
             name: "Free",
             price: "0",
-            priceCurrency: "EUR",
+            priceCurrency: "USD",
             availability: "https://schema.org/InStock",
             url: `${SITE_URL}/#pricing`,
           },
@@ -92,7 +92,7 @@ export function LandingStructuredData() {
             "@type": "Offer",
             name: "Lifetime",
             price: "129",
-            priceCurrency: "EUR",
+            priceCurrency: "USD",
             availability: "https://schema.org/InStock",
             url: `${SITE_URL}/#pricing`,
             description:

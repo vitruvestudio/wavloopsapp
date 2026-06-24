@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     template: "%s — Wavloops",
   },
   description:
-    "Stop sending beats. Start sharing one link. Drop beats into private servers, invite artists, labels and A&Rs, and see who plays what — in real time. Lifetime 129 € · Founding access.",
+    "Stop sending beats. Start sharing one link. Drop beats into private servers, invite artists, labels and A&Rs, and see who plays what — in real time. Lifetime $129 · Founding access.",
   keywords: [
     "share beats with artists",
     "send beats online",

@@ -203,7 +203,7 @@ function UpgradeCards({ currentPlan }: { currentPlan: PlanKey }) {
         <PlanOption
           kicker="BEST VALUE"
           name="Lifetime"
-          price="129 €"
+          price="$129"
           unit="once"
           features={[
             "3 servers · 150 beats · 500 artists",
@@ -219,28 +219,28 @@ function UpgradeCards({ currentPlan }: { currentPlan: PlanKey }) {
       <PlanOption
         kicker="MONTHLY"
         name="Pro"
-        price="12 €"
+        price="$12"
         unit="/ month"
         features={[
           "Unlimited servers, beats, artists",
           "MP3 + WAV uploads",
           "Cancel anytime",
         ]}
-        ctaLabel={pending ? "Redirecting…" : "Subscribe — 12 €/mo"}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — $12/mo"}
         onCta={() => fire(STRIPE_LOOKUP_KEYS.proMonthly)}
         pending={pending}
       />
       <PlanOption
         kicker="2 MONTHS OFF"
         name="Pro — Yearly"
-        price="99 €"
+        price="$99"
         unit="/ year"
         features={[
           "Same as Pro Monthly",
           "Pay yearly, save ~30 %",
           "Cancel anytime",
         ]}
-        ctaLabel={pending ? "Redirecting…" : "Subscribe — 99 €/yr"}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — $99/yr"}
         onCta={() => fire(STRIPE_LOOKUP_KEYS.proYearly)}
         pending={pending}
         accent={currentPlan === "lifetime"}

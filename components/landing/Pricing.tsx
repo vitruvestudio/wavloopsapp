@@ -13,9 +13,9 @@
  *
  * Quotas + prices kept in sync with lib/billing/plans.ts:
  *   Free       — 1 server   · 15 beats  · 25 artists
- *   Lifetime   — 3 servers  · 150 beats · 500 artists      129 € once
- *   Pro M      — unlimited servers + beats · 1000 artists  12 € / mo
- *   Pro Y      — same as Pro M                             99 € / yr (saves ~30%)
+ *   Lifetime   — 3 servers  · 150 beats · 500 artists      $129 once
+ *   Pro M      — unlimited servers + beats · 1000 artists  $12 / mo
+ *   Pro Y      — same as Pro M                             $99 / yr (saves ~30%)
  *
  * CTAs route anon visitors through /auth?intent=signup with a
  * plan hint preserved as a query param — the auth callback can
@@ -115,7 +115,7 @@ export function LandingPricing() {
           <PlanCard
             plan="free"
             badge="FREE FOREVER"
-            price="0 €"
+            price="$0"
             period="forever"
             features={FREE_FEATURES}
             ctaLabel="Start free"
@@ -125,7 +125,7 @@ export function LandingPricing() {
             plan="lifetime"
             highlighted
             badge="BEST VALUE"
-            price="129 €"
+            price="$129"
             period="once"
             features={LIFETIME_FEATURES}
             ctaLabel="Get Lifetime"
@@ -134,14 +134,14 @@ export function LandingPricing() {
           <PlanCard
             plan="pro"
             badge="MOST FLEXIBLE"
-            price={billing === "monthly" ? "12 €" : "99 €"}
+            price={billing === "monthly" ? "$12" : "$99"}
             period={billing === "monthly" ? "month" : "year"}
             features={PRO_FEATURES}
-            ctaLabel={billing === "monthly" ? "Subscribe — 12 €/mo" : "Subscribe — 99 €/yr"}
+            ctaLabel={billing === "monthly" ? "Subscribe — $12/mo" : "Subscribe — $99/yr"}
             ctaHref={`/auth?intent=signup&plan=${billing === "monthly" ? "pro_monthly" : "pro_yearly"}`}
             footnote={
               billing === "yearly"
-                ? "≈ 8.25 €/mo · billed yearly · saves ~30%"
+                ? "≈ $8.25/mo · billed yearly · saves ~30%"
                 : "billed monthly · cancel anytime"
             }
           />
