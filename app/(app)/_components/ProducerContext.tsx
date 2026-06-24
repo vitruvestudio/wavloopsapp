@@ -11,6 +11,7 @@
 "use client";
 
 import * as React from "react";
+import type { PlanKey } from "@/lib/billing/plans";
 import type {
   ProducerNotifications,
   ProducerViewer,
@@ -19,6 +20,10 @@ import type {
 export interface ProducerShellContext {
   viewer: ProducerViewer | null;
   notifications: ProducerNotifications;
+  /** Billing plan resolved by the layout via get_user_plan(). The
+   *  TopBar PlanBadge consumes this — defaults to 'free' when no
+   *  session, matching the server-side fallback. */
+  plan: PlanKey;
 }
 
 const EMPTY_NOTIFS: ProducerNotifications = {
@@ -29,6 +34,7 @@ const EMPTY_NOTIFS: ProducerNotifications = {
 const Ctx = React.createContext<ProducerShellContext>({
   viewer: null,
   notifications: EMPTY_NOTIFS,
+  plan: "free",
 });
 
 export function ProducerContextProvider({
@@ -51,4 +57,11 @@ export function useProducerViewer(): ProducerViewer | null {
 /** Returns the producer's notification dropdown payload. */
 export function useProducerNotifications(): ProducerNotifications {
   return React.useContext(Ctx).notifications;
+}
+
+/** Returns the current billing plan ('free' | 'lifetime' | 'pro').
+ *  Sourced from get_user_plan() at the layout level, so consumers
+ *  inside the (app) tree get it without re-querying. */
+export function useProducerPlan(): PlanKey {
+  return React.useContext(Ctx).plan;
 }

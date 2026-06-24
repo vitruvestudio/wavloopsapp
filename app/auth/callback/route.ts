@@ -1,17 +1,31 @@
 /**
  * /auth/callback — Supabase magic-link / OAuth exchange endpoint.
  *
- * Supabase embeds this URL in the magic-link email AND in the
- * OAuth redirect (Google). The provider bounces here with a
- * `?code=` parameter. We:
+ * Two flows arrive here:
  *
- *   1. Exchange the code for a real session cookie.
- *   2. Run bind_artist_contacts() so the freshly-authed user
+ *   - **Token-hash flow** (new, cross-device safe) — magic links
+ *     emailed by Supabase carry `?token_hash=&type=&redirect_to=`.
+ *     verifyOtp() trades the hash for a session WITHOUT needing
+ *     the PKCE code_verifier that lived on the device that
+ *     requested the link. This is what makes "request on desktop,
+ *     click on mobile" work — the failure mode that was crashing
+ *     real signups with `PKCE code verifier not found in storage`.
+ *
+ *   - **PKCE code flow** (legacy + Google OAuth) — Supabase
+ *     bounces here with `?code=`. exchangeCodeForSession() expects
+ *     the verifier in cookies → same-browser only. We still accept
+ *     this path for (a) in-flight magic links emailed BEFORE the
+ *     template switch and (b) Google OAuth which is always
+ *     same-browser anyway.
+ *
+ * After auth, the steps are identical regardless of flow:
+ *   1. Run bind_artist_contacts() so the freshly-authed user
  *      immediately sees every producer that already had them on
  *      file as a contact.
- *   3. Read `?next` if the caller passed one (gate flow uses
- *      this to land users on /s/<slug>).
- *   4. Otherwise, route intelligently based on which profiles
+ *   2. Read `?next` if the caller passed one (gate flow uses
+ *      this to land users on /s/<slug>). For the token-hash flow
+ *      the `next` lives inside the URL-encoded `redirect_to`.
+ *   3. Otherwise, route intelligently based on which profiles
  *      the user has:
  *
  *        - Caller passed ?as=artist → /onboarding/artist if no
@@ -24,12 +38,12 @@
  *          if they have artist_profiles, else default to
  *          producer onboarding.
  *
- *   5. Set/update the `wlp_last_mode` cookie based on the route
+ *   4. Set/update the `wlp_last_mode` cookie based on the route
  *      we ended up taking, so a future login sticks.
  *
- * On failure (missing / invalid code), bounce back to /auth with
- * the role + inline error preserved so the user lands on the
- * email form, not the role chooser.
+ * On failure (missing / invalid hash or code), bounce back to
+ * /auth with the role + inline error preserved so the user lands
+ * on the email form, not the role chooser.
  */
 
 import { cookies } from "next/headers";
@@ -56,6 +70,28 @@ function isSafeRelativePath(p: string): boolean {
   return true;
 }
 
+/** Parse the URL-encoded `redirect_to` that the token-hash email
+ *  template forwards from our `emailRedirectTo`. We expect it to
+ *  be `https://<our-host>/auth/callback?next=...&as=...`. Returns
+ *  the extracted `next` + `role`, both nullable, never throws — a
+ *  malformed value just falls through to top-level query lookups
+ *  so signup never hard-fails on a malformed link. */
+function parseRedirectTo(value: string | null): {
+  next: string | null;
+  role: string | null;
+} {
+  if (!value) return { next: null, role: null };
+  try {
+    const inner = new URL(value);
+    return {
+      next: inner.searchParams.get("next"),
+      role: inner.searchParams.get("as"),
+    };
+  } catch {
+    return { next: null, role: null };
+  }
+}
+
 function bounceBack(
   url: URL,
   errorMessage: string,
@@ -67,20 +103,64 @@ function bounceBack(
   return NextResponse.redirect(dest);
 }
 
+/** Email types Supabase emits on its magic-link / verify routes.
+ *  We list them explicitly so a bogus ?type= from a crafted URL
+ *  can't cast its way into verifyOtp and trigger unintended
+ *  behaviour. `email` covers signup + magic-link; `recovery` is
+ *  password reset (not currently used); `email_change` is
+ *  account-email update. */
+const ALLOWED_OTP_TYPES = new Set([
+  "email",
+  "magiclink",
+  "signup",
+  "recovery",
+  "email_change",
+  "invite",
+]);
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const explicitNext = url.searchParams.get("next");
-  const role = url.searchParams.get("as");
+  const tokenHash = url.searchParams.get("token_hash");
+  const otpType = url.searchParams.get("type");
+  const redirectTo = url.searchParams.get("redirect_to");
 
-  if (!code) {
-    return bounceBack(url, "Missing auth code in callback URL.", role);
-  }
+  // Token-hash flow: `next` and `as` live inside the URL-encoded
+  // `redirect_to` (the value of emailRedirectTo we set in the
+  // server action). Parse them out so the downstream routing is
+  // identical to the PKCE path. If parsing fails, fall back to
+  // the top-level query params — handy for edge cases.
+  const fromRedirect = parseRedirectTo(redirectTo);
+
+  const explicitNext = fromRedirect.next ?? url.searchParams.get("next");
+  const role = fromRedirect.role ?? url.searchParams.get("as");
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    return bounceBack(url, error.message, role);
+
+  // Prefer token-hash flow when present (works cross-device).
+  // exchangeCodeForSession is kept as a fallback for in-flight
+  // PKCE links and for Google OAuth (always same-browser).
+  if (tokenHash && otpType && ALLOWED_OTP_TYPES.has(otpType)) {
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: otpType as
+        | "email"
+        | "magiclink"
+        | "signup"
+        | "recovery"
+        | "email_change"
+        | "invite",
+    });
+    if (error) {
+      return bounceBack(url, error.message, role);
+    }
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      return bounceBack(url, error.message, role);
+    }
+  } else {
+    return bounceBack(url, "Missing auth token in callback URL.", role);
   }
 
   // Best-effort: link existing contact rows (created by producers

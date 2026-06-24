@@ -195,10 +195,14 @@ export function LandingHero() {
             // hints to the resource scheduler that this is the LCP
             // candidate and shouldn't wait behind images / scripts.
             preload="metadata"
-            // @ts-expect-error fetchPriority is in the DOM spec but
-            // not yet in @types/react's HTMLAttributes. Lower-cased
-            // attribute names are still valid HTML and pass through.
-            fetchpriority="high"
+            // React 19 requires the camelCase `fetchPriority` prop;
+            // the lowercase form crashes React's unknown-property
+            // check at runtime. The type signature for HTMLVideoElement
+            // in @types/react doesn't expose fetchPriority yet (it's
+            // shipped for img only), so we silence the TS check —
+            // browsers that don't recognize it ignore it.
+            // @ts-expect-error fetchPriority not yet typed on video.
+            fetchPriority="high"
             aria-hidden="true"
             style={{
               width: "100%",

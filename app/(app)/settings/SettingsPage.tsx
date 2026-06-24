@@ -18,7 +18,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -97,7 +97,21 @@ export function SettingsPage({
   hasArtistProfile,
   planContext,
 }: SettingsPageProps) {
-  const [tab, setTab] = React.useState<TabKey>("profile");
+  // Deep-link support: `?tab=billing` (or any TabKey) lands on
+  // that pane instead of profile. Used by the TopBar PlanBadge so
+  // a click takes the producer straight to billing without an
+  // extra tap. Falls back to 'profile' on missing / unknown value.
+  const searchParams = useSearchParams();
+  const initialTab: TabKey = (() => {
+    const raw = searchParams.get("tab");
+    return raw === "profile" ||
+      raw === "account" ||
+      raw === "notifications" ||
+      raw === "billing"
+      ? raw
+      : "profile";
+  })();
+  const [tab, setTab] = React.useState<TabKey>(initialTab);
 
   return (
     <>
@@ -1583,7 +1597,7 @@ function PlanCtas({ planContext }: { planContext: PlanContext }) {
         <PlanCard
           kicker="BEST VALUE"
           name="Lifetime"
-          price="129€"
+          price="$129"
           unit="once"
           features={[
             "3 servers, 150 beats, 500 artists",
@@ -1598,27 +1612,27 @@ function PlanCtas({ planContext }: { planContext: PlanContext }) {
       <PlanCard
         kicker="MOST FLEXIBLE"
         name="Pro — Monthly"
-        price="12€"
+        price="$12"
         unit="/ month"
         features={[
           "Unlimited servers, beats, artists",
           "MP3 + WAV upload",
           "Cancel anytime",
         ]}
-        ctaLabel={pending ? "Redirecting…" : "Subscribe — 12 €/mo"}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — $12/mo"}
         onCta={() => fireCheckout(STRIPE_LOOKUP_KEYS.proMonthly)}
       />
       <PlanCard
         kicker="2 MONTHS OFF"
         name="Pro — Yearly"
-        price="99€"
+        price="$99"
         unit="/ year"
         features={[
           "Same as Pro Monthly",
           "Pay yearly, save ~30 %",
           "Cancel anytime",
         ]}
-        ctaLabel={pending ? "Redirecting…" : "Subscribe — 99 €/yr"}
+        ctaLabel={pending ? "Redirecting…" : "Subscribe — $99/yr"}
         onCta={() => fireCheckout(STRIPE_LOOKUP_KEYS.proYearly)}
         accent={planContext.plan === "lifetime"}
       />

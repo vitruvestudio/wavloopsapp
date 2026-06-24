@@ -2,15 +2,12 @@
  * TopBar — Wavloops V3 global app chrome (responsive).
  *
  * Layout (desktop, lg+):
- *   [Search 440px max] [spacer] [● LIVE] | [Preview Server Page]
- *   [theme] [bell+dot] [account pill]
+ *   [Search 440px max] [spacer] [● LIVE] [plan badge] [theme] [bell+dot] [account pill]
  *
  * Mobile/Tablet adaptations (< lg):
  *   [Hamburger] [Search flex-1] [theme] [bell+dot] [avatar-only]
  *     - LIVE indicator hidden (< md)
- *     - Vertical divider hidden (< md)
- *     - "Preview Server Page" button hidden (< md), reachable from the
- *       per-page right slot when relevant
+ *     - Plan badge hidden (< md) — reachable from /settings on mobile
  *     - Account pill collapses to avatar-only (< sm)
  *
  * Height 60 desktop · 56 mobile. Padding 0 22 desktop · 0 14 mobile.
@@ -20,8 +17,8 @@
 
 import * as React from "react";
 import { AccountMenu } from "@/components/app/AccountMenu";
+import { PlanBadge } from "@/components/app/PlanBadge";
 import { ProducerNotificationsMenu } from "@/components/app/ProducerNotificationsMenu";
-import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { useProducerNotifications } from "@/app/(app)/_components/ProducerContext";
@@ -94,19 +91,8 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         LIVE
       </span>
 
-      {/* vertical divider — md+ */}
-      <div
-        aria-hidden
-        className="hidden bg-border-2 md:block"
-        style={{ width: 1, height: 24 }}
-      />
-
-      {/* preview server page — md+ */}
-      <div className="hidden md:block">
-        <Button variant="secondary" size="sm" icon="eye">
-          Preview Server Page
-        </Button>
-      </div>
+      {/* plan badge — md+, links to /settings billing tab */}
+      <PlanBadge />
 
       {/* theme toggle */}
       <IconButton

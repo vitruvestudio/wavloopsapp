@@ -23,6 +23,7 @@
  *   └──────────────────────────────────────────────────────┘
  */
 
+import { getCurrentUserPlan } from "@/lib/billing/server";
 import { AppShell } from "./_components/AppShell";
 import { ProducerContextProvider } from "./_components/ProducerContext";
 import {
@@ -35,12 +36,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [viewer, notifications] = await Promise.all([
+  const [viewer, notifications, plan] = await Promise.all([
     loadProducerViewer(),
     loadProducerNotifications(),
+    getCurrentUserPlan(),
   ]);
   return (
-    <ProducerContextProvider value={{ viewer, notifications }}>
+    <ProducerContextProvider value={{ viewer, notifications, plan }}>
       <AppShell>{children}</AppShell>
     </ProducerContextProvider>
   );
