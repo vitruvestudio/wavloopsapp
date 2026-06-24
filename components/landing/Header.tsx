@@ -84,27 +84,42 @@ export function LandingHeader({ isAuthed }: LandingHeaderProps) {
           </span>
         </Link>
 
-        {/* Centre — minimal nav. Pricing is the only public anchor
-                worth surfacing on the landing chrome; everything else
-                lives in the page sections themselves. Hidden on
-                mobile to keep the bar uncluttered. */}
+        {/* Centre — minimal nav. Pricing + the new content surfaces
+                (Blog, Compare) sit here so visitors landing on /blog
+                or /compare/* can navigate back to the marketing
+                anchors and vice-versa. Hidden on mobile to keep the
+                bar uncluttered. */}
         <nav
           className="hidden md:flex items-center"
           style={{ gap: 28 }}
         >
           <Link
-            href="#how-it-works"
+            href="/#how-it-works"
             className="t-body transition-colors hover:!text-[var(--fg-1)]"
             style={{ color: "var(--fg-2)" }}
           >
             How it works
           </Link>
           <Link
-            href="#pricing"
+            href="/#pricing"
             className="t-body transition-colors hover:!text-[var(--fg-1)]"
             style={{ color: "var(--fg-2)" }}
           >
             Pricing
+          </Link>
+          <Link
+            href="/compare"
+            className="t-body transition-colors hover:!text-[var(--fg-1)]"
+            style={{ color: "var(--fg-2)" }}
+          >
+            Compare
+          </Link>
+          <Link
+            href="/blog"
+            className="t-body transition-colors hover:!text-[var(--fg-1)]"
+            style={{ color: "var(--fg-2)" }}
+          >
+            Blog
           </Link>
         </nav>
 

@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
+import createMDX from "@next/mdx";
 
 const nextConfig: NextConfig = {
+  /**
+   * MDX wiring — required so `.mdx` files in /content can be
+   * imported by the dynamic blog/compare routes. We don't route
+   * MDX files directly under /app (we keep the App Router pages
+   * as .tsx), but `pageExtensions` still must list `mdx` so the
+   * @next/mdx loader is registered.
+   */
+  pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   experimental: {
     serverActions: {
       /**
@@ -66,4 +75,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * createMDX wraps next.config so .mdx files compile through the
+ * @next/mdx loader. remark-gfm is passed by NAME (string) — the
+ * Turbopack pipeline can't serialise JS function references, so
+ * the @next/mdx Turbopack path expects the plugin to be a string
+ * it can require at compile time. See
+ * node_modules/next/dist/docs/01-app/02-guides/mdx.md → "Using
+ * Plugins with Turbopack".
+ */
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: ["remark-gfm"],
+    rehypePlugins: [],
+  },
+});
+
+export default withMDX(nextConfig);

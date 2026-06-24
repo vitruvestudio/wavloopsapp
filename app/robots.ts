@@ -5,6 +5,8 @@
  *   /                        landing
  *   /pricing                 pricing anchor (no separate route yet, included for future)
  *   /auth                    sign-in
+ *   /blog, /blog/*           content hub + posts
+ *   /compare, /compare/*     versus pages
  *   /legal/*                 terms, privacy, refunds, cookies, legal notice
  *
  * Disallowed:
@@ -35,7 +37,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/legal/", "/auth"],
+        allow: ["/", "/legal/", "/auth", "/blog", "/blog/", "/compare", "/compare/"],
         disallow: [
           "/admin",
           "/admin/",

@@ -42,11 +42,22 @@ const COLUMNS: FooterColumn[] = [
     ],
   },
   {
-    title: "Company",
+    title: "Resources",
     links: [
-      { label: "About", href: "/about" },
+      { label: "Blog", href: "/blog" },
+      { label: "Private beat sharing guide", href: "/blog/private-beat-sharing-guide" },
       { label: "Contact", href: "mailto:contact@wavloops.co" },
       { label: "Status", href: "https://status.wavloops.co", external: true },
+    ],
+  },
+  {
+    title: "Compare",
+    links: [
+      { label: "All comparisons", href: "/compare" },
+      { label: "vs SendBeatsTo", href: "/compare/sendbeatsto" },
+      { label: "vs Beatstars", href: "/compare/beatstars" },
+      { label: "vs Soundee", href: "/compare/soundee" },
+      { label: "vs WeTransfer", href: "/compare/wetransfer" },
     ],
   },
   {
@@ -86,7 +97,7 @@ export function LandingFooter() {
         >
           <BrandBlock />
           <div
-            className="grid grid-cols-2 md:grid-cols-3"
+            className="grid grid-cols-2 md:grid-cols-4"
             style={{ gap: "clamp(24px, 3vw, 40px)" }}
           >
             {COLUMNS.map((col) => (
