@@ -13,6 +13,7 @@
  */
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/auth/admin";
@@ -97,9 +98,27 @@ function Header({ email }: { email: string }) {
           Founder cockpit.
         </h1>
       </div>
-      <span className="t-mono" style={{ color: "var(--fg-4)" }}>
-        Signed in as {email}
-      </span>
+      <div className="flex items-center" style={{ gap: 14 }}>
+        <Link
+          href="/admin/affiliates"
+          className="t-mono"
+          style={{
+            padding: "8px 14px",
+            borderRadius: "var(--r-pill)",
+            background: "var(--accent-surface)",
+            border: "1px solid color-mix(in oklch, var(--accent-text) 35%, transparent)",
+            color: "var(--accent-text)",
+            textDecoration: "none",
+            letterSpacing: "0.08em",
+            fontSize: 11,
+          }}
+        >
+          AFFILIATES →
+        </Link>
+        <span className="t-mono" style={{ color: "var(--fg-4)" }}>
+          Signed in as {email}
+        </span>
+      </div>
     </header>
   );
 }
