@@ -35,6 +35,11 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
+import {
+  applyAffiliateCommission,
+  clawbackAffiliateForPayment,
+} from "@/lib/affiliate/server";
+import { planKeyFromLookup } from "@/lib/affiliate/config";
 import { getStripeServer } from "@/lib/stripe/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 
@@ -166,12 +171,13 @@ async function dispatch(event: Stripe.Event, admin: AdminClient) {
       );
 
     case "invoice.payment_succeeded":
-      console.log(
-        `[stripe/webhook] invoice paid: ${
-          (event.data.object as Stripe.Invoice).id
-        }`,
+      return handleInvoicePaid(event.data.object as Stripe.Invoice, admin);
+
+    case "charge.refunded":
+      return handleChargeRefunded(
+        event.data.object as Stripe.Charge,
+        admin,
       );
-      return;
 
     case "invoice.payment_failed":
       // Phase 4+ will email the user. For now, log only — Stripe's
@@ -286,6 +292,38 @@ async function handleCheckoutCompleted(
   console.log(
     `[stripe/webhook] lifetime activated for user ${userId} (session ${session.id})`,
   );
+
+  // Affiliate commission — best-effort. We don't want a failure
+  // here to cause Stripe to retry the entire webhook (the user is
+  // already provisioned). Errors are logged inside the helper.
+  try {
+    const paymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : (session.payment_intent?.id ?? null);
+    const grossAmountCents = session.amount_total ?? 0;
+    if (grossAmountCents > 0) {
+      await applyAffiliateCommission({
+        admin,
+        userId,
+        planKey: "lifetime",
+        grossAmountCents,
+        stripe: {
+          customerId,
+          paymentIntentId,
+          invoiceId:
+            typeof session.invoice === "string"
+              ? session.invoice
+              : (session.invoice?.id ?? null),
+        },
+      });
+    }
+  } catch (e) {
+    console.warn(
+      "[stripe/webhook] affiliate commission (lifetime) failed",
+      e,
+    );
+  }
 }
 
 /** Subscription created or updated. Both events ship the same
@@ -377,4 +415,138 @@ async function handleSubscriptionDeleted(
   console.log(
     `[stripe/webhook] subscription ${sub.id} canceled for user ${userId}`,
   );
+}
+
+/** Pro recurring invoice — fires on each monthly/yearly billing.
+ *  We use this event (not customer.subscription.created) to drive
+ *  the affiliate commission because:
+ *    1. It also fires on the FIRST Pro invoice (no special-case).
+ *    2. It carries `amount_paid` directly (subscription events
+ *       don't always have the amount denormalised).
+ *    3. Stripe retries this event on any 5xx; idempotency is
+ *       guaranteed by the DB unique index on
+ *       (stripe_invoice_id, recurrence_index).
+ *
+ *  Non-subscription invoices (Lifetime had its own checkout
+ *  branch) are ignored — we'd double-credit Lifetime otherwise. */
+async function handleInvoicePaid(
+  invoice: Stripe.Invoice,
+  admin: AdminClient,
+) {
+  const subId =
+    typeof (invoice as unknown as { subscription?: string | Stripe.Subscription })
+      .subscription === "string"
+      ? ((invoice as unknown as { subscription: string }).subscription as string)
+      : (
+          (invoice as unknown as { subscription?: Stripe.Subscription })
+            .subscription?.id ?? null
+        );
+  if (!subId) {
+    // Non-subscription invoice (e.g. one-time billed via
+    // Invoices API). Wavloops doesn't use these — log and move on.
+    console.log(
+      `[stripe/webhook] invoice ${invoice.id} has no subscription id, skipping affiliate`,
+    );
+    return;
+  }
+
+  const userId = await resolveUserId(invoice, admin);
+  if (!userId) {
+    console.warn(
+      `[stripe/webhook] cannot resolve user for invoice ${invoice.id}`,
+    );
+    return;
+  }
+
+  // Extract the Stripe lookup_key from the first line item.
+  // The newer Stripe API hands us `line.pricing.price` as just a
+  // price ID (string), so we round-trip Stripe to read the
+  // canonical Price object's lookup_key. Pro subscriptions have a
+  // single price; multi-line invoices pick the first line item.
+  const firstLine = invoice.lines?.data?.[0];
+  const priceId =
+    (firstLine as unknown as { pricing?: { price?: string } } | undefined)
+      ?.pricing?.price ?? null;
+  let lookupKey: string | null = null;
+  if (priceId) {
+    try {
+      const stripe = getStripeServer();
+      const price = await stripe.prices.retrieve(priceId);
+      lookupKey = price.lookup_key ?? null;
+    } catch (e) {
+      console.warn(
+        `[stripe/webhook] failed to resolve price ${priceId} for invoice ${invoice.id}`,
+        e,
+      );
+    }
+  }
+  if (!lookupKey) {
+    console.warn(
+      `[stripe/webhook] invoice ${invoice.id} missing lookup_key, skipping affiliate`,
+    );
+    return;
+  }
+  const planKey = planKeyFromLookup(lookupKey);
+  if (!planKey || planKey === "lifetime") {
+    // Lifetime isn't billed via invoice events — defensive skip.
+    return;
+  }
+
+  const grossAmountCents = invoice.amount_paid ?? 0;
+  if (grossAmountCents <= 0) {
+    return;
+  }
+
+  const customerId =
+    typeof invoice.customer === "string"
+      ? invoice.customer
+      : (invoice.customer?.id ?? null);
+
+  try {
+    const result = await applyAffiliateCommission({
+      admin,
+      userId,
+      planKey,
+      grossAmountCents,
+      stripe: {
+        customerId,
+        subscriptionId: subId,
+        invoiceId: invoice.id ?? null,
+      },
+    });
+    if (result.applied) {
+      console.log(
+        `[stripe/webhook] affiliate commission $${
+          (result.commissionCents ?? 0) / 100
+        } credited for invoice ${invoice.id}`,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[stripe/webhook] affiliate commission (pro recurring) failed",
+      e,
+    );
+  }
+}
+
+/** Charge refunded — clawback the affiliate commission so the
+ *  payee doesn't keep money on a transaction we just reversed.
+ *  The DB RPC is idempotent so retry deliveries are safe. */
+async function handleChargeRefunded(
+  charge: Stripe.Charge,
+  admin: AdminClient,
+) {
+  const paymentIntentId =
+    typeof charge.payment_intent === "string"
+      ? charge.payment_intent
+      : (charge.payment_intent?.id ?? null);
+  if (!paymentIntentId) return;
+  try {
+    await clawbackAffiliateForPayment(admin, paymentIntentId);
+  } catch (e) {
+    console.warn(
+      `[stripe/webhook] affiliate clawback failed for ${paymentIntentId}`,
+      e,
+    );
+  }
 }

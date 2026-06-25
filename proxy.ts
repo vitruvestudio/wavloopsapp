@@ -38,6 +38,11 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import {
+  HANDLE_REGEX,
+  REF_COOKIE_NAME,
+  REF_COOKIE_TTL_SECONDS,
+} from "@/lib/affiliate/config";
 
 const APP_ROUTE_PREFIXES = [
   "/dashboard",
@@ -49,7 +54,54 @@ const APP_ROUTE_PREFIXES = [
   "/onboarding",
 ];
 
+/** First-touch affiliate attribution.
+ *
+ * Resolve a candidate `?ref=` from the URL up front. We don't
+ * touch the response yet — Supabase's `setAll` callback below can
+ * REASSIGN the response object on session refresh, which would
+ * blow away any cookie we'd set early. The actual cookie write
+ * goes through `attachAffiliateCookie()` and runs right before
+ * each return so the cookie always lands on whatever response
+ * we actually ship (pass-through OR redirect).
+ *
+ * First-touch policy: if the visitor already carries a wlp_ref
+ * cookie, we don't overwrite. The first affiliate to send them
+ * wins the attribution, matching Notion / Webflow behaviour and
+ * discouraging affiliates from poaching each other's traffic.
+ *
+ * Format validation here is identical to the affiliates.handle
+ * CHECK constraint in the DB so an invalid handle never makes it
+ * into a cookie. We don't lookup the handle vs the DB at proxy
+ * time — that would cost a query per page view. Resolution
+ * happens at signup in /auth/callback. */
+function resolveCandidateRef(request: NextRequest): string | null {
+  const ref = request.nextUrl.searchParams.get("ref");
+  if (!ref) return null;
+  if (!HANDLE_REGEX.test(ref)) return null;
+  if (request.cookies.get(REF_COOKIE_NAME)) return null;
+  return ref;
+}
+
+/** Apply the wlp_ref cookie to whichever response we're returning
+ *  (pass-through or redirect). Safe to call multiple times; the
+ *  cookie value is deterministic. */
+function attachAffiliateCookie(
+  response: NextResponse,
+  ref: string | null,
+): NextResponse {
+  if (!ref) return response;
+  response.cookies.set(REF_COOKIE_NAME, ref, {
+    maxAge: REF_COOKIE_TTL_SECONDS,
+    httpOnly: false, // client-readable so /affiliate dashboard JS can echo it
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
+  const candidateRef = resolveCandidateRef(request);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -99,7 +151,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
     url.search = "";
-    return NextResponse.redirect(url);
+    return attachAffiliateCookie(NextResponse.redirect(url), candidateRef);
   }
   // Anon → artist route ⇒ kick to /auth with `as=artist`
   // pre-selected (the user landed somewhere artist-shaped, so
@@ -114,7 +166,7 @@ export async function proxy(request: NextRequest) {
       "next",
       `${pathname}${request.nextUrl.search}`,
     );
-    return NextResponse.redirect(url);
+    return attachAffiliateCookie(NextResponse.redirect(url), candidateRef);
   }
 
   // ── Logged-in gates ──────────────────────────────────────
@@ -132,10 +184,10 @@ export async function proxy(request: NextRequest) {
     const lastMode = request.cookies.get("wlp_last_mode")?.value;
     url.pathname = lastMode === "artist" ? "/listen" : "/dashboard";
     url.search = "";
-    return NextResponse.redirect(url);
+    return attachAffiliateCookie(NextResponse.redirect(url), candidateRef);
   }
 
-  return response;
+  return attachAffiliateCookie(response, candidateRef);
 }
 
 export const config = {

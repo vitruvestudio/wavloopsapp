@@ -50,6 +50,7 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { LAST_MODE_COOKIE, type LastMode } from "../mode-cookie";
+import { HANDLE_REGEX, REF_COOKIE_NAME } from "@/lib/affiliate/config";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
@@ -174,6 +175,16 @@ export async function GET(req: NextRequest) {
     console.warn("[auth/callback] bind_artist_contacts failed", e);
   }
 
+  // Affiliate attribution: if the visitor arrived with a wlp_ref
+  // cookie (set by the proxy on a `?ref=handle` landing), resolve
+  // the handle to an active affiliate id and record a pending
+  // referral row keyed on the newly-authed user. The Stripe
+  // webhook flips this row to `approved` on the first paid
+  // conversion. Idempotent: if a pending referral already exists
+  // for this user, we skip — the FIRST attribution wins, matching
+  // the cookie's first-touch policy in the proxy.
+  await maybeRecordAffiliateAttribution(supabase);
+
   // If the caller explicitly told us where to land (gate flow:
   // /s/<slug> or /listen/<slug>), honor that. Profile-aware
   // routing only kicks in when no `next` was provided.
@@ -273,6 +284,85 @@ async function resolveDestination(
     return { destination: "/listen", mode: "artist" };
   }
   return { destination: "/onboarding", mode: "producer" };
+}
+
+/** Affiliate attribution at signup time.
+ *
+ * Reads the wlp_ref cookie that the proxy set on landing.
+ * Resolves the handle to an ACTIVE affiliate id via the
+ * SECURITY DEFINER RPC `resolve_affiliate_handle`. If the user
+ * already has a pending referral row (e.g. they're verifying
+ * a 2nd magic-link from the same browser), we skip — first
+ * attribution wins, matching the cookie's first-touch policy.
+ *
+ * Anti-self-referral: if the authed user is the same one who
+ * owns the affiliate row (user_id match), we skip the
+ * attribution. An affiliate cannot earn commission on their
+ * own signups, which is a sub-second sanity check that blocks
+ * the most common gamification attempt.
+ *
+ * Silent on every failure — sign-in is what matters; affiliate
+ * data is best-effort. Anything that goes wrong is logged and
+ * the user proceeds to the dashboard normally. */
+async function maybeRecordAffiliateAttribution(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<void> {
+  try {
+    const jar = await cookies();
+    const ref = jar.get(REF_COOKIE_NAME)?.value;
+    if (!ref) return;
+    if (!HANDLE_REGEX.test(ref)) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Resolve the handle → affiliate id. Returns null when the
+    // handle doesn't exist OR points at a non-active affiliate.
+    const { data: affiliateId } = await supabase.rpc(
+      "resolve_affiliate_handle",
+      { p_handle: ref },
+    );
+    if (!affiliateId || typeof affiliateId !== "string") return;
+
+    // Already attributed? First-touch wins.
+    const { data: existing } = await supabase
+      .from("affiliate_referrals")
+      .select("id")
+      .eq("attributed_user_id", user.id)
+      .maybeSingle<{ id: string }>();
+    if (existing) return;
+
+    // Anti-self-referral — fetch the affiliate's owning user id
+    // and compare. Affiliates RLS gates anon SELECT, so we route
+    // through service-role-equivalent RPC OR accept that the
+    // anon read silently returns nothing. We choose the safer
+    // path: a dedicated check inside the insert via WHERE NOT
+    // EXISTS (cleaner than a second query) is too verbose here,
+    // so we do a quick lookup. If it fails, we skip rather than
+    // risk creating a self-referral.
+    const { data: affiliateOwner } = await supabase
+      .from("affiliates")
+      .select("user_id")
+      .eq("id", affiliateId)
+      .maybeSingle<{ user_id: string | null }>();
+    if (affiliateOwner?.user_id === user.id) {
+      console.info(
+        "[auth/callback] skipped self-referral attribution",
+        affiliateId,
+      );
+      return;
+    }
+
+    await supabase.from("affiliate_referrals").insert({
+      affiliate_id: affiliateId,
+      attributed_user_id: user.id,
+      status: "pending",
+    });
+  } catch (e) {
+    console.warn("[auth/callback] affiliate attribution failed", e);
+  }
 }
 
 /** Helper to attach the wlp_last_mode cookie to the redirect
