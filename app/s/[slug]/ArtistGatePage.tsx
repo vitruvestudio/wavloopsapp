@@ -36,6 +36,7 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { Avatar } from "@/components/ui/Avatar";
 import { CoverArt } from "@/components/ui/CoverArt";
@@ -63,13 +64,41 @@ interface ArtistGatePageProps {
   viewerMembershipStatus: "pending" | "granted" | null;
 }
 
+/** Same regex used in the server actions to validate emails.
+ *  Kept inline (not imported from /lib) so the gate page stays a
+ *  thin client component. A pre-fill that doesn't match this is
+ *  silently dropped — better to show an empty field than a
+ *  half-broken value the form's own validation would reject. */
+const PREFILL_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function ArtistGatePage({
   data,
   viewerEmail,
   viewerMembershipStatus,
 }: ArtistGatePageProps) {
-  const [email, setEmail] = React.useState("");
-  const [social, setSocial] = React.useState("");
+  // Mailmeteor (or any merge-tag email sender) can ship a per-
+  // recipient URL like /s/<slug>?email={{email}}&social={{social}}.
+  // We read those once on mount and seed the form state so the
+  // visitor lands on a pre-filled gate — one click to join instead
+  // of three. The query params don't authenticate anyone (the user
+  // still has to confirm via magic-link), they just save typing.
+  //
+  // useSearchParams returns null in unusual SSR edge cases; the
+  // ?? "" coalesces to a safe blank.
+  const searchParams = useSearchParams();
+  const initialEmail = React.useMemo(() => {
+    const raw = (searchParams?.get("email") ?? "").trim();
+    return PREFILL_EMAIL_REGEX.test(raw) ? raw : "";
+  }, [searchParams]);
+  const initialSocial = React.useMemo(() => {
+    const raw = (searchParams?.get("social") ?? "").trim();
+    // Cap at 80 chars so a junk querystring can't render a giant
+    // value in the field; same cap as the server action's hint.
+    return raw.length > 0 && raw.length <= 80 ? raw : "";
+  }, [searchParams]);
+
+  const [email, setEmail] = React.useState(initialEmail);
+  const [social, setSocial] = React.useState(initialSocial);
   const [state, formAction, pending] = useActionState<
     AuthState | null,
     FormData
