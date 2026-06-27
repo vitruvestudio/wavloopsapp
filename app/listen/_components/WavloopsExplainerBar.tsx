@@ -7,23 +7,16 @@
  * came to listen but they ARE the conversion target. The banner
  * teases the platform without breaking the listen experience:
  *
- *     ℹ️  New here? Discover what Wavloops is. [▶ Watch 20 sec] [×]
+ *     ℹ  New here? Discover what Wavloops is. [▶ Watch 20 sec]
  *
  * Click "Watch" → opens the WavloopsExplainerModal with the 20s
- * Loom/YouTube embed. Click × → bar disappears + a dismiss cookie
- * keeps it gone for 7 days (per-browser, so the visitor isn't
- * pinged every page-view on this device).
+ * Loom/YouTube embed.
  *
- * The bar mounts ABOVE the ArtistTopbar so it's the first visual
- * cue on the page without intruding on the player/listen UI. On
- * the second visit (cookie present), the bar renders nothing and
- * the layout collapses back to its baseline height.
- *
- * Cookie note: we deliberately read on mount with a state lift
- * AFTER the first paint to avoid hydration mismatch — the server
- * renders the bar visible, the client decides whether to hide it
- * once it's read the cookie. The flash is minimal (<50ms) and
- * cheaper than the alternative of skipping SSR entirely.
+ * NOT DISMISSIBLE BY DESIGN — we want every artist-panel visit to
+ * surface the educational hook, especially during the Phase-1
+ * Holy Spirit blast. The bar is light enough that staying put
+ * doesn't break the listen UX, and it removes the "I closed it
+ * once and now I can't find out what Wavloops is" friction.
  */
 
 "use client";
@@ -32,38 +25,8 @@ import * as React from "react";
 import { Icon } from "@/components/ui/Icon";
 import { WavloopsExplainerModal } from "./WavloopsExplainerModal";
 
-const DISMISS_COOKIE = "wlp_explainer_dismissed";
-const DISMISS_TTL_DAYS = 7;
-
-function readDismissCookie(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.cookie
-    .split("; ")
-    .some((c) => c.startsWith(`${DISMISS_COOKIE}=`));
-}
-
-function writeDismissCookie(): void {
-  if (typeof document === "undefined") return;
-  const maxAge = DISMISS_TTL_DAYS * 24 * 60 * 60;
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:"
-      ? "; Secure"
-      : "";
-  document.cookie = `${DISMISS_COOKIE}=1; Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
-}
-
 export function WavloopsExplainerBar() {
-  // `hidden` starts false so the SSR render shows the bar. The
-  // useEffect below reads the cookie on the client and may flip it
-  // to true — the flash is minimal and avoids hydration mismatch.
-  const [hidden, setHidden] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (readDismissCookie()) setHidden(true);
-  }, []);
-
-  if (hidden) return null;
 
   return (
     <>
@@ -139,30 +102,6 @@ export function WavloopsExplainerBar() {
         >
           <Icon name="play" size={12} />
           Watch in 20 sec
-        </button>
-        <button
-          type="button"
-          aria-label="Dismiss"
-          onClick={() => {
-            writeDismissCookie();
-            setHidden(true);
-          }}
-          style={{
-            marginLeft: 4,
-            width: 26,
-            height: 26,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "transparent",
-            border: "none",
-            color: "var(--fg-3)",
-            cursor: "pointer",
-            borderRadius: "var(--r-sm)",
-            flexShrink: 0,
-          }}
-        >
-          <Icon name="close" size={14} />
         </button>
       </div>
       {modalOpen && (
