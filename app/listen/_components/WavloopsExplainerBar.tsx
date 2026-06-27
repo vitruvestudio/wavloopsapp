@@ -98,7 +98,7 @@ export function WavloopsExplainerBar() {
           flexShrink: 0,
         }}
       >
-        Switch to producer view
+        Switch to producer panel
         <Icon name="arrow-right" size={12} />
       </Link>
     </div>
