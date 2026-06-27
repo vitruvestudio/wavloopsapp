@@ -35,6 +35,7 @@ import { PlayerProvider } from "@/components/app/PlayerContext";
 import { PlayerDock } from "@/components/app/PlayerDock";
 import { ArtistSidebar } from "./ArtistSidebar";
 import { ArtistTopbar } from "./ArtistTopbar";
+import { WavloopsExplainerBar } from "./WavloopsExplainerBar";
 
 export function ArtistShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -70,6 +71,12 @@ export function ArtistShell({ children }: { children: React.ReactNode }) {
               column (via the `margin-left: calc(50% - 50vw)` trick)
               without spawning a horizontal scrollbar. */}
           <div className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
+            {/* Educational top bar — sits ABOVE the artist topbar so
+                it's the very first cue a producer-listener sees when
+                they land via a shared server link. Self-dismisses
+                via cookie so it only shows once per browser per
+                week. */}
+            <WavloopsExplainerBar />
             <ArtistTopbar onOpenDrawer={() => setDrawerOpen(true)} />
             {/* Independent scroll surface so the PlayerDock can pin
                 to the bottom of the viewport while pages scroll. */}
