@@ -11,6 +11,7 @@
 "use client";
 
 import * as React from "react";
+import { ProducerExplainerBar } from "@/components/app/ProducerExplainerBar";
 import { Sidebar } from "@/components/app/Sidebar";
 import { TopBar } from "@/components/app/TopBar";
 import { PlayerDock } from "@/components/app/PlayerDock";
@@ -61,6 +62,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
 
           <div className="flex min-w-0 flex-1 flex-col">
+            {/* Educational banner ABOVE the chrome — picks up
+                producers who just flipped from /listen via the
+                sibling artist-side bar. Opens the 20s explainer
+                modal on click. */}
+            <ProducerExplainerBar />
             <TopBar onMenuClick={() => setMobileOpen(true)} />
             <main className="flex-1 overflow-y-auto">
               <div className="mx-auto w-full" style={{ maxWidth: 1440 }}>
