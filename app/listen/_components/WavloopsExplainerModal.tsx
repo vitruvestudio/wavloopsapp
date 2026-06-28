@@ -57,8 +57,11 @@ const STEPS: Step[] = [
     icon: "upload",
     title: "Upload your beats",
     body: "Drag & drop. Wavloops auto-detects BPM, key and loudness so you never tag manually again.",
-    // Video to come — leave the icon badge as the visual until a
-    // matching screen-recording is added.
+    // URL-encode the space so Chrome/Safari treat the file as
+    // an asset path rather than a malformed URL — Next's static
+    // serving from /public is path-literal but the browser side
+    // is stricter on whitespace.
+    video: "/Videos/Never%20send%20a%20beat%20pack.mp4",
   },
   {
     number: "02",
