@@ -15,7 +15,7 @@
  * 404 if the slug doesn't match any server.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ArtistGatePage } from "./ArtistGatePage";
 
@@ -68,6 +68,20 @@ export default async function ArtistGateRoute({ params }: PageProps) {
   // which is genuinely a row set even when it only ever holds one row.
   const rows = (rpcRes.data ?? []) as unknown as ArtistGateData[];
   if (rpcRes.error || rows.length === 0) {
+    // The slug didn't match any current server. Before 404'ing,
+    // check the alias table: if the producer renamed the server,
+    // the link the visitor followed may still be the OLD slug.
+    // We redirect (308 permanent so search engines + link
+    // checkers update their caches) to the current canonical slug.
+    const { data: alias } = await supabase
+      .from("server_slug_aliases")
+      .select("servers(slug)")
+      .eq("alias", slug)
+      .maybeSingle<{ servers: { slug: string } | null }>();
+    const canonical = alias?.servers?.slug;
+    if (canonical && canonical !== slug) {
+      redirect(`/s/${canonical}`);
+    }
     notFound();
   }
 

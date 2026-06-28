@@ -126,6 +126,15 @@ export interface BeatWithStatsRow extends BeatRow {
   downloads_count: number;
 }
 
+/** Row of `server_slug_aliases` — historic slugs that should
+ *  still resolve to the current server after a rename. Added in
+ *  migration 20260628170000. */
+export interface ServerSlugAliasRow {
+  alias: string;
+  server_id: string;
+  created_at: string;
+}
+
 export interface ServerBeatRow {
   server_id: string;
   beat_id: string;

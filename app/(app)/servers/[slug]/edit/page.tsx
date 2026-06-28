@@ -15,7 +15,7 @@
  *     uploads)
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentProducerProfileId,
@@ -51,7 +51,27 @@ export default async function EditServerPage({ params }: PageProps) {
     .eq("owner_id", profileId)
     .maybeSingle<ServerWithStatsRow>();
   const existing = serverRes.data;
-  if (!existing) notFound();
+  if (!existing) {
+    // Alias fallback so /servers/<old-slug>/edit still lands on
+    // the right server after a rename. Scoped to the current
+    // owner_id so the redirect can never point at another
+    // producer's server.
+    const { data: alias } = await supabase
+      .from("server_slug_aliases")
+      .select("servers!inner(slug, owner_id)")
+      .eq("alias", slug)
+      .maybeSingle<{
+        servers: { slug: string; owner_id: string } | null;
+      }>();
+    if (
+      alias?.servers?.slug &&
+      alias.servers.owner_id === profileId &&
+      alias.servers.slug !== slug
+    ) {
+      redirect(`/servers/${alias.servers.slug}/edit`);
+    }
+    notFound();
+  }
 
   const [pivotRes, libraryRes] = await Promise.all([
     supabase

@@ -54,9 +54,12 @@ export interface UpdateServerPayload {
 
 export interface UpdateServerResult {
   error: string | null;
-  /** Same slug the server already had — we keep slugs stable across
-   *  renames so shared artist links don't break. Returned for the
-   *  client to redirect with. */
+  /** Canonical slug after the save. Equals the previous slug when
+   *  the rename produced no change; equals the new slug when the
+   *  name change generated a fresh one — in that case the previous
+   *  slug is preserved in `server_slug_aliases` so any link already
+   *  shared keeps resolving through the route-level redirect. The
+   *  caller redirects with this value. */
   slug: string | null;
 }
 
@@ -228,10 +231,10 @@ export async function createServerAction(
    updateServerAction — edit an existing server.
    ================================================================
    RLS via `servers_owner_update` policy gates this to the producer.
-   Slug is kept stable on rename so shared links don't break. Beats
-   are re-attached via a DELETE-then-INSERT — simpler than diffing
-   and at V1 scale (a few dozen beats per server max) the cost is
-   trivial. */
+   Slug regenerates from the new name when it changes; the previous
+   slug is preserved in `server_slug_aliases` so links already shared
+   keep resolving via the route-level redirect. Beats are re-attached
+   via a diff against the current pivot rows. */
 export async function updateServerAction(
   payload: UpdateServerPayload,
 ): Promise<UpdateServerResult> {
@@ -242,6 +245,15 @@ export async function updateServerAction(
 
   const guard = await assertServerOwnership(supabase, payload.id);
   if (guard.error) return { error: guard.error, slug: null };
+
+  // Read the current slug BEFORE the update so we can detect a
+  // rename and preserve the old slug as an alias.
+  const { data: existing } = await supabase
+    .from("servers")
+    .select("slug")
+    .eq("id", payload.id)
+    .maybeSingle<{ slug: string }>();
+  const oldSlug = existing?.slug ?? null;
 
   // UPDATE the server row. RLS prevents an attacker from touching
   // someone else's server — owner_id is implicit in the policy.
@@ -268,6 +280,84 @@ export async function updateServerAction(
       error: updateErr?.message ?? "Could not update the server.",
       slug: null,
     };
+  }
+
+  // ── Slug regeneration ────────────────────────────────────
+  // When the name slug differs from the current slug, swap the
+  // server to the new slug and preserve the old one as an alias
+  // so links already shared keep working via the route-level
+  // redirect (/s/[slug] + /listen/[slug]).
+  //
+  // Uniqueness: the candidate must not collide with any other
+  // server's slug NOR with any alias pointing at a different
+  // server. We probe up to 10 variants (base, base-2, base-3, …)
+  // before falling back to keeping the existing slug — a producer
+  // is never blocked from saving the rest of their edit.
+  //
+  // The whole block is best-effort: if the uniqueness probe or
+  // the slug write fails partway, we keep oldSlug as the canonical
+  // slug rather than ending up half-migrated.
+  let finalSlug = updated.slug as string;
+  const newBaseSlug = slugify(cleanName) || "server";
+  if (oldSlug && newBaseSlug !== oldSlug) {
+    let chosen: string | null = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate =
+        attempt === 0 ? newBaseSlug : `${newBaseSlug}-${attempt + 1}`;
+
+      // Does another server already own this slug?
+      const { data: serverConflict } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("slug", candidate)
+        .neq("id", payload.id)
+        .maybeSingle();
+      if (serverConflict) continue;
+
+      // Does another server's alias already squat on it? Aliases
+      // pointing at THIS server are fine — they just mean the
+      // producer is reverting to a previous slug, in which case
+      // we'll delete the matching alias below before the update.
+      const { data: aliasConflict } = await supabase
+        .from("server_slug_aliases")
+        .select("alias")
+        .eq("alias", candidate)
+        .neq("server_id", payload.id)
+        .maybeSingle();
+      if (aliasConflict) continue;
+
+      chosen = candidate;
+      break;
+    }
+
+    if (chosen) {
+      // Preserve the old slug as an alias. Upsert so repeated
+      // renames don't error on the PK constraint.
+      const { error: aliasErr } = await supabase
+        .from("server_slug_aliases")
+        .upsert(
+          { alias: oldSlug, server_id: payload.id },
+          { onConflict: "alias" },
+        );
+      if (!aliasErr) {
+        // If the new slug matches an alias of THIS server (revert
+        // case), drop that alias so we don't fight ourselves on
+        // the slug write.
+        await supabase
+          .from("server_slug_aliases")
+          .delete()
+          .eq("alias", chosen)
+          .eq("server_id", payload.id);
+
+        const { error: slugErr } = await supabase
+          .from("servers")
+          .update({ slug: chosen })
+          .eq("id", payload.id);
+        if (!slugErr) {
+          finalSlug = chosen;
+        }
+      }
+    }
   }
 
   // Re-attach beats via a diff against the current pivot rows.
@@ -301,7 +391,7 @@ export async function updateServerAction(
   if (fetchErr) {
     return {
       error: `Server updated but couldn't read its beats: ${fetchErr.message}`,
-      slug: updated.slug,
+      slug: finalSlug,
     };
   }
 
@@ -343,7 +433,7 @@ export async function updateServerAction(
     if (delErr) {
       return {
         error: `Server updated but couldn't remove dropped beats: ${delErr.message}`,
-        slug: updated.slug,
+        slug: finalSlug,
       };
     }
   }
@@ -358,7 +448,7 @@ export async function updateServerAction(
     if (insErr) {
       return {
         error: `Server updated but couldn't add new beats: ${insErr.message}`,
-        slug: updated.slug,
+        slug: finalSlug,
       };
     }
   }
@@ -377,13 +467,13 @@ export async function updateServerAction(
     if (posErr) {
       return {
         error: `Server updated but couldn't reorder beats: ${posErr.message}`,
-        slug: updated.slug,
+        slug: finalSlug,
       };
     }
   }
 
-  revalidatePath(`/servers/${updated.slug}`, "page");
+  revalidatePath(`/servers/${finalSlug}`, "page");
   revalidatePath("/dashboard", "page");
   revalidatePath("/library", "page");
-  return { error: null, slug: updated.slug };
+  return { error: null, slug: finalSlug };
 }

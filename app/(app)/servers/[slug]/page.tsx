@@ -15,7 +15,7 @@
  * hides it because the requester isn't the owner.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PLAN_QUOTAS } from "@/lib/billing/plans";
 import { getCurrentUserPlan } from "@/lib/billing/server";
 import { createClient } from "@/lib/supabase/server";
@@ -50,7 +50,28 @@ export default async function ServerPage({ params }: PageProps) {
     .maybeSingle<ServerWithStatsRow>();
 
   const server = serverRes.data;
-  if (!server) notFound();
+  if (!server) {
+    // Slug didn't match any server this producer owns. Could be an
+    // old slug after a rename — look up the alias table and 308
+    // to the canonical slug. The alias query is scoped to servers
+    // this producer owns via the join + owner_id filter so it
+    // can't redirect to someone else's renamed server.
+    const { data: alias } = await supabase
+      .from("server_slug_aliases")
+      .select("servers!inner(slug, owner_id)")
+      .eq("alias", slug)
+      .maybeSingle<{
+        servers: { slug: string; owner_id: string } | null;
+      }>();
+    if (
+      alias?.servers?.slug &&
+      alias.servers.owner_id === profileId &&
+      alias.servers.slug !== slug
+    ) {
+      redirect(`/servers/${alias.servers.slug}`);
+    }
+    notFound();
+  }
 
   const [
     pivotRes,

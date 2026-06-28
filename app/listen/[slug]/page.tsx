@@ -11,7 +11,7 @@
  * whole component lands in a later cleanup pass.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PendingApprovalView } from "../_components/PendingApprovalView";
 import { ServerView } from "../_components/ServerView";
@@ -37,10 +37,29 @@ export default async function ArtistServerPage({ params }: PageProps) {
     const { producer, server } = adapt(view);
     return <ServerView producer={producer} server={server} />;
   }
-  // loadServerView returned null — could be a real "no such server"
-  // OR the artist has a pending request the RLS chain (rightly)
-  // filters out. Distinguish so a pending visitor sees a friendly
-  // waiting state instead of a misleading 404.
+
+  // loadServerView returned null — three things could be true:
+  //   1. The slug is the OLD slug of a server the producer
+  //      renamed; the canonical slug now lives somewhere else.
+  //   2. The artist has a pending request that the RLS chain
+  //      (rightly) filters out.
+  //   3. The slug doesn't match anything at all.
+  //
+  // Check (1) first: look up the alias table. A hit means we
+  // 308 to the current canonical /listen/<slug>. RLS on the
+  // aliases table allows SELECT by anyone, so the lookup is
+  // safe to run as the artist client.
+  const supabase = await createClient();
+  const { data: alias } = await supabase
+    .from("server_slug_aliases")
+    .select("servers(slug)")
+    .eq("alias", slug)
+    .maybeSingle<{ servers: { slug: string } | null }>();
+  const canonical = alias?.servers?.slug;
+  if (canonical && canonical !== slug) {
+    redirect(`/listen/${canonical}`);
+  }
+
   return await resolveFallback(slug);
 }
 
