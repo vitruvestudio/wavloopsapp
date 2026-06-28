@@ -64,14 +64,8 @@ const STEPS: Step[] = [
     number: "02",
     icon: "library",
     title: "Create your server",
-    body: "Bundle your beats into one living link. Name it, set the vibe.",
+    body: "Bundle your beats into one living link, add manual contacts, choose between a Private server or a Public server, then share the link to grow your audience.",
     video: "/Videos/Wavloops_1.mp4",
-    chips: [
-      "Add manual contacts",
-      "Private server",
-      "Public server",
-      "Share to grow your audience",
-    ],
   },
   {
     number: "03",
