@@ -58,6 +58,34 @@ export const DEFAULT_NOTIF_PREFS: ArtistNotifPrefs = {
   push: false,
 };
 
+/** Producer handles come straight off the profiles row — when a
+ *  producer onboarded without setting a custom handle, the column
+ *  is null. Falling back to the literal string "producer" used to
+ *  render every byline as "@PRODUCER" across the artist surface,
+ *  which read like a placeholder.
+ *
+ *  This helper prefers `handle`, then a slug derived from `name`
+ *  (lowercased, non-alphanumerics stripped). The literal stays as
+ *  a last resort for the case where both columns are blank, but
+ *  that should be vanishingly rare in practice.
+ *
+ *  Centralised here so every loader (loadArtistContext,
+ *  loadServerView, loadLikedSongs) uses the same fallback rules
+ *  and we don't drift in three places. */
+export function derivePublicHandle(
+  handle: string | null | undefined,
+  name: string | null | undefined,
+): string {
+  const trimmedHandle = (handle ?? "").trim();
+  if (trimmedHandle) return trimmedHandle;
+  const trimmedName = (name ?? "").trim();
+  if (trimmedName) {
+    const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (slug) return slug;
+  }
+  return "producer";
+}
+
 export interface ArtistProducerLite {
   /** profiles.id — used as the route + DAL key. */
   profileId: string;
@@ -245,7 +273,7 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
     producers.push({
       profileId: owner.id,
       contactId: c.id as string,
-      handle: owner.handle ?? "producer",
+      handle: derivePublicHandle(owner.handle, owner.name),
       name: owner.name ?? owner.handle ?? "Producer",
       avatarUrl: owner.avatar_url,
       socials: owner.socials ?? {},
@@ -545,7 +573,7 @@ export async function loadServerView(
     viewer: { userId: user.id, contactId },
     producer: {
       profileId: owner.id,
-      handle: owner.handle ?? "producer",
+      handle: derivePublicHandle(owner.handle, owner.name),
       name: owner.name ?? owner.handle ?? "Producer",
       avatarUrl: owner.avatar_url,
       socials: owner.socials ?? {},
@@ -768,7 +796,7 @@ export async function loadLikedBeats(): Promise<ArtistLikedEntry[]> {
       server: { slug: server.slug, name: server.name },
       producer: {
         profileId: producer.id,
-        handle: producer.handle ?? "producer",
+        handle: derivePublicHandle(producer.handle, producer.name),
         name: producer.name ?? producer.handle ?? "Producer",
         avatarUrl: producer.avatar_url,
         socials: producer.socials ?? {},
