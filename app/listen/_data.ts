@@ -107,6 +107,14 @@ export interface ArtistServerLite {
   artworkMode: "auto" | "color" | "image";
   accentHue: number | null;
   artworkImageUrl: string | null;
+  /** Cover URL of the server's position=0 beat. Used by the
+   *  sidebar's mini cover so it matches the main /listen/[slug]
+   *  hero — the producer recognises the same artwork in both
+   *  places instead of seeing a slug-seeded gradient swatch
+   *  next to a beat-mosaic on the main view. Falls back to
+   *  null when the server has no beats yet (sidebar then drops
+   *  back to the slug-seeded gradient via CoverArt's seed). */
+  firstBeatArtworkUrl: string | null;
 }
 
 export interface ArtistNotificationRow {
@@ -245,6 +253,55 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
     hasProducerProfile: Boolean(producerProfileRes.data?.onboarded_at),
   };
 
+  // ── First-beat cover per server ─────────────────────────
+  // For the sidebar's mini cover, we want the same artwork the
+  // main hero shows so the producer recognises the same image in
+  // both places. The hero builds a 4-cover mosaic from the
+  // server's first beats; the sidebar is too small for a mosaic,
+  // so we pick the FIRST beat (position 0) as the canonical
+  // representative cover.
+  //
+  // One join query covers every server the artist follows. We
+  // filter to the unique server IDs surfaced by the contacts
+  // query above, order by position, then take the first
+  // artwork_url per server_id.
+  const allContactRows =
+    (contactsRes.data as Array<{
+      server_contacts?: Array<{ server?: { id: string } }>;
+    }> | null) ?? [];
+  const serverIdSet = new Set<string>();
+  for (const c of allContactRows) {
+    for (const sc of c.server_contacts ?? []) {
+      if (sc.server?.id) serverIdSet.add(sc.server.id);
+    }
+  }
+  const firstArtBy = new Map<string, string | null>();
+  if (serverIdSet.size > 0) {
+    const { data: pivots } = await supabase
+      .from("server_beats")
+      .select(
+        "server_id, position, beats:beat_id ( artwork_url )",
+      )
+      .in("server_id", Array.from(serverIdSet))
+      .order("position", { ascending: true });
+    type PivotRow = {
+      server_id: string;
+      position: number;
+      beats:
+        | { artwork_url: string | null }
+        | { artwork_url: string | null }[]
+        | null;
+    };
+    for (const row of ((pivots as PivotRow[] | null) ?? [])) {
+      if (firstArtBy.has(row.server_id)) continue;
+      const beats = row.beats;
+      const art = Array.isArray(beats)
+        ? (beats[0]?.artwork_url ?? null)
+        : (beats?.artwork_url ?? null);
+      firstArtBy.set(row.server_id, art);
+    }
+  }
+
   // ── Producers (grouped from contacts) ───────────────────
   const producers: ArtistProducerLite[] = [];
   for (const c of contactsRes.data ?? []) {
@@ -268,6 +325,7 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
         artworkMode: s.artwork_mode,
         accentHue: s.accent_hue,
         artworkImageUrl: s.artwork_image_url,
+        firstBeatArtworkUrl: firstArtBy.get(s.id) ?? null,
       });
     }
     producers.push({

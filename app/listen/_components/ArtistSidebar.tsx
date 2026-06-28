@@ -564,7 +564,17 @@ function ServerNavItem({
         <CoverArt
           fill
           seed={server.slug}
-          src={server.artworkImageUrl ?? undefined}
+          // Prefer the producer-uploaded server artwork; otherwise
+          // pick the first-beat cover so the mini-thumb matches
+          // what the /listen/[slug] hero shows (the same beat
+          // artwork is the prominent cover in the mosaic on the
+          // main view). CoverArt falls back to a slug-seeded
+          // gradient when both are absent.
+          src={
+            server.artworkImageUrl ??
+            server.firstBeatArtworkUrl ??
+            undefined
+          }
         />
       </div>
       <div className="min-w-0 flex-1">
