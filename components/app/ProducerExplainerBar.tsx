@@ -98,8 +98,8 @@ export function ProducerExplainerBar() {
             flexShrink: 0,
           }}
         >
-          <Icon name="play" size={12} />
-          Watch in 20 sec
+          <Icon name="zap" size={12} />
+          See it in 3 steps
         </button>
       </div>
       {modalOpen && (

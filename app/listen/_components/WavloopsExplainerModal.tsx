@@ -1,16 +1,23 @@
 /**
- * WavloopsExplainerModal — 20-second video pop-up that explains
- * what Wavloops is to first-time listen-page visitors.
+ * WavloopsExplainerModal — 3-step "how it works" pop-up for
+ * first-time producer-panel visitors.
  *
  * Triggered by the "Watch in 20 sec" button on the
- * WavloopsExplainerBar.
+ * ProducerExplainerBar (the producer-side counterpart of the
+ * artist gate's nudge). The previous version embedded a 20-second
+ * Loom; Theo's call is that scannable text + a clear CTA outperforms
+ * a video for this specific moment — the visitor came to listen,
+ * just flipped to producer view, and wants a "what's next", not
+ * a "what is this".
  *
- * Video source: edit EXPLAINER_VIDEO_URL below to point at the
- * final Loom / YouTube embed once Theo records it. The current
- * value is a placeholder Loom-embed-shape URL that 404s
- * deliberately — the modal shows a nice "video coming soon"
- * fallback when the iframe fails to load, so we can ship the
- * surface before the video is final.
+ * Three cards walk through the producer flow end-to-end:
+ *   1. Create your server     — name + vibe
+ *   2. Drop your beats        — drag/drop, auto-detect BPM/key/loudness
+ *   3. Share one link         — invite artists, every future drop forever
+ *
+ * Single primary CTA: "Start free" wired to /auth?intent=signup
+ * with utm_source=explainer_modal so we can attribute new producer
+ * signups straight back to this surface.
  *
  * Modal a11y:
  *   - role="dialog" + aria-modal
@@ -24,18 +31,39 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Icon } from "@/components/ui/Icon";
-
-/** Final video embed URL.
- *  - YouTube: https://www.youtube.com/embed/<videoId>?rel=0
- *  - Loom:    https://www.loom.com/embed/<videoId>
- *  Leave as null until the recording is up; the modal renders the
- *  "video coming soon" fallback gracefully. */
-const EXPLAINER_VIDEO_URL: string | null = null;
+import { Icon, type IconName } from "@/components/ui/Icon";
 
 interface Props {
   onClose: () => void;
 }
+
+interface Step {
+  number: string;
+  icon: IconName;
+  title: string;
+  body: string;
+}
+
+const STEPS: Step[] = [
+  {
+    number: "01",
+    icon: "library",
+    title: "Create your server",
+    body: "One living link per project. Name it, set the vibe — 30 seconds, no card needed.",
+  },
+  {
+    number: "02",
+    icon: "upload",
+    title: "Drop your beats",
+    body: "Drag & drop. Wavloops auto-detects BPM, key and loudness so you never tag manually again.",
+  },
+  {
+    number: "03",
+    icon: "link",
+    title: "Share one link",
+    body: "Invite the artists you care about. They join once and get every future drop forever.",
+  },
+];
 
 export function WavloopsExplainerModal({ onClose }: Props) {
   // Esc closes.
@@ -60,7 +88,7 @@ export function WavloopsExplainerModal({ onClose }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="What is Wavloops?"
+      aria-label="How Wavloops works"
       onClick={onClose}
       style={{
         position: "fixed",
@@ -80,7 +108,7 @@ export function WavloopsExplainerModal({ onClose }: Props) {
         style={{
           position: "relative",
           width: "100%",
-          maxWidth: 720,
+          maxWidth: 580,
           background: "var(--bg-1)",
           borderRadius: "var(--r-xl)",
           border: "1px solid var(--border-1)",
@@ -91,6 +119,20 @@ export function WavloopsExplainerModal({ onClose }: Props) {
           flexDirection: "column",
         }}
       >
+        {/* Soft accent halo behind the header — same vocab as the
+                hero, ties the modal to the brand surface. */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% 0%, var(--accent-glow) 0%, transparent 60%)",
+            opacity: 0.45,
+            pointerEvents: "none",
+          }}
+        />
+
         <button
           type="button"
           onClick={onClose}
@@ -104,89 +146,82 @@ export function WavloopsExplainerModal({ onClose }: Props) {
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            color: "white",
+            background: "var(--bg-2)",
+            border: "1px solid var(--border-2)",
+            color: "var(--fg-2)",
             borderRadius: "var(--r-pill)",
             cursor: "pointer",
             zIndex: 2,
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
           }}
         >
-          <Icon name="close" size={16} />
+          <Icon name="close" size={14} />
         </button>
 
-        {/* Video frame — 16:9 aspect-ratio so the iframe (or
-                fallback) lands at the right size on every viewport. */}
         <div
           style={{
-            width: "100%",
-            aspectRatio: "16 / 9",
-            background: "var(--bg-inset)",
             position: "relative",
-          }}
-        >
-          {EXPLAINER_VIDEO_URL ? (
-            <iframe
-              src={EXPLAINER_VIDEO_URL}
-              title="Wavloops in 20 seconds"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                border: 0,
-              }}
-            />
-          ) : (
-            <ComingSoonFallback />
-          )}
-        </div>
-
-        {/* Copy + CTA stack — same TL;DR producers will see in the
-                marketing emails, so the message is consistent
-                end-to-end. */}
-        <div
-          style={{
-            padding: "22px 24px 26px",
+            padding: "clamp(26px, 4vw, 36px) clamp(24px, 4vw, 36px) 28px",
             display: "flex",
             flexDirection: "column",
-            gap: 14,
+            gap: 20,
           }}
         >
-          <h2
-            className="t-display"
-            style={{
-              fontSize: 22,
-              lineHeight: 1.2,
-              letterSpacing: "-0.018em",
-              color: "var(--fg-1)",
-            }}
-          >
-            Wavloops in 20 seconds.
-          </h2>
-          <p
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: 15,
-              lineHeight: 1.55,
-              color: "var(--fg-2)",
-              margin: 0,
-            }}
-          >
-            Tired of WeTransfer links dying in 7 days?{" "}
-            <strong style={{ color: "var(--fg-1)" }}>
-              One living server per project
-            </strong>
-            . Join once, get every future drop forever. Producers ship one link
-            and never re-upload again.
-          </p>
           <div
-            className="flex items-center flex-wrap"
-            style={{ gap: 10, marginTop: 4 }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              alignItems: "flex-start",
+            }}
+          >
+            <span
+              className="t-mono"
+              style={{
+                color: "var(--accent-text)",
+                letterSpacing: "0.12em",
+              }}
+            >
+              WAVLOOPS · IN 3 STEPS
+            </span>
+            <h2
+              className="t-display"
+              style={{
+                fontSize: "clamp(22px, 3.4vw, 28px)",
+                lineHeight: 1.15,
+                letterSpacing: "-0.018em",
+                color: "var(--fg-1)",
+              }}
+            >
+              Here&apos;s how Wavloops works.
+            </h2>
+          </div>
+
+          {/* Steps stack — each is a self-contained card so the
+                  three blocks read as a numbered checklist, not a
+                  paragraph of text. */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            {STEPS.map((step) => (
+              <StepCard key={step.number} step={step} />
+            ))}
+          </div>
+
+          {/* CTA stack — primary Start-free + a softer "skip" so the
+                  modal doesn't feel like a dead end if the visitor
+                  isn't ready. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 12,
+              marginTop: 4,
+            }}
           >
             <Link
               href="/auth?intent=signup&utm_source=explainer_modal"
@@ -194,7 +229,7 @@ export function WavloopsExplainerModal({ onClose }: Props) {
               className="inline-flex items-center"
               style={{
                 gap: 8,
-                padding: "10px 18px",
+                padding: "12px 22px",
                 borderRadius: "var(--r-pill)",
                 background: "var(--accent)",
                 color: "white",
@@ -202,23 +237,21 @@ export function WavloopsExplainerModal({ onClose }: Props) {
                 fontFamily: "var(--font-body)",
                 fontWeight: 500,
                 fontSize: 14,
+                boxShadow:
+                  "0 0 24px -8px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.06)",
               }}
             >
-              Create my server →
+              Start free →
             </Link>
-            <Link
-              href="/"
-              onClick={onClose}
+            <span
               style={{
-                padding: "10px 14px",
                 fontFamily: "var(--font-body)",
-                fontSize: 13,
+                fontSize: 12.5,
                 color: "var(--fg-3)",
-                textDecoration: "none",
               }}
             >
-              See the landing
-            </Link>
+              $0 forever · no card needed
+            </span>
           </div>
         </div>
       </div>
@@ -226,45 +259,76 @@ export function WavloopsExplainerModal({ onClose }: Props) {
   );
 }
 
-/** Friendly placeholder shown while the explainer video URL is
- *  still null. Avoids breaking the surface before Theo records the
- *  Loom — the modal still feels intentional, not broken. */
-function ComingSoonFallback() {
+/** Numbered step card. Keeps the markup local to this file because
+ *  it's only used here and is small enough not to warrant its own
+ *  module. */
+function StepCard({ step }: { step: Step }) {
   return (
     <div
       style={{
-        position: "absolute",
-        inset: 0,
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
         gap: 14,
-        color: "var(--fg-3)",
-        fontFamily: "var(--font-body)",
-        textAlign: "center",
-        padding: 24,
+        padding: "14px 16px",
+        borderRadius: "var(--r-lg)",
+        background:
+          "color-mix(in oklch, var(--bg-inset) 70%, transparent)",
+        border: "1px solid var(--border-1)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
       }}
     >
       <div
         aria-hidden
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: "var(--r-pill)",
-          background: "var(--accent-surface)",
-          border:
-            "1px solid color-mix(in oklch, var(--accent-text) 40%, transparent)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
+          width: 40,
+          height: 40,
+          borderRadius: "var(--r-md)",
+          background: "var(--accent-surface)",
+          border:
+            "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
           color: "var(--accent-text)",
         }}
       >
-        <Icon name="play" size={22} />
+        <Icon name={step.icon} size={18} />
       </div>
-      <div style={{ fontSize: 14, color: "var(--fg-2)" }}>
-        Video dropping shortly — read on for the TL;DR.
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <span
+            className="t-mono"
+            style={{
+              color: "var(--accent-text)",
+              fontSize: 11,
+              letterSpacing: "0.12em",
+            }}
+          >
+            {step.number}
+          </span>
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 16,
+              fontWeight: 600,
+              color: "var(--fg-1)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {step.title}
+          </span>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-body)",
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            color: "var(--fg-2)",
+          }}
+        >
+          {step.body}
+        </p>
       </div>
     </div>
   );
