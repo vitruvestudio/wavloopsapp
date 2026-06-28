@@ -245,6 +245,42 @@ async function resolveDestination(
       artistRes.data.display_name.trim().length > 0,
   );
 
+  // ── Contact-based artist intent override ──────────────────
+  // A brand-new account (no artist profile, no onboarded producer)
+  // that already shows up as a `contact` for at least one producer
+  // was INVITED, not self-served. Their primary intent is to
+  // listen, not to create. We force /onboarding/artist regardless
+  // of which card they happened to click on /auth — many invited
+  // artists hit "Producer" by confusion when they lose the
+  // original email and self-onboard later, and producer onboarding
+  // is the wrong room to land them in.
+  //
+  // Guard tight: only run when the account is fresh on BOTH sides.
+  // A returning user with an established profile should never be
+  // re-routed by this check.
+  //
+  // The bind_artist_contacts() RPC ran a few lines above this call
+  // site, so any contact rows the producer pre-populated with the
+  // user's email are now linked to user.id. The check lands here
+  // already up-to-date — no race.
+  //
+  // The override still leaves an exit: once /listen is reached the
+  // account-menu's "Switch to producer view" surface (Sprint C)
+  // takes them to /onboarding intentionally. So this isn't a trap,
+  // it's just a sane default for first sign-in.
+  if (!hasArtistRow && !hasOnboardedProducer) {
+    const { count: contactCount } = await supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("auth_user_id", user.id);
+    if ((contactCount ?? 0) > 0) {
+      return {
+        destination: "/onboarding/artist",
+        mode: "artist",
+      };
+    }
+  }
+
   // Role hint from the URL — set when the user picked a card on
   // /auth before requesting the magic-link.
   if (role === "producer") {
