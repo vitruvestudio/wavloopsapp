@@ -80,7 +80,10 @@ export function WavloopsExplainerBar() {
           letterSpacing: "-0.005em",
         }}
       >
-        Want to create your own server?
+        Want to create your own server?{" "}
+        <span style={{ color: "var(--accent-text)", fontWeight: 600 }}>
+          Start for free.
+        </span>
       </span>
       <Link
         href="/onboarding?utm_source=listen_to_producer"
