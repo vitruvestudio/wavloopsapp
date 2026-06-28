@@ -258,31 +258,113 @@ export async function updateServerAction(
     };
   }
 
-  // Re-attach beats: wipe the pivot then re-INSERT in the new order.
-  // Cleaner than diffing for our scale, and idempotent.
-  const { error: delErr } = await supabase
+  // Re-attach beats via a diff against the current pivot rows.
+  //
+  // We used to wipe-and-rebuild the whole pivot (DELETE + INSERT
+  // every row) because at our scale the CPU cost is trivial. The
+  // catch: server_beats carries an AFTER INSERT trigger
+  // (notify_server_beat_added → migration 20260618170000) that
+  // fans out an 'upload' notification PER row PER granted artist
+  // and feeds the /api/cron/batch-upload-emails digest. So every
+  // server edit — even one that just renamed the server — was
+  // spamming every artist on the server with N notifications and,
+  // 10 minutes later, a digest email about beats that weren't
+  // actually new.
+  //
+  // The diff below fires the trigger ONLY for beats that are
+  // genuinely new on this server. Removed beats DELETE silently
+  // (no trigger). Beats that stay in the server but change
+  // position UPDATE silently (no AFTER INSERT). Pure metadata
+  // edits (name, visibility, downloads, …) touch zero pivot
+  // rows now, which is the whole point.
+  //
+  // Position column has no unique constraint (the table's PK is
+  // (server_id, beat_id)), so we can sequentially UPDATE
+  // positions without swap collisions — no negative-position
+  // intermediate step needed.
+  const { data: currentRows, error: fetchErr } = await supabase
     .from("server_beats")
-    .delete()
+    .select("beat_id, position")
     .eq("server_id", payload.id);
-  if (delErr) {
+  if (fetchErr) {
     return {
-      error: `Server updated but couldn't refresh its beats: ${delErr.message}`,
+      error: `Server updated but couldn't read its beats: ${fetchErr.message}`,
       slug: updated.slug,
     };
   }
 
-  if (payload.beat_ids.length > 0) {
-    const rows = payload.beat_ids.map((bid, i) => ({
-      server_id: payload.id,
-      beat_id: bid,
-      position: i,
-    }));
-    const { error: pivotErr } = await supabase
+  const currentPositionByBeat = new Map<string, number>(
+    (currentRows ?? []).map((r) => [
+      r.beat_id as string,
+      r.position as number,
+    ]),
+  );
+  const incomingSet = new Set(payload.beat_ids);
+
+  const toRemove: string[] = [];
+  for (const beatId of currentPositionByBeat.keys()) {
+    if (!incomingSet.has(beatId)) toRemove.push(beatId);
+  }
+
+  const toAdd: Array<{
+    server_id: string;
+    beat_id: string;
+    position: number;
+  }> = [];
+  const toReposition: Array<{ beat_id: string; position: number }> = [];
+  payload.beat_ids.forEach((bid, i) => {
+    const currentPos = currentPositionByBeat.get(bid);
+    if (currentPos === undefined) {
+      toAdd.push({ server_id: payload.id, beat_id: bid, position: i });
+    } else if (currentPos !== i) {
+      toReposition.push({ beat_id: bid, position: i });
+    }
+  });
+
+  // 1. Remove beats no longer in the list.
+  if (toRemove.length > 0) {
+    const { error: delErr } = await supabase
       .from("server_beats")
-      .insert(rows);
-    if (pivotErr) {
+      .delete()
+      .eq("server_id", payload.id)
+      .in("beat_id", toRemove);
+    if (delErr) {
       return {
-        error: `Server updated but couldn't re-attach beats: ${pivotErr.message}`,
+        error: `Server updated but couldn't remove dropped beats: ${delErr.message}`,
+        slug: updated.slug,
+      };
+    }
+  }
+
+  // 2. Insert genuinely-new beats. This is the only branch that
+  //    fires the upload notification trigger — exactly what we
+  //    want.
+  if (toAdd.length > 0) {
+    const { error: insErr } = await supabase
+      .from("server_beats")
+      .insert(toAdd);
+    if (insErr) {
+      return {
+        error: `Server updated but couldn't add new beats: ${insErr.message}`,
+        slug: updated.slug,
+      };
+    }
+  }
+
+  // 3. Reposition beats that stayed in the server. UPDATE doesn't
+  //    fire the AFTER INSERT trigger, so no spurious notifs. Done
+  //    sequentially since N is tiny (a few dozen at most) and the
+  //    Supabase JS client doesn't batch updates with different
+  //    WHERE clauses.
+  for (const { beat_id, position } of toReposition) {
+    const { error: posErr } = await supabase
+      .from("server_beats")
+      .update({ position })
+      .eq("server_id", payload.id)
+      .eq("beat_id", beat_id);
+    if (posErr) {
+      return {
+        error: `Server updated but couldn't reorder beats: ${posErr.message}`,
         slug: updated.slug,
       };
     }
