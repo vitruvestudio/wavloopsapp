@@ -79,12 +79,20 @@ export function ArtistShell({ children }: { children: React.ReactNode }) {
             <WavloopsExplainerBar />
             <ArtistTopbar onOpenDrawer={() => setDrawerOpen(true)} />
             {/* Independent scroll surface so the PlayerDock can pin
-                to the bottom of the viewport while pages scroll. */}
-            <div className="flex-1 overflow-y-auto">
+                to the bottom of the viewport while pages scroll.
+                `overflow-x: hidden` belt-and-braces against any
+                wide child (cover mosaic, scrollable tab strip,
+                long beat titles) introducing a stray horizontal
+                scrollbar that would shift content under the
+                sidebar. */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
               {/* Same 1440px content cap as the producer shell
                   (app/(app)/layout.tsx) — keeps the editorial feel
                   consistent on ultra-wide displays. */}
-              <div className="mx-auto w-full" style={{ maxWidth: 1440 }}>
+              <div
+                className="mx-auto w-full"
+                style={{ maxWidth: 1440, overflowX: "hidden" }}
+              >
                 {children}
               </div>
             </div>
