@@ -16,12 +16,17 @@
 "use client";
 
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { AccountMenu } from "@/components/app/AccountMenu";
 import { PlanBadge } from "@/components/app/PlanBadge";
 import { ProducerNotificationsMenu } from "@/components/app/ProducerNotificationsMenu";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import { useProducerNotifications } from "@/app/(app)/_components/ProducerContext";
+import {
+  useProducerNotifications,
+  useProducerViewer,
+} from "@/app/(app)/_components/ProducerContext";
+import { switchToArtistViewAction } from "@/app/auth/mode-switch";
 
 import { useTheme } from "@/lib/use-theme";
 
@@ -33,6 +38,7 @@ interface TopBarProps {
 export function TopBar({ onMenuClick }: TopBarProps) {
   const { theme, toggle } = useTheme();
   const { unreadCount } = useProducerNotifications();
+  const viewer = useProducerViewer();
   const [notifsOpen, setNotifsOpen] = React.useState(false);
 
   return (
@@ -73,23 +79,18 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       {/* spacer (desktop only — mobile lets right cluster touch the search) */}
       <div className="hidden flex-1 lg:block" />
 
-      {/* live sync indicator — md+ */}
-      <span
-        className="t-mono-s hidden items-center md:inline-flex"
-        style={{ gap: 7, padding: "0 4px" }}
-      >
-        <span
-          aria-hidden
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "var(--ok)",
-            boxShadow: "0 0 8px 0 var(--ok)",
-          }}
-        />
-        LIVE
-      </span>
+      {/* Panel switcher — segmented toggle (Artist | Producer),
+          mirrors the artist /listen topbar. Replaces the old
+          LIVE indicator: a present-tense panel control is more
+          useful than a static sync badge, and the AccountMenu
+          already carries the same action via ModeSwitchForm.
+          Only renders for multi-role users; producers without
+          an artist profile never see it. */}
+      {viewer?.hasArtistProfile && (
+        <form action={switchToArtistViewAction} className="contents">
+          <PanelSwitcherToggle />
+        </form>
+      )}
 
       {/* plan badge — md+, links to /settings billing tab */}
       <PlanBadge />
@@ -163,5 +164,119 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       {/* account pill + dropdown (Account / Settings / Upgrade / Log out) */}
       <AccountMenu />
     </header>
+  );
+}
+
+/** Pill toggle for the panel switcher — producer-side mirror of
+ *  the artist topbar's. Lives inside its parent
+ *  `<form action={switchToArtistViewAction}>` so useFormStatus
+ *  can drive the pending visuals without prop drilling.
+ *
+ *  Layout mirrors the artist version exactly: same height, same
+ *  half width, same thumb. The thumb just starts on the RIGHT
+ *  (under PRODUCER, the current state) and slides LEFT toward
+ *  ARTIST on submit. */
+function PanelSwitcherToggle() {
+  const { pending } = useFormStatus();
+  const HALF_WIDTH = 78;
+  const INNER_H = 24;
+
+  return (
+    <div
+      role="group"
+      aria-label="Switch panel"
+      className="relative hidden md:inline-flex shrink-0 items-center"
+      style={{
+        height: 28,
+        padding: 2,
+        background: "var(--bg-2)",
+        border: "1px solid var(--border-1)",
+        borderRadius: "var(--r-pill)",
+      }}
+    >
+      {/* Sliding thumb. Starts on the right (under PRODUCER, the
+              current panel) and slides LEFT on submit. */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 2,
+          left: 2,
+          width: HALF_WIDTH,
+          height: INNER_H,
+          borderRadius: "var(--r-pill)",
+          background: "var(--bg-0)",
+          boxShadow: "inset 0 0 0 1px var(--border-2)",
+          transform: pending
+            ? "translateX(0)"
+            : `translateX(${HALF_WIDTH}px)`,
+          transition:
+            "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+          willChange: "transform",
+        }}
+      />
+
+      {/* ARTIST — the submit. Swaps to a spinner while pending. */}
+      <button
+        type="submit"
+        aria-label="Switch to artist panel"
+        title="Switch to artist panel"
+        disabled={pending}
+        className="t-mono inline-flex items-center justify-center cursor-pointer"
+        style={{
+          position: "relative",
+          width: HALF_WIDTH,
+          height: INNER_H,
+          padding: 0,
+          fontSize: 10.5,
+          letterSpacing: "0.04em",
+          color: pending ? "var(--fg-1)" : "var(--fg-3)",
+          background: "transparent",
+          border: "none",
+          borderRadius: "var(--r-pill)",
+          transition: "color 220ms var(--ease)",
+        }}
+      >
+        {pending ? (
+          <span
+            aria-hidden
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              border: "1.5px solid currentColor",
+              borderTopColor: "transparent",
+              animation: "wlpPanelSwitchSpin 0.8s linear infinite",
+            }}
+          />
+        ) : (
+          "ARTIST"
+        )}
+      </button>
+
+      {/* PRODUCER — current state, non-clickable. */}
+      <span
+        aria-current={pending ? undefined : "true"}
+        className="t-mono inline-flex items-center justify-center"
+        style={{
+          position: "relative",
+          width: HALF_WIDTH,
+          height: INNER_H,
+          fontSize: 10.5,
+          letterSpacing: "0.04em",
+          color: pending ? "var(--fg-3)" : "var(--fg-1)",
+          transition: "color 220ms var(--ease)",
+        }}
+      >
+        PRODUCER
+      </span>
+
+      <style>{`
+        @keyframes wlpPanelSwitchSpin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
   );
 }
