@@ -45,6 +45,10 @@ interface Step {
   /** Optional /public path to a short MP4 that previews the step.
    *  When absent, the card falls back to just the icon badge. */
   video?: string;
+  /** Optional short feature tags rendered as chips below the body.
+   *  Keeps the body sentence short while still letting a step
+   *  showcase several sub-features. */
+  chips?: string[];
 }
 
 const STEPS: Step[] = [
@@ -60,8 +64,14 @@ const STEPS: Step[] = [
     number: "02",
     icon: "library",
     title: "Create your server",
-    body: "Bundle your beats into one living link. Name it, set the vibe — 30 seconds, no card needed.",
+    body: "Bundle your beats into one living link. Name it, set the vibe.",
     video: "/Videos/Wavloops_1.mp4",
+    chips: [
+      "Add manual contacts",
+      "Private server",
+      "Public server",
+      "Share to grow your audience",
+    ],
   },
   {
     number: "03",
@@ -331,6 +341,32 @@ function StepCard({ step }: { step: Step }) {
         >
           {step.body}
         </p>
+        {step.chips && step.chips.length > 0 && (
+          <div
+            className="flex items-center flex-wrap"
+            style={{ gap: 6, marginTop: 8 }}
+          >
+            {step.chips.map((chip) => (
+              <span
+                key={chip}
+                className="t-mono"
+                style={{
+                  padding: "3px 8px",
+                  borderRadius: "var(--r-pill)",
+                  background: "var(--accent-surface)",
+                  border:
+                    "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
+                  color: "var(--accent-text)",
+                  fontSize: 10.5,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
