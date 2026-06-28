@@ -1,30 +1,30 @@
 /**
- * WavloopsExplainerModal — 3-step "how it works" pop-up for
- * first-time producer-panel visitors.
+ * WavloopsExplainerModal — 3-step "how it works" pop-up.
  *
- * Triggered by the "Watch in 20 sec" button on the
- * ProducerExplainerBar (the producer-side counterpart of the
- * artist gate's nudge). The previous version embedded a 20-second
- * Loom; Theo's call is that scannable text + a clear CTA outperforms
- * a video for this specific moment — the visitor came to listen,
- * just flipped to producer view, and wants a "what's next", not
- * a "what is this".
+ * Triggered by the "See it in 3 steps" CTA on the
+ * ProducerExplainerBar. Three numbered cards walk through the
+ * producer flow end-to-end:
  *
- * Three cards walk through the producer flow end-to-end:
- *   1. Create your server     — name + vibe
- *   2. Drop your beats        — drag/drop, auto-detect BPM/key/loudness
- *   3. Share one link         — invite artists, every future drop forever
+ *   01  Upload your beats  — drag/drop, auto BPM/key/loudness
+ *   02  Create your server — bundle into one living link
+ *   03  See who's vibing   — per-artist tracking + likes
+ *
+ * Each card now carries an optional inline preview video (small
+ * 16:9 thumbnail that autoplays muted on loop). The video paths
+ * are the same MP4s that live on the landing's HowItWorks
+ * section, so the modal mirrors the marketing visuals end-to-end
+ * — the producer sees the same screen-recording vocabulary
+ * whether they entered through the landing or this modal.
  *
  * Single primary CTA: "Start free" wired to /auth?intent=signup
- * with utm_source=explainer_modal so we can attribute new producer
- * signups straight back to this surface.
+ * with utm_source=explainer_modal so we can attribute new
+ * producer signups straight back to this surface.
  *
  * Modal a11y:
  *   - role="dialog" + aria-modal
  *   - Escape closes
  *   - Click on backdrop closes
- *   - Body scroll locked while open (consistent with the rest of
- *     the app's modal pattern)
+ *   - Body scroll locked while open
  */
 
 "use client";
@@ -42,6 +42,9 @@ interface Step {
   icon: IconName;
   title: string;
   body: string;
+  /** Optional /public path to a short MP4 that previews the step.
+   *  When absent, the card falls back to just the icon badge. */
+  video?: string;
 }
 
 const STEPS: Step[] = [
@@ -50,23 +53,26 @@ const STEPS: Step[] = [
     icon: "upload",
     title: "Upload your beats",
     body: "Drag & drop. Wavloops auto-detects BPM, key and loudness so you never tag manually again.",
+    // Video to come — leave the icon badge as the visual until a
+    // matching screen-recording is added.
   },
   {
     number: "02",
     icon: "library",
     title: "Create your server",
     body: "Bundle your beats into one living link. Name it, set the vibe — 30 seconds, no card needed.",
+    video: "/Videos/Wavloops_1.mp4",
   },
   {
     number: "03",
     icon: "heart",
     title: "See who's vibing",
     body: "Per-artist play tracking + likes. Know exactly who's into what, when, and how many times.",
+    video: "/Videos/Wavloops_3.mp4",
   },
 ];
 
 export function WavloopsExplainerModal({ onClose }: Props) {
-  // Esc closes.
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -75,7 +81,6 @@ export function WavloopsExplainerModal({ onClose }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Lock body scroll while open.
   React.useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -108,11 +113,12 @@ export function WavloopsExplainerModal({ onClose }: Props) {
         style={{
           position: "relative",
           width: "100%",
-          maxWidth: 580,
+          maxWidth: 760,
+          maxHeight: "90dvh",
+          overflowY: "auto",
           background: "var(--bg-1)",
           borderRadius: "var(--r-xl)",
           border: "1px solid var(--border-1)",
-          overflow: "hidden",
           boxShadow:
             "0 30px 80px -20px rgba(0,0,0,0.5), 0 0 60px -20px var(--accent-glow)",
           display: "flex",
@@ -160,10 +166,10 @@ export function WavloopsExplainerModal({ onClose }: Props) {
         <div
           style={{
             position: "relative",
-            padding: "clamp(26px, 4vw, 36px) clamp(24px, 4vw, 36px) 28px",
+            padding: "clamp(28px, 4vw, 40px) clamp(24px, 4vw, 40px) 32px",
             display: "flex",
             flexDirection: "column",
-            gap: 20,
+            gap: 22,
           }}
         >
           <div
@@ -186,7 +192,7 @@ export function WavloopsExplainerModal({ onClose }: Props) {
             <h2
               className="t-display"
               style={{
-                fontSize: "clamp(22px, 3.4vw, 28px)",
+                fontSize: "clamp(24px, 3.6vw, 32px)",
                 lineHeight: 1.15,
                 letterSpacing: "-0.018em",
                 color: "var(--fg-1)",
@@ -198,12 +204,14 @@ export function WavloopsExplainerModal({ onClose }: Props) {
 
           {/* Steps stack — each is a self-contained card so the
                   three blocks read as a numbered checklist, not a
-                  paragraph of text. */}
+                  paragraph of text. Cards with a `video` prop render
+                  a small autoplay preview on the left; the others
+                  fall back to the icon-only badge. */}
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 10,
+              gap: 12,
             }}
           >
             {STEPS.map((step) => (
@@ -211,9 +219,7 @@ export function WavloopsExplainerModal({ onClose }: Props) {
             ))}
           </div>
 
-          {/* CTA stack — primary Start-free + a softer "skip" so the
-                  modal doesn't feel like a dead end if the visitor
-                  isn't ready. */}
+          {/* CTA stack — primary Start-free + the reassurance line. */}
           <div
             style={{
               display: "flex",
@@ -259,42 +265,38 @@ export function WavloopsExplainerModal({ onClose }: Props) {
   );
 }
 
-/** Numbered step card. Keeps the markup local to this file because
- *  it's only used here and is small enough not to warrant its own
- *  module. */
+/** Numbered step card. Renders a small 16:9 video preview on the
+ *  left when the step carries one, otherwise an icon-only badge. */
 function StepCard({ step }: { step: Step }) {
   return (
     <div
       style={{
         display: "flex",
-        gap: 14,
-        padding: "14px 16px",
+        gap: 16,
+        padding: 14,
         borderRadius: "var(--r-lg)",
         background:
           "color-mix(in oklch, var(--bg-inset) 70%, transparent)",
         border: "1px solid var(--border-1)",
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
+        alignItems: "flex-start",
       }}
     >
+      {step.video ? (
+        <StepVideoThumb src={step.video} />
+      ) : (
+        <StepIconBadge icon={step.icon} />
+      )}
       <div
-        aria-hidden
         style={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          width: 40,
-          height: 40,
-          borderRadius: "var(--r-md)",
-          background: "var(--accent-surface)",
-          border:
-            "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
-          color: "var(--accent-text)",
+          flexDirection: "column",
+          gap: 4,
+          minWidth: 0,
+          paddingTop: step.video ? 2 : 0,
+          flex: 1,
         }}
       >
-        <Icon name={step.icon} size={18} />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
           <span
             className="t-mono"
@@ -330,6 +332,66 @@ function StepCard({ step }: { step: Step }) {
           {step.body}
         </p>
       </div>
+    </div>
+  );
+}
+
+/** Small 16:9 autoplay preview. Muted + playsInline + loop so it
+ *  loops silently regardless of browser autoplay policy. preload
+ *  is "metadata" so the modal doesn't drag the full MP4 down at
+ *  page load — only when the user actually opens it. */
+function StepVideoThumb({ src }: { src: string }) {
+  return (
+    <div
+      style={{
+        flexShrink: 0,
+        width: 180,
+        aspectRatio: "16 / 9",
+        borderRadius: "var(--r-md)",
+        overflow: "hidden",
+        border: "1px solid var(--border-2)",
+        background: "var(--bg-inset)",
+        boxShadow:
+          "0 12px 30px -16px rgba(0,0,0,0.6), 0 0 0 1px color-mix(in oklch, var(--accent-text) 18%, transparent)",
+      }}
+    >
+      <video
+        src={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+        }}
+      />
+    </div>
+  );
+}
+
+function StepIconBadge({ icon }: { icon: IconName }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        width: 180,
+        aspectRatio: "16 / 9",
+        borderRadius: "var(--r-md)",
+        background: "var(--accent-surface)",
+        border:
+          "1px solid color-mix(in oklch, var(--accent-text) 30%, transparent)",
+        color: "var(--accent-text)",
+      }}
+    >
+      <Icon name={icon} size={32} />
     </div>
   );
 }
