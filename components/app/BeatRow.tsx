@@ -294,7 +294,7 @@ export function BeatRow({
       {showEngagement && (
         <div
           className="hidden sm:flex items-center justify-end shrink-0"
-          style={{ gap: 16, width: 140 }}
+          style={{ gap: 14, width: 180 }}
         >
           <span
             className="t-mono-s inline-flex items-center"
@@ -316,6 +316,13 @@ export function BeatRow({
           >
             <Icon name="heart" size={12} />
             {beat.likes_count}
+          </span>
+          <span
+            className="t-mono-s inline-flex items-center"
+            style={{ gap: 5, color: "var(--fg-3)" }}
+          >
+            <Icon name="download" size={12} />
+            {beat.downloads_count}
           </span>
         </div>
       )}

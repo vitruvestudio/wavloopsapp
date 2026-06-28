@@ -125,7 +125,32 @@ export async function GET(
     if (!membership || membership.length === 0) {
       return new NextResponse("Forbidden.", { status: 403 });
     }
+
+    // Log the download against the first matching server. We pick
+    // the server we just verified membership against — that's the
+    // server the artist is operating in for this download, so the
+    // event attribution lines up with how listens / likes are
+    // recorded. Failure here is non-fatal: the download still
+    // succeeds, the counter just doesn't tick. Counters being a
+    // little off is fine; blocking a legitimate download because
+    // the analytics insert hiccupped is not.
+    const downloadServerId = membership[0].server_id;
+    const { error: downloadInsertErr } = await admin
+      .from("downloads")
+      .insert({
+        contact_id: contact.id,
+        beat_id: beatId,
+        server_id: downloadServerId,
+      });
+    if (downloadInsertErr) {
+      console.warn("[beat-download] log insert", downloadInsertErr);
+    }
   }
+  // Owner-side downloads (the producer downloading their own beat
+  // — typically when testing their own server) are deliberately
+  // NOT logged. They're not "engagement", and counting them would
+  // inflate every downloads counter the second the producer
+  // previews their own surface.
 
   // Sign the storage URL. The beat-audio bucket is private so a
   // raw object URL would 401 even if leaked.

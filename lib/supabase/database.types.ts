@@ -114,6 +114,11 @@ export interface BeatWithStatsRow extends BeatRow {
   /** Count of shared comments left by artists on this beat. Added
    *  in migration #31. Empty for cold beats nobody's commented on. */
   comments_count: number;
+  /** Count of times artists have downloaded this beat. Owner-side
+   *  downloads (the producer pulling their own MP3 while testing
+   *  their server) are deliberately NOT counted — see the
+   *  download API route. Added in migration 20260628130000. */
+  downloads_count: number;
 }
 
 export interface ServerBeatRow {
