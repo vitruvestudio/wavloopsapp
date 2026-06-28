@@ -92,13 +92,11 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
         label: "Edit info",
         onClick: () => setEditingContact(c),
       },
-      {
-        icon: "mail",
-        label: "Email",
-        onClick: () => {
-          window.location.href = `mailto:${c.email}`;
-        },
-      },
+      // "Email" action removed — it just opened a mailto: link
+      // which doesn't go through Wavloops' sending infra and
+      // bypasses the rate limits / tracking we have on
+      // /api/send. Until we ship a real per-contact reply UI,
+      // surfacing it here read as a half-baked feature.
       {
         icon: "trash",
         label: "Delete",
@@ -145,6 +143,80 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
     return sorted;
   }, [contacts, search, serverFilter, sort]);
 
+  /** Export the currently-visible (filtered + sorted) contacts as
+   *  a CSV file. We export THE VISIBLE LIST rather than every
+   *  contact in the DB so the "All servers" + search + sort the
+   *  producer set up actually shape the export — matches the
+   *  "you see what you export" expectation from sheets / Spotify
+   *  / etc.
+   *
+   *  RFC 4180 escaping: cells that contain a quote, a comma, or a
+   *  newline get wrapped in double quotes with internal quotes
+   *  doubled. Plain cells go through verbatim so the file stays
+   *  readable in a text editor.
+   *
+   *  Download triggers via an in-memory Blob + temp anchor — no
+   *  server round-trip needed since the data already lives in
+   *  this client component. Streams straight to the user's disk.
+   */
+  const exportCsv = React.useCallback(() => {
+    if (filteredSorted.length === 0) {
+      alert("No contacts to export with the current filter.");
+      return;
+    }
+
+    const escape = (raw: string): string => {
+      if (raw === "") return "";
+      const needsQuoting = /[",\n\r]/.test(raw);
+      if (!needsQuoting) return raw;
+      return `"${raw.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      "email",
+      "name",
+      "phone",
+      "roles",
+      "servers",
+      "plays",
+      "likes",
+      "first_seen_at",
+    ];
+
+    const rows = filteredSorted.map((c) =>
+      [
+        c.email,
+        c.name ?? "",
+        c.phone ?? "",
+        c.roles.join(" · "),
+        c.servers.map((s) => s.name).join(" · "),
+        String(c.plays),
+        String(c.likes),
+        c.firstSeenAt,
+      ]
+        .map(escape)
+        .join(","),
+    );
+
+    // BOM so Excel opens the file as UTF-8 instead of mangling
+    // accented chars in producer or contact names.
+    const csv = "﻿" + [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wavloops-contacts-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoke after a tick so the click handler has fully fired —
+    // revoking synchronously in the same frame cancels the
+    // download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [filteredSorted]);
+
   return (
     <>
       <PageHeader
@@ -165,7 +237,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
               variant="ghost"
               icon="external"
               size="sm"
-              onClick={() => stub("Export CSV")}
+              onClick={exportCsv}
               className="hidden sm:inline-flex !h-[36px]"
             >
               Export CSV
