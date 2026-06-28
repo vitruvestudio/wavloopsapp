@@ -81,36 +81,67 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
           Hidden on mobile so the search bar can use the whole row. */}
       <div className="hidden flex-1 lg:block" />
 
-      {/* Panel switcher — discreet form-action button next to the
-          theme toggle. Only renders for multi-role users (a
-          producer profile that finished onboarding); single-role
-          artists never see it. The AccountMenu carries the same
-          action via ModeSwitchForm; this gives multi-role users
-          a one-click hop without diving into the menu.
+      {/* Panel switcher — segmented toggle (Artist | Producer).
+          Only renders for multi-role users (a producer profile
+          that finished onboarding); single-role artists never
+          see it. The AccountMenu carries the same action via
+          ModeSwitchForm; this gives multi-role users a
+          one-click hop without diving into the menu.
 
-          Visual weight matches the theme toggle on purpose —
-          same 36×36 ghost button, single-icon-only, no label.
-          The `mic` icon stands for the producer-side studio
-          tools so the destination is implicit. */}
+          Visual: small pill, 26px tall, two halves. The active
+          side ("ARTIST" here, since we're inside /listen) reads
+          as the highlighted thumb; the other half is the
+          clickable target. The thumb itself is a non-clickable
+          span so accidental clicks on the current state don't
+          submit anything. */}
       {viewer.hasProducerProfile && (
-        <form action={switchToProducerViewAction}>
-          <button
-            type="submit"
-            aria-label="Switch to producer panel"
-            title="Switch to producer panel"
-            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+        <div
+          role="group"
+          aria-label="Switch panel"
+          className="hidden sm:inline-flex items-stretch"
+          style={{
+            height: 28,
+            padding: 2,
+            background: "var(--bg-2)",
+            border: "1px solid var(--border-1)",
+            borderRadius: "var(--r-pill)",
+          }}
+        >
+          <span
+            aria-current="true"
+            className="t-mono inline-flex items-center justify-center"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: "var(--r-md)",
-              border: "none",
-              background: "transparent",
-              color: "var(--fg-2)",
+              padding: "0 10px",
+              borderRadius: "var(--r-pill)",
+              background: "var(--bg-0)",
+              color: "var(--fg-1)",
+              fontSize: 10.5,
+              letterSpacing: "0.04em",
+              boxShadow: "inset 0 0 0 1px var(--border-2)",
             }}
           >
-            <Icon name="mic" size={17} />
-          </button>
-        </form>
+            ARTIST
+          </span>
+          <form action={switchToProducerViewAction}>
+            <button
+              type="submit"
+              aria-label="Switch to producer panel"
+              title="Switch to producer panel"
+              className="t-mono inline-flex h-full items-center justify-center cursor-pointer transition-colors duration-fast"
+              style={{
+                padding: "0 10px",
+                borderRadius: "var(--r-pill)",
+                background: "transparent",
+                color: "var(--fg-3)",
+                border: "none",
+                fontSize: 10.5,
+                letterSpacing: "0.04em",
+              }}
+            >
+              PRODUCER
+            </button>
+          </form>
+        </div>
       )}
 
       {/* Theme toggle — shared with the producer side, persisted
