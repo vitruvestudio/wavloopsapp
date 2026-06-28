@@ -1241,54 +1241,11 @@ function BeatList({
 
   return (
     <div>
-      <div
-        className="hidden md:flex items-center"
-        style={{
-          gap: 14,
-          padding: "0 12px",
-          marginBottom: 6,
-        }}
-      >
-        <span className="t-mono-s" style={{ width: 46, flexShrink: 0 }} />
-        <span
-          className="t-mono-s flex-1"
-          style={{ color: "var(--fg-4)" }}
-        >
-          BEAT
-        </span>
-        <span
-          className="t-mono-s shrink-0"
-          style={{
-            width: 90,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          ADDED
-        </span>
-        <span
-          className="t-mono-s hidden lg:inline-block shrink-0"
-          style={{
-            width: 110,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          IN SERVERS
-        </span>
-        <span
-          className="t-mono-s shrink-0"
-          style={{
-            width: 100,
-            textAlign: "right",
-            color: "var(--fg-4)",
-          }}
-        >
-          ENGAGEMENT
-        </span>
-        <span className="shrink-0" style={{ width: 32 }} />
-      </div>
-
+      {/* Column-header row (BEAT · ADDED · IN SERVERS · ENGAGEMENT)
+          intentionally removed — the rows are visually self-
+          describing (cover + title block, then date, then server
+          count, then the engagement icon cluster) and the mono
+          headers added noise without adding signal. */}
       <div className="flex flex-col" style={{ gap: 2 }}>
         {beats.map((b) => (
           <BeatRow
