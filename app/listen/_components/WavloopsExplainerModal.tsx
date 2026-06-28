@@ -47,21 +47,21 @@ interface Step {
 const STEPS: Step[] = [
   {
     number: "01",
-    icon: "library",
-    title: "Create your server",
-    body: "One living link per project. Name it, set the vibe — 30 seconds, no card needed.",
-  },
-  {
-    number: "02",
     icon: "upload",
-    title: "Drop your beats",
+    title: "Upload your beats",
     body: "Drag & drop. Wavloops auto-detects BPM, key and loudness so you never tag manually again.",
   },
   {
+    number: "02",
+    icon: "library",
+    title: "Create your server",
+    body: "Bundle your beats into one living link. Name it, set the vibe — 30 seconds, no card needed.",
+  },
+  {
     number: "03",
-    icon: "link",
-    title: "Share one link",
-    body: "Invite the artists you care about. They join once and get every future drop forever.",
+    icon: "heart",
+    title: "See who's vibing",
+    body: "Per-artist play tracking + likes. Know exactly who's into what, when, and how many times.",
   },
 ];
 
