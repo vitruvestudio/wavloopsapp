@@ -664,6 +664,27 @@ export function ServerView({ producer, server }: ServerViewProps) {
                 playing={playingId === b.id}
                 onTogglePlay={() => togglePlay(b)}
                 onToggleLike={() => toggleLike(b.id)}
+                onOpenNote={() => setNoteFor(b)}
+                onToggleHidden={() => toggleHidden(b.id)}
+                // Server-level setting controls whether the
+                // download icon is even available in the hover
+                // cluster — same gate as the BeatRow uses, so the
+                // two view modes respect the producer's choice
+                // consistently.
+                downloadHref={
+                  server.downloadsAllowed
+                    ? `/api/beats/${b.id}/download`
+                    : undefined
+                }
+                noteVisibility={
+                  notes[b.id]?.text?.trim()
+                    ? notes[b.id].visibility
+                    : b.latestCommentBody?.trim()
+                      ? "shared"
+                      : b.noteBody?.trim()
+                        ? "private"
+                        : null
+                }
               />
             ))}
           </div>
@@ -1131,12 +1152,28 @@ function BeatCard({
   playing,
   onTogglePlay,
   onToggleLike,
+  onOpenNote,
+  onToggleHidden,
+  downloadHref,
+  noteVisibility,
 }: {
-  beat: MockBeat;
+  beat: MockBeat & { hidden?: boolean };
   producerHandle: string;
   playing: boolean;
   onTogglePlay: () => void;
   onToggleLike: () => void;
+  onOpenNote: () => void;
+  onToggleHidden: () => void;
+  /** Provided when server.downloadsAllowed is true; absent
+   *  otherwise. The download icon in the hover cluster only
+   *  renders when this is defined — mirrors BeatRow's gate so
+   *  the producer's setting is respected in both view modes. */
+  downloadHref?: string;
+  /** Same three-state shape as BeatRow ("shared" | "private" |
+   *  null) — the message icon colours itself based on this so
+   *  the artist can tell at a glance whether they already wrote
+   *  something, and whether it went to the producer. */
+  noteVisibility: "shared" | "private" | null;
 }) {
   const [hovered, setHovered] = React.useState(false);
   const producerAt = producerHandle.startsWith("@")
@@ -1192,6 +1229,126 @@ function BeatCard({
             {beat.type === "comp" ? "COMP" : "LOOP"}
           </Tag>
         </div>
+
+        {/* Hover action cluster — top-right. Mirrors the BeatRow's
+                action row (message · eye · download) so the artist
+                gets the same controls in both view modes, just
+                surfaced on hover instead of always-on.
+
+                Visibility rules — show when:
+                  - cover is hovered or the beat is playing, OR
+                  - the beat has a noteVisibility (note exists), OR
+                  - the beat is currently hidden
+                ... so the artist always sees the relevant state
+                even without hovering. */}
+        {(showOverlay || noteVisibility !== null || beat.hidden) && (
+          <div
+            className="absolute flex items-center"
+            style={{
+              top: 8,
+              right: 8,
+              zIndex: 2,
+              gap: 4,
+              padding: 4,
+              borderRadius: "var(--r-pill)",
+              background: "oklch(0 0 0 / 0.45)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+          >
+            <button
+              type="button"
+              aria-label={
+                noteVisibility === "shared"
+                  ? "Open note (shared with producer)"
+                  : noteVisibility === "private"
+                    ? "Open note (private)"
+                    : "Open note"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenNote();
+              }}
+              className="relative inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "var(--r-sm)",
+                border: "none",
+                background:
+                  noteVisibility === "shared"
+                    ? "var(--accent-surface)"
+                    : noteVisibility === "private"
+                      ? "oklch(1 0 0 / 0.18)"
+                      : "transparent",
+                color:
+                  noteVisibility === "shared"
+                    ? "var(--accent-text)"
+                    : "#fff",
+              }}
+            >
+              <Icon name="message" size={14} />
+              {noteVisibility === "shared" && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: 1,
+                    right: 1,
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: "var(--accent)",
+                    border: "1.5px solid var(--bg-0)",
+                  }}
+                />
+              )}
+            </button>
+
+            <button
+              type="button"
+              aria-label={beat.hidden ? "Unhide" : "Hide"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleHidden();
+              }}
+              className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "var(--r-sm)",
+                border: "none",
+                background: beat.hidden
+                  ? "oklch(1 0 0 / 0.18)"
+                  : "transparent",
+                color: "#fff",
+              }}
+            >
+              <Icon
+                name={beat.hidden ? "eye-off" : "eye"}
+                size={14}
+              />
+            </button>
+
+            {downloadHref && (
+              <a
+                href={downloadHref}
+                download
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Download ${beat.title}`}
+                className="inline-flex items-center justify-center transition-colors duration-fast"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "var(--r-sm)",
+                  color: "#fff",
+                }}
+              >
+                <Icon name="download" size={14} />
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Hover / playing scrim + centre play/pause icon. */}
         <div
@@ -1298,15 +1455,14 @@ function BeatCard({
                 Stripping the row trims ~22px from each card and
                 lets the genre/mood chips above stand out. */}
 
-        {/* Row 3 — added timestamp. MockBeat.addedAt already comes
-                pre-formatted from the loader ("TODAY", "YESTERDAY",
-                "3D AGO", …) so no fmtAgo() needed here. */}
-        <div
-          className="t-mono-s"
-          style={{ color: "var(--fg-4)" }}
-        >
-          ADDED {beat.addedAt.toUpperCase()}
-        </div>
+        {/* ADDED timestamp row intentionally removed from the grid
+                view — the artist surface doesn't need the upload
+                date front-and-centre next to every cover the way
+                the producer Library does (where it matters for
+                catalogue management). Keeps the meta minimal and
+                lets the cover artwork carry the visual hierarchy.
+                The list (BeatRow) view still surfaces it in its
+                meta column. */}
       </div>
     </div>
   );
