@@ -77,7 +77,7 @@ export async function loadProducerViewer(): Promise<ProducerViewer | null> {
   if (!user) return null;
   const supabase = await createClient();
 
-  const [profileRes, artistRes] = await Promise.all([
+  const [profileRes, artistRes, contactsRes] = await Promise.all([
     supabase
       .from("profiles")
       .select("name, avatar_url")
@@ -91,9 +91,22 @@ export async function loadProducerViewer(): Promise<ProducerViewer | null> {
       .select("display_name")
       .eq("user_id", user.id)
       .maybeSingle<{ display_name: string | null }>(),
+    // Also count contact rows where this user is the linked artist.
+    // An artist who joined a server via the public /s/[slug] gate
+    // gets a contacts row but NO artist_profiles row (the gate flow
+    // doesn't push them through /onboarding/artist). They're still
+    // an "artist" on the platform — they have access to /listen
+    // and should see the panel switcher when they later flip to
+    // producer mode. Without this check, AccountMenu hides the
+    // switcher and the gate-joined producer is stuck on /dashboard.
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("auth_user_id", user.id),
   ]);
   const profile = profileRes.data;
   const artist = artistRes.data;
+  const contactsCount = contactsRes.count ?? 0;
 
   const email = user.email ?? "";
   const localPart = email.split("@")[0] || "Producer";
@@ -105,9 +118,10 @@ export async function loadProducerViewer(): Promise<ProducerViewer | null> {
     displayName,
     avatarUrl: profile?.avatar_url ?? null,
     avatarLabel: initialsOf(displayName),
-    hasArtistProfile: Boolean(
-      artist?.display_name && artist.display_name.trim().length > 0,
-    ),
+    hasArtistProfile:
+      Boolean(
+        artist?.display_name && artist.display_name.trim().length > 0,
+      ) || contactsCount > 0,
   };
 }
 

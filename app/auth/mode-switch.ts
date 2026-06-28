@@ -67,20 +67,41 @@ async function hasProducerProfile(): Promise<boolean> {
   return Boolean(data?.onboarded_at);
 }
 
-/** True iff the current session has an artist profile row with a
- *  display name set (the minimal onboarding completion signal). */
+/** True when the current session can act as an artist on the
+ *  platform. Two paths qualify:
+ *    1. An artist_profiles row with a display name set — the
+ *       standard signal that the user went through /onboarding/
+ *       artist.
+ *    2. At least one contacts row linked to this auth user — the
+ *       gate-page flow (/s/[slug]) creates contact rows without
+ *       provisioning artist_profiles, but the user is still an
+ *       artist on the platform (they have /listen access via the
+ *       servers they joined).
+ *
+ *  Without (2) the switcher disappeared for gate-joined users
+ *  the moment they flipped to producer mode and got stuck on
+ *  /dashboard with no way back. */
 async function hasArtistProfile(): Promise<boolean> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return false;
-  const { data } = await supabase
-    .from("artist_profiles")
-    .select("display_name")
-    .eq("user_id", user.id)
-    .maybeSingle<{ display_name: string | null }>();
-  return Boolean(data?.display_name?.trim());
+  const [artistRes, contactsRes] = await Promise.all([
+    supabase
+      .from("artist_profiles")
+      .select("display_name")
+      .eq("user_id", user.id)
+      .maybeSingle<{ display_name: string | null }>(),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("auth_user_id", user.id),
+  ]);
+  return (
+    Boolean(artistRes.data?.display_name?.trim()) ||
+    (contactsRes.count ?? 0) > 0
+  );
 }
 
 /** Send a multi-role user to the artist shell + remember the
