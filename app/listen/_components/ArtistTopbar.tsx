@@ -10,6 +10,7 @@
 import * as React from "react";
 import { Icon } from "@/components/ui/Icon";
 import { useTheme } from "@/lib/use-theme";
+import { switchToProducerViewAction } from "@/app/auth/mode-switch";
 import { ArtistAccountMenu } from "./ArtistAccountMenu";
 import { useArtistContext } from "./ArtistContext";
 import { ArtistNotificationsMenu } from "./ArtistNotificationsMenu";
@@ -21,7 +22,7 @@ interface ArtistTopbarProps {
 
 export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
   const { theme, toggle } = useTheme();
-  const { notifications } = useArtistContext();
+  const { notifications, viewer } = useArtistContext();
   const [notifOpen, setNotifOpen] = React.useState(false);
   const unread = notifications.unreadCount;
   return (
@@ -79,6 +80,38 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
       {/* Desktop spacer — pushes the right cluster to the edge.
           Hidden on mobile so the search bar can use the whole row. */}
       <div className="hidden flex-1 lg:block" />
+
+      {/* Panel switcher — discreet form-action button next to the
+          theme toggle. Only renders for multi-role users (a
+          producer profile that finished onboarding); single-role
+          artists never see it. The AccountMenu carries the same
+          action via ModeSwitchForm; this gives multi-role users
+          a one-click hop without diving into the menu.
+
+          Visual weight matches the theme toggle on purpose —
+          same 36×36 ghost button, single-icon-only, no label.
+          The `mic` icon stands for the producer-side studio
+          tools so the destination is implicit. */}
+      {viewer.hasProducerProfile && (
+        <form action={switchToProducerViewAction}>
+          <button
+            type="submit"
+            aria-label="Switch to producer panel"
+            title="Switch to producer panel"
+            className="inline-flex items-center justify-center cursor-pointer transition-colors duration-fast"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "var(--r-md)",
+              border: "none",
+              background: "transparent",
+              color: "var(--fg-2)",
+            }}
+          >
+            <Icon name="mic" size={17} />
+          </button>
+        </form>
+      )}
 
       {/* Theme toggle — shared with the producer side, persisted
           in localStorage["wl-srv-theme"]. */}
