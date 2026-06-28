@@ -1,143 +1,109 @@
 /**
  * /onboarding — switch-to-producer splash.
  *
- * Rendered by Next.js while the onboarding page's server fetch is
- * resolving. Replaces the artist panel's chrome with a calm
- * full-screen Wavloops splash so the producer-side hand-off feels
- * intentional, not blank.
+ * Mirrors the ModeSwitchForm overlay (components/app/ModeSwitchForm.tsx)
+ * so the producer-panel hand-off looks identical whether the
+ * visitor came in via:
+ *   - the account-menu "Switch to producer view" form action
+ *     (which renders that overlay inline), OR
+ *   - the artist-panel ExplainerBar "Switch to producer panel"
+ *     link (which lands on /onboarding and triggers this file).
  *
- * Surface is a single screen — no skeleton — because /onboarding
- * shows different things to different users (the 5-step wizard
- * for fresh producers, an immediate forward to /dashboard for
- * already-onboarded ones). A logo + a short status line is a
- * universal placeholder for both branches.
+ * Visual contract with ModeSwitchForm:
+ *   - 96x96 glyph area with a spinning accent ring + soft pulse
+ *     + the Logomark at 42px
+ *   - "Loading your producer studio…" headline (font-display, 22px)
+ *   - "Tuning up your library and dashboard" subline
+ *   - Same wlpModeSwitchSpin / wlpModeSwitchPulse keyframes
  *
- * The accent halo behind the logo + the soft pulse pick up the
- * same DS vocabulary used on the marketing surface, so the
- * transition reads as "you're entering the producer side of
- * Wavloops" rather than a generic spinner.
+ * The only difference is the backdrop: ModeSwitchForm sits over a
+ * live page so it uses a translucent scrim + backdrop-blur; this
+ * splash IS the page, so we render the same surface on a solid
+ * var(--bg-0) instead. Keeps the visual identical otherwise.
  */
 
-import { Logo } from "@/components/ui/Logo";
+import { Logomark } from "@/components/ui/Logo";
 
 export default function OnboardingLoading() {
   return (
     <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 flex items-center justify-center"
       style={{
-        minHeight: "100dvh",
-        width: "100%",
-        backgroundColor: "var(--bg-0)",
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
+        zIndex: 9999,
+        background: "var(--bg-0)",
       }}
     >
-      {/* Brand halo — same radial-gradient pattern as the hero */}
       <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(ellipse 50% 40% at 50% 50%, var(--accent-glow) 0%, transparent 70%)",
-          opacity: 0.45,
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Centre stack — logo + tagline + status line. */}
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 26,
-          padding: "0 24px",
-        }}
+        className="flex flex-col items-center"
+        style={{ gap: 22, padding: "0 24px", textAlign: "center" }}
       >
-        {/* Logo wrapper carries the pulse animation. wl-pulse-dot
-                already lives in globals.css; we re-use it on the logo
-                container by setting --wl-pulse-color to accent. */}
+        {/* Animated glyph: the Wavloops logomark with a slow
+                scale-pulse + a thin accent ring orbiting behind it.
+                Pure CSS so it costs nothing and stays sharp. */}
         <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 18,
-            borderRadius: "var(--r-pill)",
-            background:
-              "color-mix(in oklch, var(--bg-1) 70%, transparent)",
-            border:
-              "1px solid color-mix(in oklch, var(--accent-text) 25%, transparent)",
-            boxShadow:
-              "0 0 60px -10px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.04)",
-            ["--wl-pulse-color" as string]: "var(--accent)",
-            animation: "wl-pulse-dot 1.8s ease-out infinite",
-          }}
+          className="relative flex items-center justify-center"
+          style={{ width: 96, height: 96 }}
         >
-          <Logo size={44} />
+          <span
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              borderRadius: "50%",
+              border: "2px solid var(--accent)",
+              borderTopColor: "transparent",
+              animation: "wlpModeSwitchSpin 1.1s linear infinite",
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute inset-2"
+            style={{
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, color-mix(in oklch, var(--accent) 22%, transparent) 0%, transparent 70%)",
+              animation: "wlpModeSwitchPulse 1.6s var(--ease) infinite",
+            }}
+          />
+          <Logomark size={42} />
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 8,
-            textAlign: "center",
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div
-            className="t-display"
             style={{
+              fontFamily: "var(--font-display)",
               fontSize: 22,
-              letterSpacing: "-0.018em",
+              fontWeight: 600,
               color: "var(--fg-1)",
+              letterSpacing: "-0.01em",
             }}
           >
-            Switching to producer panel…
+            Loading your producer studio…
           </div>
           <div
-            className="t-mono"
             style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 14,
               color: "var(--fg-3)",
-              letterSpacing: "0.12em",
             }}
           >
-            ONE LINK · EVERY DROP · FOREVER
+            Tuning up your library and dashboard
           </div>
-        </div>
-
-        {/* Soft progress shimmer below the copy — three dots that
-                fade in sequence, picked up from the wl-typing-bounce
-                keyframe so it stays on-brand. */}
-        <div
-          aria-hidden="true"
-          style={{
-            display: "inline-flex",
-            gap: 6,
-            marginTop: 4,
-          }}
-        >
-          {[0, 0.2, 0.4].map((delay) => (
-            <span
-              key={delay}
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "var(--accent-text)",
-                animation: "wl-typing-bounce 1.2s ease-in-out infinite",
-                animationDelay: `${delay}s`,
-                opacity: 0.7,
-              }}
-            />
-          ))}
         </div>
       </div>
+
+      {/* Inline keyframes mirrored from ModeSwitchForm so the two
+              surfaces stay in lockstep visually. */}
+      <style>{`
+        @keyframes wlpModeSwitchSpin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes wlpModeSwitchPulse {
+          0%, 100% { transform: scale(0.9); opacity: 0.6; }
+          50%      { transform: scale(1.08); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
