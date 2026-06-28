@@ -121,7 +121,8 @@ export async function GET(
       .eq("contact_id", contact.id)
       .eq("status", "granted")
       .in("server_id", eligibleServerIds)
-      .limit(1);
+      .limit(1)
+      .returns<Array<{ server_id: string }>>();
     if (!membership || membership.length === 0) {
       return new NextResponse("Forbidden.", { status: 403 });
     }
@@ -135,13 +136,17 @@ export async function GET(
     // little off is fine; blocking a legitimate download because
     // the analytics insert hiccupped is not.
     const downloadServerId = membership[0].server_id;
+    // `downloads` table isn't in the hand-written database.types
+    // Database generic yet — we cast through `as never` here the
+    // same way other places in the codebase do for fresh tables
+    // until the type generator catches up.
     const { error: downloadInsertErr } = await admin
-      .from("downloads")
+      .from("downloads" as never)
       .insert({
         contact_id: contact.id,
         beat_id: beatId,
         server_id: downloadServerId,
-      });
+      } as never);
     if (downloadInsertErr) {
       console.warn("[beat-download] log insert", downloadInsertErr);
     }
