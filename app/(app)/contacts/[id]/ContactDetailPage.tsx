@@ -107,25 +107,11 @@ export function ContactDetailPage({
             >
               Edit
             </Button>
-            <a href={`mailto:${contact.email}`} className="inline-flex">
-              <Button
-                variant="ghost"
-                icon="mail"
-                size="sm"
-                className="!h-[36px]"
-              >
-                Email
-              </Button>
-            </a>
-            <Button
-              variant="ghost"
-              icon="external"
-              size="sm"
-              onClick={() => stub("Export contact")}
-              className="!h-[36px]"
-            >
-              Export
-            </Button>
+            {/* "Email" and "Export" header actions removed —
+                Email was a plain mailto: that bypasses Wavloops'
+                sending infra, and per-contact Export was a stub
+                that never shipped. The contacts list page still
+                has a real Export CSV that covers the bulk case. */}
           </div>
         }
       />
