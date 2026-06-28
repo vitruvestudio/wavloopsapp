@@ -118,6 +118,8 @@ export function CreateServerPage({
   const [downloadsAllowed, setDownloadsAllowed] = React.useState<boolean>(
     existing?.downloads_allowed ?? false,
   );
+  const [forceArtworkOnBeats, setForceArtworkOnBeats] =
+    React.useState<boolean>(existing?.force_artwork_on_beats ?? false);
   const [beatIds, setBeatIds] = React.useState<string[]>(
     existingBeatIds ?? [],
   );
@@ -265,6 +267,7 @@ export function CreateServerPage({
         artworkMode === "image" ? artworkPreviewUrl : null,
       visibility,
       downloads_allowed: downloadsAllowed,
+      force_artwork_on_beats: forceArtworkOnBeats,
       created_at: "",
       updated_at: "",
     }),
@@ -279,23 +282,36 @@ export function CreateServerPage({
       artworkPreviewUrl,
       visibility,
       downloadsAllowed,
+      forceArtworkOnBeats,
     ],
   );
 
   /** Covers for the mosaic — actual beat artwork URL when set, else
    *  a generative gradient seeded by the beat's wave_seed. Ordered by
-   *  the producer's pick order. */
-  const selectedBeatCovers = React.useMemo(
-    () =>
-      beatIds
-        .map((id) => {
-          const b = beats.find((x) => x.id === id);
-          if (!b) return null;
-          return { seed: b.wave_seed, src: b.artwork_url };
-        })
-        .filter((c): c is { seed: string; src: string | null } => c !== null),
-    [beatIds, beats],
-  );
+   *  the producer's pick order.
+   *
+   *  When the force-artwork toggle is ON, every cover's src is
+   *  swapped to the server artwork so the live preview matches the
+   *  way /listen/[slug] will actually render the mosaic. The seed
+   *  stays per-beat as a fallback if the artwork URL ever drops. */
+  const selectedBeatCovers = React.useMemo(() => {
+    const overrideSrc =
+      forceArtworkOnBeats && artworkPreviewUrl
+        ? artworkPreviewUrl
+        : null;
+    return beatIds
+      .map((id) => {
+        const b = beats.find((x) => x.id === id);
+        if (!b) return null;
+        return {
+          seed: b.wave_seed,
+          src: overrideSrc ?? b.artwork_url,
+        };
+      })
+      .filter(
+        (c): c is { seed: string; src: string | null } => c !== null,
+      );
+  }, [beatIds, beats, forceArtworkOnBeats, artworkPreviewUrl]);
 
   const filteredBeats = React.useMemo(() => {
     const q = beatSearch.trim().toLowerCase();
@@ -340,6 +356,7 @@ export function CreateServerPage({
         artwork_image_url: artwork?.url ?? null,
         visibility,
         downloads_allowed: downloadsAllowed,
+        force_artwork_on_beats: forceArtworkOnBeats,
         beat_ids: beatIds,
       };
 
@@ -567,6 +584,17 @@ export function CreateServerPage({
                     onClickPick={() => artworkInputRef.current?.click()}
                     onRemove={removeArtwork}
                   />
+
+                  {/* Per-server cover override — only meaningful
+                      when an image has actually been chosen. Hidden
+                      otherwise so the form doesn't bait the
+                      producer with a toggle that does nothing. */}
+                  {artworkPreviewUrl && (
+                    <ForceArtworkToggle
+                      value={forceArtworkOnBeats}
+                      onChange={setForceArtworkOnBeats}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -954,6 +982,103 @@ function ImagePicker({
           </span>
         </button>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   ForceArtworkToggle — switch row that mirrors the Downloads
+   toggle visually. Sits under ImagePicker and only renders when
+   a real artwork has been picked (parent gates it). When ON,
+   every beat in this server inherits the server cover at
+   render time — the swap happens in the loader / adapter
+   layer; beats.artwork_url is never mutated.
+   ============================================================ */
+
+function ForceArtworkToggle({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div style={{ marginTop: 14 }}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        onClick={() => onChange(!value)}
+        className="flex w-full items-center text-left transition-colors duration-fast cursor-pointer border-0"
+        style={{
+          gap: 14,
+          padding: "14px 16px",
+          borderRadius: "var(--r-md)",
+          background: value ? "var(--accent-surface)" : "var(--bg-2)",
+          border: `1px solid ${
+            value
+              ? "color-mix(in oklch, var(--accent-text) 35%, transparent)"
+              : "var(--border-1)"
+          }`,
+        }}
+      >
+        <span
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "var(--r-sm)",
+            background: value ? "var(--accent)" : "var(--bg-3)",
+            color: value ? "var(--accent-fg)" : "var(--fg-3)",
+          }}
+        >
+          <Icon name="view-grid" size={16} />
+        </span>
+        <span className="flex flex-col flex-1 min-w-0">
+          <span
+            className="t-title"
+            style={{ fontSize: 14, color: "var(--fg-1)" }}
+          >
+            Use this artwork for all beats in this server
+          </span>
+          <span
+            className="t-mono-s"
+            style={{ color: "var(--fg-3)", marginTop: 4 }}
+          >
+            {value
+              ? "ON · BEATS DISPLAY THE SERVER COVER HERE"
+              : "OFF · EACH BEAT KEEPS ITS OWN COVER"}
+          </span>
+        </span>
+        {/* Switch glyph — purely visual, the whole row is the
+                button so this never receives a click. */}
+        <span
+          aria-hidden="true"
+          className="shrink-0"
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 11,
+            background: value ? "var(--accent)" : "var(--bg-3)",
+            position: "relative",
+            transition: "background 0.15s var(--ease)",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: value ? 18 : 2,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: "#fff",
+              transition: "left 0.15s var(--ease)",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+            }}
+          />
+        </span>
+      </button>
     </div>
   );
 }

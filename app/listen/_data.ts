@@ -454,6 +454,12 @@ export interface ArtistServerView {
      *  /api/beats/<id>/download endpoint will sign the audio URL).
      *  When false, the icon is hidden and the endpoint refuses. */
     downloadsAllowed: boolean;
+    /** Display-only override. When true AND artworkImageUrl is
+     *  set, every beat rendered inside this server inherits the
+     *  server artwork. Adapters / mosaic builders use this flag
+     *  to swap the cover URL on the fly; beats.artwork_url is
+     *  never mutated. */
+    forceArtworkOnBeats: boolean;
   };
   beats: ArtistServerViewBeat[];
 }
@@ -478,7 +484,7 @@ export async function loadServerView(
       `
       id, slug, name, style_text,
       artwork_mode, accent_hue, artwork_image_url,
-      downloads_allowed,
+      downloads_allowed, force_artwork_on_beats,
       owner_id
     `,
     )
@@ -650,6 +656,8 @@ export async function loadServerView(
         (serverRow.artwork_image_url as string | null) ?? null,
       downloadsAllowed:
         (serverRow.downloads_allowed as boolean | null) ?? false,
+      forceArtworkOnBeats:
+        (serverRow.force_artwork_on_beats as boolean | null) ?? false,
     },
     beats: beatRows.map((b, i) => ({
       id: b.id,

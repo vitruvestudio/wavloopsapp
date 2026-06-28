@@ -96,6 +96,19 @@ function adapt(view: ArtistServerView): {
   producer: MockProducer;
   server: MockServer;
 } {
+  // Producer-side display override: when forceArtworkOnBeats is on
+  // AND a server artwork has been uploaded, every beat surfaced
+  // inside this server borrows the server cover instead of its own
+  // beats.artwork_url. We compute it once and reuse it across the
+  // beat adapter + mosaic builder so the swap stays consistent.
+  // Beats keep their original artwork everywhere else (library,
+  // other servers, beat detail page) — the override is scoped to
+  // this view's rendering only.
+  const forcedCoverUrl =
+    view.server.forceArtworkOnBeats && view.server.artworkImageUrl
+      ? view.server.artworkImageUrl
+      : null;
+
   const producer: MockProducer = {
     handle: view.producer.handle,
     name: view.producer.name,
@@ -112,17 +125,20 @@ function adapt(view: ArtistServerView): {
     styleText: view.server.styleText,
     unread: 0,
     artSeeds: deriveArtSeeds(view),
-    artUrls: deriveArtUrls(view),
+    artUrls: deriveArtUrls(view, forcedCoverUrl),
     artworkMode: view.server.artworkMode,
     accentHue: view.server.accentHue ?? undefined,
     artworkImageUrl: view.server.artworkImageUrl ?? undefined,
     downloadsAllowed: view.server.downloadsAllowed,
-    beats: view.beats.map(beatToMock),
+    beats: view.beats.map((b) => beatToMock(b, forcedCoverUrl)),
   };
   return { producer, server };
 }
 
-function beatToMock(b: ArtistServerViewBeat): MockBeat {
+function beatToMock(
+  b: ArtistServerViewBeat,
+  forcedCoverUrl: string | null,
+): MockBeat {
   return {
     id: b.id,
     title: b.title,
@@ -136,7 +152,7 @@ function beatToMock(b: ArtistServerViewBeat): MockBeat {
     listened: b.listened,
     commentCount: b.latestCommentBody ? 1 : 0,
     artSeed: b.artSeed,
-    coverUrl: b.coverUrl ?? undefined,
+    coverUrl: forcedCoverUrl ?? b.coverUrl ?? undefined,
     audioUrl: b.audioUrl ?? undefined,
     isNew: b.isNew,
     // Thread the note state so BeatRow can derive noteVisibility
@@ -157,10 +173,19 @@ function deriveArtSeeds(view: ArtistServerView): string[] {
   return seeds;
 }
 
-/** Same idea on the cover URLs side — fall back to undefined when
- *  the beat has no uploaded artwork so the mosaic tile uses the
- *  seed-generated CoverArt. */
-function deriveArtUrls(view: ArtistServerView): string[] | undefined {
+/** Cover URLs feeding the 4-tile mosaic. When the producer turned
+ *  on forceArtworkOnBeats, the same server artwork fills every
+ *  tile — the mosaic collapses into a single image, which lines
+ *  up with how the cover swap reads everywhere else in the view.
+ *  Otherwise we fall back to the first 4 beat covers (and drop to
+ *  the seed-gradient when no covers exist). */
+function deriveArtUrls(
+  view: ArtistServerView,
+  forcedCoverUrl: string | null,
+): string[] | undefined {
+  if (forcedCoverUrl) {
+    return [forcedCoverUrl, forcedCoverUrl, forcedCoverUrl, forcedCoverUrl];
+  }
   const urls = view.beats
     .slice(0, 4)
     .map((b) => b.coverUrl)

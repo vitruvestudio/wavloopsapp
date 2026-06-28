@@ -42,6 +42,13 @@ export interface UpdateServerPayload {
    *  when false; the /api/beats/<id>/download route re-checks the
    *  same flag at the network layer (UI hiding is not security). */
   downloads_allowed: boolean;
+  /** Display-only override. When true AND artwork_image_url is
+   *  set, every beat rendered in this server's artist + producer
+   *  surfaces borrows the server artwork instead of its own
+   *  beats.artwork_url. Beats keep their original cover in the
+   *  library and in other servers — the swap happens at the
+   *  loader / adapter layer only. */
+  force_artwork_on_beats: boolean;
   beat_ids: string[];
 }
 
@@ -67,6 +74,8 @@ export interface CreateServerPayload {
   visibility: Visibility;
   /** See UpdateServerPayload.downloads_allowed. */
   downloads_allowed: boolean;
+  /** See UpdateServerPayload.force_artwork_on_beats. */
+  force_artwork_on_beats: boolean;
   beat_ids: string[];
 }
 
@@ -144,6 +153,7 @@ export async function createServerAction(
         artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
         downloads_allowed: payload.downloads_allowed,
+        force_artwork_on_beats: payload.force_artwork_on_beats,
       })
       .select("id, slug")
       .single();
@@ -182,6 +192,7 @@ export async function createServerAction(
         artwork_image_url: payload.artwork_image_url,
         visibility: payload.visibility,
         downloads_allowed: payload.downloads_allowed,
+        force_artwork_on_beats: payload.force_artwork_on_beats,
       })
       .select("id, slug")
       .single();
@@ -246,6 +257,7 @@ export async function updateServerAction(
       artwork_image_url: payload.artwork_image_url,
       visibility: payload.visibility,
       downloads_allowed: payload.downloads_allowed,
+        force_artwork_on_beats: payload.force_artwork_on_beats,
     })
     .eq("id", payload.id)
     .select("slug")

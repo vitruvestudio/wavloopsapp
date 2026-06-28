@@ -75,6 +75,11 @@ export interface ServerRow {
    *  false — kept private unless the producer explicitly opens it.
    *  Added in migration 20260622090000. */
   downloads_allowed: boolean;
+  /** Display-only override. When true AND artwork_image_url is
+   *  set, beats rendered inside this server inherit the server
+   *  artwork; beats.artwork_url is never mutated. Default false.
+   *  Added in migration 20260628150000. */
+  force_artwork_on_beats: boolean;
   created_at: string;
   updated_at: string;
 }
