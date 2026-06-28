@@ -653,7 +653,7 @@ export function ServerView({ producer, server }: ServerViewProps) {
             style={{
               gap: 16,
               gridTemplateColumns:
-                "repeat(auto-fill, minmax(160px, 1fr))",
+                "repeat(auto-fill, minmax(200px, 1fr))",
             }}
           >
             {visible.map((b) => (
@@ -1142,6 +1142,22 @@ function BeatCard({
   const producerAt = producerHandle.startsWith("@")
     ? producerHandle
     : `@${producerHandle}`;
+  const showOverlay = hovered || playing;
+
+  // Mirror the producer Library's BeatCard meta stack so the
+  // artist + producer grid views feel like the same primitive:
+  // LOOP/COMP tag overlay on the cover, title + @producer credit
+  // inline, BPM · KEY · LENGTH row, plays · likes + 1 SERVER
+  // (the artist always views beats inside a single server, so the
+  // count is constant), then ADDED <time> at the bottom.
+  const metaLine = [
+    beat.bpm ? `${beat.bpm} BPM` : null,
+    beat.key,
+    beat.duration,
+  ]
+    .filter((s): s is string => Boolean(s))
+    .join(" · ");
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -1162,18 +1178,35 @@ function BeatCard({
         }}
       >
         <CoverArt fill seed={beat.artSeed} src={beat.coverUrl} />
+
+        {/* LOOP / COMP tag overlay — same vocab as the producer
+                Library's BeatCard top-left corner. */}
         <div
+          className="absolute"
+          style={{ top: 10, left: 10, zIndex: 2 }}
+        >
+          <Tag
+            variant={beat.type === "comp" ? "accent" : "solid"}
+            icon={beat.type === "comp" ? "waves" : "repeat"}
+          >
+            {beat.type === "comp" ? "COMP" : "LOOP"}
+          </Tag>
+        </div>
+
+        {/* Hover / playing scrim + centre play/pause icon. */}
+        <div
+          aria-hidden
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            background:
-              hovered || playing
-                ? "oklch(0 0 0 / 0.5)"
-                : "transparent",
+            background: showOverlay
+              ? "oklch(0 0 0 / 0.5)"
+              : "transparent",
             transition: "background var(--dur-fast) var(--ease)",
             color: "#fff",
+            pointerEvents: "none",
           }}
         >
-          {(hovered || playing) && (
+          {showOverlay && (
             <Icon
               name={playing ? "pause" : "play"}
               size={28}
@@ -1181,6 +1214,9 @@ function BeatCard({
             />
           )}
         </div>
+
+        {/* Like toggle — bottom-right pill. Always visible so the
+                artist can like without needing to hover first. */}
         <button
           type="button"
           aria-label={beat.liked ? "Unlike" : "Like"}
@@ -1198,6 +1234,7 @@ function BeatCard({
             border: "none",
             background: "oklch(0 0 0 / 0.45)",
             color: beat.liked ? "var(--accent)" : "#fff",
+            zIndex: 2,
           }}
         >
           <Icon
@@ -1209,23 +1246,92 @@ function BeatCard({
           />
         </button>
       </button>
-      <div className="min-w-0">
+
+      {/* Meta stack — mirrors the producer Library card so the
+              two grids land on the same shape. */}
+      <div
+        className="min-w-0 flex flex-col"
+        style={{ gap: 4 }}
+      >
+        {/* Row 1 — title + producer credit inline. */}
         <div
-          className="truncate"
-          style={{
-            fontFamily: "var(--font-body)",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "var(--fg-1)",
-          }}
+          className="flex items-baseline min-w-0"
+          style={{ gap: 8 }}
         >
-          {beat.title}
+          <span
+            className="t-title truncate min-w-0"
+            style={{ fontSize: 14 }}
+          >
+            {beat.title}
+          </span>
+          <span
+            className="t-mono-s shrink-0 truncate"
+            style={{
+              color: "var(--fg-3)",
+              maxWidth: 120,
+            }}
+          >
+            {producerAt.toUpperCase()}
+          </span>
         </div>
+
+        {/* Row 2 — BPM · KEY · LENGTH. */}
+        {metaLine && (
+          <div
+            className="t-mono-s truncate"
+            style={{ color: "var(--fg-3)" }}
+          >
+            {metaLine}
+          </div>
+        )}
+
+        {/* Row 3 — engagement (plays · likes) + servers count.
+                Artist surface doesn't aggregate plays/likes, so we
+                surface ARTIST-SCOPED signals: their own listened
+                state and like state. 1 SERVER is constant — every
+                beat in a /listen/[slug] view belongs to that one
+                server. The line keeps the layout symmetrical with
+                the producer card. */}
         <div
-          className="t-mono-s truncate"
-          style={{ color: "var(--fg-3)", marginTop: 2 }}
+          className="flex items-center justify-between"
+          style={{ gap: 10 }}
         >
-          {producerAt.toUpperCase()}
+          <div
+            className="flex items-center"
+            style={{ gap: 12 }}
+          >
+            <span
+              className="t-mono-s inline-flex items-center"
+              style={{ gap: 5, color: "var(--fg-3)" }}
+            >
+              <Icon name="play" size={11} />
+              {beat.listened ? 1 : 0}
+            </span>
+            <span
+              className="t-mono-s inline-flex items-center"
+              style={{ gap: 5, color: "var(--fg-3)" }}
+            >
+              <Icon name="heart" size={11} />
+              {beat.liked ? 1 : 0}
+            </span>
+          </div>
+          <span
+            className="t-mono-s inline-flex items-center shrink-0"
+            style={{ gap: 5, color: "var(--fg-3)" }}
+          >
+            <Icon name="server" size={11} />
+            1 SERVER
+          </span>
+        </div>
+
+        {/* Row 4 — added timestamp. MockBeat.addedAt already comes
+                pre-formatted from the loader ("TODAY", "YESTERDAY",
+                "3D AGO", …) so no fmtAgo() needed here. */}
+        <div
+          className="t-mono-s"
+          style={{ color: "var(--fg-4)" }}
+        >
+          ADDED {beat.addedAt.toUpperCase()}
         </div>
       </div>
     </div>
