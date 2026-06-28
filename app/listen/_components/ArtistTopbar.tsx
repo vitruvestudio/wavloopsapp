@@ -8,6 +8,7 @@
 "use client";
 
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { Icon } from "@/components/ui/Icon";
 import { useTheme } from "@/lib/use-theme";
 import { switchToProducerViewAction } from "@/app/auth/mode-switch";
@@ -84,64 +85,11 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
       {/* Panel switcher — segmented toggle (Artist | Producer).
           Only renders for multi-role users (a producer profile
           that finished onboarding); single-role artists never
-          see it. The AccountMenu carries the same action via
-          ModeSwitchForm; this gives multi-role users a
-          one-click hop without diving into the menu.
-
-          Visual: small pill, 26px tall, two halves. The active
-          side ("ARTIST" here, since we're inside /listen) reads
-          as the highlighted thumb; the other half is the
-          clickable target. The thumb itself is a non-clickable
-          span so accidental clicks on the current state don't
-          submit anything. */}
+          see it. */}
       {viewer.hasProducerProfile && (
-        <div
-          role="group"
-          aria-label="Switch panel"
-          className="hidden sm:inline-flex items-stretch"
-          style={{
-            height: 28,
-            padding: 2,
-            background: "var(--bg-2)",
-            border: "1px solid var(--border-1)",
-            borderRadius: "var(--r-pill)",
-          }}
-        >
-          <span
-            aria-current="true"
-            className="t-mono inline-flex items-center justify-center"
-            style={{
-              padding: "0 10px",
-              borderRadius: "var(--r-pill)",
-              background: "var(--bg-0)",
-              color: "var(--fg-1)",
-              fontSize: 10.5,
-              letterSpacing: "0.04em",
-              boxShadow: "inset 0 0 0 1px var(--border-2)",
-            }}
-          >
-            ARTIST
-          </span>
-          <form action={switchToProducerViewAction}>
-            <button
-              type="submit"
-              aria-label="Switch to producer panel"
-              title="Switch to producer panel"
-              className="t-mono inline-flex h-full items-center justify-center cursor-pointer transition-colors duration-fast"
-              style={{
-                padding: "0 10px",
-                borderRadius: "var(--r-pill)",
-                background: "transparent",
-                color: "var(--fg-3)",
-                border: "none",
-                fontSize: 10.5,
-                letterSpacing: "0.04em",
-              }}
-            >
-              PRODUCER
-            </button>
-          </form>
-        </div>
+        <form action={switchToProducerViewAction} className="contents">
+          <PanelSwitcherToggle />
+        </form>
       )}
 
       {/* Theme toggle — shared with the producer side, persisted
@@ -219,5 +167,130 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
           now wrapped with click-to-open behaviour. */}
       <ArtistAccountMenu />
     </header>
+  );
+}
+
+/** Pill toggle for the panel switcher. Lives inside its parent
+ *  `<form action={switchToProducerViewAction}>` so the PRODUCER
+ *  half can be a plain `type="submit"` button and useFormStatus
+ *  picks up the pending state without prop drilling.
+ *
+ *  Both halves share the same fixed width so the thumb's slide
+ *  lands cleanly on the right edge on submit. The thumb is an
+ *  absolutely-positioned span that animates via `transform`
+ *  (cheap, GPU-composited) — it sits at translateX(0) for
+ *  ARTIST, translateX(100%) once the form goes pending. We don't
+ *  wait for the redirect to advance the thumb: the optimistic
+ *  slide gives the UI life while Next handles the round-trip.
+ *
+ *  Spinner inside the PRODUCER button when pending. Same animation
+ *  as the ModeSwitchForm overlay so the affordance feels consistent
+ *  with the existing menu-based switch. */
+function PanelSwitcherToggle() {
+  const { pending } = useFormStatus();
+  const HALF_WIDTH = 78;
+  const INNER_H = 24;
+
+  return (
+    <div
+      role="group"
+      aria-label="Switch panel"
+      className="relative hidden sm:inline-flex shrink-0 items-center"
+      style={{
+        height: 28,
+        padding: 2,
+        background: "var(--bg-2)",
+        border: "1px solid var(--border-1)",
+        borderRadius: "var(--r-pill)",
+      }}
+    >
+      {/* Sliding thumb — sits under the labels, slides on submit.
+              Width matches one half so it lands flush on each side. */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 2,
+          left: 2,
+          width: HALF_WIDTH,
+          height: INNER_H,
+          borderRadius: "var(--r-pill)",
+          background: "var(--bg-0)",
+          boxShadow: "inset 0 0 0 1px var(--border-2)",
+          transform: pending
+            ? `translateX(${HALF_WIDTH}px)`
+            : "translateX(0)",
+          transition:
+            "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+          willChange: "transform",
+        }}
+      />
+
+      {/* ARTIST — current state, non-clickable on purpose so
+              accidentally clicking the current side can't submit
+              an empty form. */}
+      <span
+        aria-current={pending ? undefined : "true"}
+        className="t-mono inline-flex items-center justify-center"
+        style={{
+          position: "relative",
+          width: HALF_WIDTH,
+          height: INNER_H,
+          fontSize: 10.5,
+          letterSpacing: "0.04em",
+          color: pending ? "var(--fg-3)" : "var(--fg-1)",
+          transition: "color 220ms var(--ease)",
+        }}
+      >
+        ARTIST
+      </span>
+
+      {/* PRODUCER — the submit. Swaps the label for a spinner
+              while the action is pending so the click reads as
+              "something is happening". */}
+      <button
+        type="submit"
+        aria-label="Switch to producer panel"
+        title="Switch to producer panel"
+        disabled={pending}
+        className="t-mono inline-flex items-center justify-center cursor-pointer"
+        style={{
+          position: "relative",
+          width: HALF_WIDTH,
+          height: INNER_H,
+          padding: 0,
+          fontSize: 10.5,
+          letterSpacing: "0.04em",
+          color: pending ? "var(--fg-1)" : "var(--fg-3)",
+          background: "transparent",
+          border: "none",
+          borderRadius: "var(--r-pill)",
+          transition: "color 220ms var(--ease)",
+        }}
+      >
+        {pending ? (
+          <span
+            aria-hidden
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              border: "1.5px solid currentColor",
+              borderTopColor: "transparent",
+              animation: "wlpPanelSwitchSpin 0.8s linear infinite",
+            }}
+          />
+        ) : (
+          "PRODUCER"
+        )}
+      </button>
+
+      <style>{`
+        @keyframes wlpPanelSwitchSpin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
   );
 }
