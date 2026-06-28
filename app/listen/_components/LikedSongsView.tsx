@@ -144,10 +144,6 @@ export function LikedSongsView({ entries }: LikedSongsViewProps) {
       <section
         className="relative pt-[24px] pb-[40px] lg:pt-[32px] lg:pb-[56px]"
         style={{
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          paddingLeft: "calc(50vw - 50%)",
-          paddingRight: "calc(50vw - 50%)",
           background:
             "linear-gradient(180deg, var(--accent-surface), transparent 70%)",
         }}

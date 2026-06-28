@@ -279,12 +279,6 @@ export function ServerView({ producer, server }: ServerViewProps) {
               vertically. Desktop: horizontal row. ──────────────── */}
       <section
         className="relative pb-[60px] pt-[24px] lg:pb-[80px] lg:pt-[32px]"
-        style={{
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          paddingLeft: "calc(50vw - 50%)",
-          paddingRight: "calc(50vw - 50%)",
-        }}
       >
         {/* Background — mode-aware (auto / color / image), masked
             to fade out at the bottom. */}
