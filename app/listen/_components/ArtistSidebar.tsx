@@ -147,9 +147,15 @@ export function ArtistSidebar({
           "fixed top-0 left-0 z-50 transition-transform duration-300",
           drawerOpen ? "translate-x-0" : "-translate-x-full",
           "lg:sticky lg:translate-x-0",
+          // Match the producer Sidebar's footprint so the two
+          // panels read as the same DS: 280px drawer on mobile,
+          // 244px sticky rail on lg+. The 244 number mirrors
+          // components/app/Sidebar.tsx's expanded width — keeps
+          // the content column's left edge in the same screen
+          // x-coord regardless of which panel you're in.
+          "w-[280px] lg:w-[244px]",
         ].join(" ")}
         style={{
-          width: 280,
           height: "100vh",
           background: "var(--bg-1)",
           borderRight: "1px solid var(--border-1)",
