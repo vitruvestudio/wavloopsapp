@@ -212,10 +212,22 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
           </div>
         ) : (
           <div
-            className="border border-border-1 bg-bg-1 overflow-hidden"
+            className="border border-border-1 bg-bg-1"
             style={{
               borderRadius: "var(--r-lg)",
               marginTop: 18,
+              // overflow-hidden REMOVED on purpose — the row action
+              // menu (3-dots) is `position: absolute` pinned to
+              // the row and dropped 4px below it. With the table
+              // wrapper clipping its overflow, the menu was being
+              // cut off the second it opened on the last row (or
+              // anywhere near the wrapper bottom edge). The rows
+              // themselves still clip their content cleanly via
+              // the row's own padding + the wrapper border-radius
+              // visually crops only on the corners we care about
+              // (rounded top + bottom corners on the first/last
+              // visible row would only matter if the row had a
+              // contrasting background, which it doesn't).
             }}
           >
             {/* Column headers — desktop only */}
