@@ -37,6 +37,7 @@ export function WavloopsExplainerBar() {
     <div
       role="region"
       aria-label="Want to create your own server?"
+      className="wl-explainer-bar"
       style={{
         display: "flex",
         alignItems: "center",

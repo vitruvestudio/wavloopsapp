@@ -394,6 +394,75 @@
   50%      { transform: translateY(-5px); }
 }
 
+/* Slow horizontal pan on a 200%-wide background-image so a
+   gradient bar feels "alive" without strobing. Used on the
+   WavloopsExplainerBar / ProducerExplainerBar so the producer-
+   panel CTA never reads as a static strip — the eye picks up
+   the soft motion before it lands on the button. 14s = under
+   one perceptual breath cycle; faster reads as nervous. */
+@keyframes wl-bar-gradient-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Light shimmer streak that traverses a container left-to-right.
+   Layered on the bar via a ::before pseudo with a white-translucent
+   gradient. ~7s cycle, with the streak off-screen for most of the
+   loop so it reads as an occasional sweep rather than a strobe.
+   Combined with the gradient pan above, the bar gets a layered
+   organic motion that feels premium rather than busy. */
+@keyframes wl-bar-shimmer {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: 0.7; }
+  60%  { opacity: 0.7; }
+  100% { transform: translateX(220%); opacity: 0; }
+}
+
+/* Composite class applied to the explainer bars so the gradient
+   pan + shimmer streak compose together. The bar's existing
+   inline styles handle layout, colour stops and padding; this
+   class purely adds motion + the shimmer pseudo. Background-size
+   doubles the gradient so the pan has room to translate. */
+.wl-explainer-bar {
+  background-size: 200% 100%;
+  animation: wl-bar-gradient-flow 14s ease-in-out infinite;
+  overflow: hidden;
+}
+.wl-explainer-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 45%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.18) 55%,
+    transparent 100%
+  );
+  width: 30%;
+  transform: translateX(-120%);
+  animation: wl-bar-shimmer 7s ease-in-out infinite;
+  mix-blend-mode: screen;
+  z-index: 0;
+}
+/* Make sure the children (icon, copy, CTA) stack above the
+   shimmer pseudo. The mix-blend-mode brightens rather than
+   obscures, but force a layer just in case browsers compose
+   differently. */
+.wl-explainer-bar > * {
+  position: relative;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wl-explainer-bar,
+  .wl-explainer-bar::before {
+    animation: none;
+  }
+}
+
 /* ============================================================
    Global guard against horizontal scroll. `overflow-x: clip`
    stops accidental scroll without creating a new stacking

@@ -34,6 +34,7 @@ export function ProducerExplainerBar() {
       <div
         role="region"
         aria-label="What is Wavloops?"
+        className="wl-explainer-bar"
         style={{
           display: "flex",
           alignItems: "center",
