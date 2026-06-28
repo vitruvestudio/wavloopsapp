@@ -1285,46 +1285,20 @@ function BeatCard({
           </div>
         )}
 
-        {/* Row 3 — engagement (plays · likes) + servers count.
-                Artist surface doesn't aggregate plays/likes, so we
-                surface ARTIST-SCOPED signals: their own listened
-                state and like state. 1 SERVER is constant — every
-                beat in a /listen/[slug] view belongs to that one
-                server. The line keeps the layout symmetrical with
-                the producer card. */}
-        <div
-          className="flex items-center justify-between"
-          style={{ gap: 10 }}
-        >
-          <div
-            className="flex items-center"
-            style={{ gap: 12 }}
-          >
-            <span
-              className="t-mono-s inline-flex items-center"
-              style={{ gap: 5, color: "var(--fg-3)" }}
-            >
-              <Icon name="play" size={11} />
-              {beat.listened ? 1 : 0}
-            </span>
-            <span
-              className="t-mono-s inline-flex items-center"
-              style={{ gap: 5, color: "var(--fg-3)" }}
-            >
-              <Icon name="heart" size={11} />
-              {beat.liked ? 1 : 0}
-            </span>
-          </div>
-          <span
-            className="t-mono-s inline-flex items-center shrink-0"
-            style={{ gap: 5, color: "var(--fg-3)" }}
-          >
-            <Icon name="server" size={11} />
-            1 SERVER
-          </span>
-        </div>
+        {/* Engagement row (plays · likes · 1 SERVER) intentionally
+                removed so the artist /listen/[slug] grid diverges
+                from the producer Library grid. The numbers carried
+                no real signal here:
+                  - plays / likes counts on the artist surface only
+                    show this viewer's own 0-or-1 state — the heart
+                    pill on the cover already conveys the like
+                    state at a glance.
+                  - "1 SERVER" was a constant (every beat in a
+                    /listen/[slug] view belongs to that one server).
+                Stripping the row trims ~22px from each card and
+                lets the genre/mood chips above stand out. */}
 
-        {/* Row 4 — added timestamp. MockBeat.addedAt already comes
+        {/* Row 3 — added timestamp. MockBeat.addedAt already comes
                 pre-formatted from the loader ("TODAY", "YESTERDAY",
                 "3D AGO", …) so no fmtAgo() needed here. */}
         <div
