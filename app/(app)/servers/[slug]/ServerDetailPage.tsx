@@ -111,6 +111,27 @@ export function ServerDetailPage({
     return raw === "artists" || raw === "requests" ? raw : "beats";
   })();
   const [tab, setTab] = React.useState<Tab>(initialTab);
+
+  // Per-server display override — mirrors the artist /listen/[slug]
+  // adapter. When the producer turned on force_artwork_on_beats AND
+  // a server artwork exists, every beat surfaced inside THIS server
+  // borrows the server cover: the inline BeatRow + the PlayerDock
+  // cover when a beat is played. Beats keep their original artwork
+  // everywhere else (library, beat detail page, other servers they
+  // belong to). Pure in-memory swap; beats.artwork_url is never
+  // mutated.
+  const displayBeats = React.useMemo(() => {
+    if (!server.force_artwork_on_beats || !server.artwork_image_url) {
+      return beats;
+    }
+    const forcedUrl = server.artwork_image_url;
+    return beats.map((b) => ({ ...b, artwork_url: forcedUrl }));
+  }, [
+    beats,
+    server.force_artwork_on_beats,
+    server.artwork_image_url,
+  ]);
+
   const [copied, setCopied] = React.useState(false);
   const [addBeatsOpen, setAddBeatsOpen] = React.useState(false);
   const [addBeatsPending, startAddBeats] = React.useTransition();
@@ -534,7 +555,7 @@ export function ServerDetailPage({
         {/* Body */}
         {tab === "beats" ? (
           <BeatsTab
-            beats={beats}
+            beats={displayBeats}
             now={now}
             isCurrent={(id) => player.current?.id === id}
             isPlaying={(id) =>
