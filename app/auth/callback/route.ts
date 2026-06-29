@@ -400,13 +400,18 @@ async function maybeRecordAffiliateAttribution(
       return;
     }
 
+    // The affiliate_referrals row isn't in the hand-written
+    // Database generic yet — cast through `as never` the same
+    // way other fresh-table inserts in this codebase do (see
+    // /api/beats/[id]/download and the contact_nurture_sequence
+    // cron) until the types are regenerated.
     const { error: insertErr } = await admin
-      .from("affiliate_referrals")
+      .from("affiliate_referrals" as never)
       .insert({
         affiliate_id: affiliateId,
         attributed_user_id: user.id,
         status: "pending",
-      });
+      } as never);
     if (insertErr) {
       // Surface this in Vercel logs — earlier this same path was
       // silently failing because the user-scoped client lacked an
