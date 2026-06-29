@@ -52,7 +52,11 @@ import type {
 } from "@/lib/supabase/database.types";
 import { AddContactModal } from "../AddContactModal";
 import type { ServerStub } from "../page";
-import type { ContactStats, HistoryEntry } from "./page";
+import type {
+  ContactStats,
+  DownloadEntry,
+  HistoryEntry,
+} from "./page";
 
 interface ContactDetailPageProps {
   contact: ContactRow;
@@ -65,6 +69,10 @@ interface ContactDetailPageProps {
   stats: ContactStats;
   liked: BeatRowT[];
   history: HistoryEntry[];
+  /** Per-beat download log for this contact. Surfaces the
+   *  "downloader-only" archetype (grabbed everything without
+   *  streaming) that doesn't show up in listens / likes. */
+  downloads: DownloadEntry[];
 }
 
 export function ContactDetailPage({
@@ -74,6 +82,7 @@ export function ContactDetailPage({
   stats,
   liked,
   history,
+  downloads,
 }: ContactDetailPageProps) {
   const router = useRouter();
   const now = React.useMemo(() => new Date(), []);
@@ -233,7 +242,7 @@ export function ContactDetailPage({
 
         {/* ── Stats ───────────────────────────────────────────── */}
         <div
-          className="grid grid-cols-2 lg:grid-cols-4"
+          className="grid grid-cols-2 lg:grid-cols-5"
           style={{ gap: 14, marginBottom: 32 }}
         >
           <StatCard icon="play" label="TOTAL PLAYS" value={stats.totalPlays} />
@@ -242,6 +251,20 @@ export function ContactDetailPage({
             icon="library"
             label="BEATS HEARD"
             value={stats.beatsHeard}
+          />
+          {/* Downloads tile. We pass an `alert` flag when downloads
+              outpace listens — classic 'downloader-only' archetype
+              who grabbed the pack without streaming. The tile gets
+              an accent border in that case so the producer's eye
+              lands on it during a scan. */}
+          <StatCard
+            icon="download"
+            label="DOWNLOADS"
+            value={stats.totalDownloads}
+            alert={
+              stats.totalDownloads > 0 &&
+              stats.totalDownloads > stats.totalPlays
+            }
           />
           <StatCard icon="server" label="SERVERS" value={stats.serversCount} />
         </div>
@@ -299,6 +322,37 @@ export function ContactDetailPage({
             )}
           </div>
         </div>
+
+        {/* ── Downloaded log ───────────────────────────────────
+            Full-width row under the 2-col LIKED / HISTORY grid.
+            Same row shape as HistoryRow but the right slot shows
+            the download count instead of the play count. Lives
+            here (not as a 3rd column) because a beat that's been
+            downloaded almost always has a longer line of
+            metadata than the producer's eye comfortably scans in
+            a 33%-wide column. */}
+        <div style={{ marginTop: 32 }}>
+          <SectionHeader
+            icon="download"
+            label="DOWNLOADED"
+            count={downloads.length}
+          />
+          {downloads.length === 0 ? (
+            <EmptyList label="No downloads yet" />
+          ) : (
+            <div className="flex flex-col" style={{ gap: 2 }}>
+              {downloads.map(({ beat, downloadCount, liked }) => (
+                <DownloadRow
+                  key={beat.id}
+                  beat={beat}
+                  downloadCount={downloadCount}
+                  liked={liked}
+                  onClick={() => router.push(`/beats/${beat.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {editOpen && (
@@ -321,15 +375,29 @@ function StatCard({
   icon,
   label,
   value,
+  alert,
 }: {
   icon: IconName;
   label: string;
   value: number;
+  /** Optional "behavior signal" highlight. The DOWNLOADS tile
+   *  passes this when downloads outpace plays so the producer's
+   *  eye lands on it during a quick scan of the contact page. */
+  alert?: boolean;
 }) {
   return (
     <div
-      className="border border-border-1 bg-bg-1"
-      style={{ padding: "16px 20px", borderRadius: "var(--r-lg)" }}
+      className="bg-bg-1"
+      style={{
+        padding: "16px 20px",
+        borderRadius: "var(--r-lg)",
+        border: `1px solid ${
+          alert ? "var(--accent)" : "var(--border-1)"
+        }`,
+        boxShadow: alert
+          ? "0 0 0 3px color-mix(in oklch, var(--accent) 15%, transparent)"
+          : "none",
+      }}
     >
       <div
         className="t-mono-s inline-flex items-center"
@@ -520,6 +588,138 @@ function HistoryRow({
         >
           <Icon name="play" size={13} />
           {playCount}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   DownloadRow — same shape as HistoryRow but the right slot
+   surfaces the download count + a download icon. Reuses the
+   exact same body + meta layout so the LIKED / HISTORY /
+   DOWNLOADED logs read as one consistent row primitive.
+   ============================================================ */
+
+function DownloadRow({
+  beat,
+  downloadCount,
+  liked,
+  onClick,
+}: {
+  beat: BeatRowT;
+  downloadCount: number;
+  liked: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="flex items-center cursor-pointer transition-colors duration-fast"
+      style={{
+        gap: 14,
+        padding: "10px 12px",
+        borderRadius: "var(--r-md)",
+        background: hovered ? "var(--bg-2)" : "transparent",
+      }}
+    >
+      <div
+        className="relative shrink-0 overflow-hidden"
+        style={{ width: 44, height: 44, borderRadius: "var(--r-sm)" }}
+      >
+        {beat.artwork_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={beat.artwork_url}
+            alt=""
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        ) : (
+          <CoverArt fill seed={beat.wave_seed} />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div
+          className="truncate"
+          style={{
+            fontFamily: "var(--font-body)",
+            fontSize: 14.5,
+            fontWeight: 600,
+            color: "var(--fg-1)",
+          }}
+        >
+          {beat.title}
+        </div>
+        <div
+          className="flex items-center flex-wrap"
+          style={{ gap: 6, marginTop: 4 }}
+        >
+          {beat.type && (
+            <Tag variant="accent" icon={beat.type === "loop" ? "repeat" : "waves"}>
+              {beat.type === "loop" ? "LOOP" : "COMP"}
+            </Tag>
+          )}
+          {beat.bpm != null && (
+            <span
+              className="t-mono-s"
+              style={{ color: "var(--fg-3)" }}
+            >
+              {beat.bpm} BPM
+            </span>
+          )}
+          {beat.key && (
+            <span
+              className="t-mono-s"
+              style={{ color: "var(--fg-3)" }}
+            >
+              · {beat.key}
+            </span>
+          )}
+          {beat.mood.slice(0, 2).map((m) => (
+            <Tag key={m} variant="solid">
+              {m}
+            </Tag>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="inline-flex items-center shrink-0"
+        style={{ gap: 16 }}
+      >
+        <Icon
+          name="heart"
+          size={14}
+          style={{
+            color: liked ? "var(--accent-text)" : "var(--fg-4)",
+            fill: liked ? "var(--accent-text)" : "none",
+          }}
+        />
+        <span
+          className="t-mono-s inline-flex items-center"
+          style={{ gap: 6, color: "var(--fg-2)" }}
+        >
+          <Icon name="download" size={13} />
+          {downloadCount}
         </span>
       </div>
     </div>

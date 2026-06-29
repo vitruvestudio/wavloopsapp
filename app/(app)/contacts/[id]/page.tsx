@@ -52,11 +52,30 @@ export interface HistoryEntry {
   liked: boolean;
 }
 
+/** One row in the "DOWNLOADED" log. Grouped per beat the same
+ *  way listens are — a beat downloaded 3 times by the same
+ *  contact appears once with downloadCount = 3. */
+export interface DownloadEntry {
+  beat: BeatRow;
+  downloadCount: number;
+  liked: boolean;
+}
+
 export interface ContactStats {
   totalPlays: number;
   beatsLiked: number;
   beatsHeard: number;
   serversCount: number;
+  /** Total download events this contact has triggered across all
+   *  of the producer's servers. Real action signal — surfaces the
+   *  classic 'downloader-only' archetype who joins a server and
+   *  grabs everything without ever streaming a beat. */
+  totalDownloads: number;
+  /** Distinct beats this contact has downloaded (vs totalDownloads
+   *  which counts every event). A download-heavy contact with
+   *  beatsDownloaded === server.beats_count downloaded the WHOLE
+   *  pack — often the bot-y / leech-y signature. */
+  beatsDownloaded: number;
 }
 
 export default async function ContactRoute({ params }: PageProps) {
@@ -79,29 +98,40 @@ export default async function ContactRoute({ params }: PageProps) {
   const contact = contactRes.data;
   if (!contact) notFound();
 
-  const [likesRes, listensRes, allServersRes] = await Promise.all([
-    supabase
-      .from("likes")
-      .select("beat_id, beats!inner(*)")
-      .eq("contact_id", id)
-      .order("liked_at", { ascending: false })
-      .returns<BeatJoinRow[]>(),
-    supabase
-      .from("listens")
-      .select("beat_id, beats!inner(*)")
-      .eq("contact_id", id)
-      .order("listened_at", { ascending: false })
-      .returns<BeatJoinRow[]>(),
-    // All the producer's servers — used by the Edit Contact modal's
-    // "Add to servers" chip group so the producer can attach the
-    // contact to (or detach from) any of their servers.
-    supabase
-      .from("servers")
-      .select("id, name, slug")
-      .eq("owner_id", profileId)
-      .order("name", { ascending: true })
-      .returns<Array<{ id: string; name: string; slug: string }>>(),
-  ]);
+  const [likesRes, listensRes, downloadsRes, allServersRes] =
+    await Promise.all([
+      supabase
+        .from("likes")
+        .select("beat_id, beats!inner(*)")
+        .eq("contact_id", id)
+        .order("liked_at", { ascending: false })
+        .returns<BeatJoinRow[]>(),
+      supabase
+        .from("listens")
+        .select("beat_id, beats!inner(*)")
+        .eq("contact_id", id)
+        .order("listened_at", { ascending: false })
+        .returns<BeatJoinRow[]>(),
+      // Per-contact download events. Same shape as listens —
+      // grouped client-side below so each beat appears once with
+      // its download count. RLS scopes by server_owner via the
+      // downloads_owner_select policy from migration #20260628130000.
+      supabase
+        .from("downloads")
+        .select("beat_id, beats!inner(*)")
+        .eq("contact_id", id)
+        .order("downloaded_at", { ascending: false })
+        .returns<BeatJoinRow[]>(),
+      // All the producer's servers — used by the Edit Contact modal's
+      // "Add to servers" chip group so the producer can attach the
+      // contact to (or detach from) any of their servers.
+      supabase
+        .from("servers")
+        .select("id, name, slug")
+        .eq("owner_id", profileId)
+        .order("name", { ascending: true })
+        .returns<Array<{ id: string; name: string; slug: string }>>(),
+    ]);
 
   // Liked beats — flatten the join.
   const likedBeats: BeatRow[] = (likesRes.data ?? [])
@@ -126,6 +156,28 @@ export default async function ContactRoute({ params }: PageProps) {
     }))
     .sort((a, b) => b.playCount - a.playCount);
 
+  // Same shape as listens — group download events per beat so a
+  // beat downloaded N times appears once with downloadCount = N.
+  const downloadCountByBeat = new Map<string, number>();
+  const downloadedBeatById = new Map<string, BeatRow>();
+  for (const r of downloadsRes.data ?? []) {
+    if (!r.beats) continue;
+    downloadCountByBeat.set(
+      r.beat_id,
+      (downloadCountByBeat.get(r.beat_id) ?? 0) + 1,
+    );
+    if (!downloadedBeatById.has(r.beat_id)) {
+      downloadedBeatById.set(r.beat_id, r.beats);
+    }
+  }
+  const downloads = Array.from(downloadedBeatById.entries())
+    .map(([beatId, beat]) => ({
+      beat,
+      downloadCount: downloadCountByBeat.get(beatId) ?? 0,
+      liked: likedBeatIds.has(beatId),
+    }))
+    .sort((a, b) => b.downloadCount - a.downloadCount);
+
   // Server stubs for the "ENTERED VIA" line + the SERVERS stat card.
   const servers = (contact.server_contacts ?? [])
     .map((sc) => sc.servers)
@@ -139,6 +191,8 @@ export default async function ContactRoute({ params }: PageProps) {
     beatsLiked: likedBeats.length,
     beatsHeard: beatById.size,
     serversCount: servers.length,
+    totalDownloads: downloadsRes.data?.length ?? 0,
+    beatsDownloaded: downloadedBeatById.size,
   };
 
   return (
@@ -160,6 +214,7 @@ export default async function ContactRoute({ params }: PageProps) {
       stats={stats}
       liked={likedBeats}
       history={history}
+      downloads={downloads}
     />
   );
 }
