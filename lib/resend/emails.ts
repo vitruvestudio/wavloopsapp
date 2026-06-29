@@ -133,14 +133,18 @@ function brandShell(opts: ShellOptions): string {
 <div style="background:#f5f5f7;padding:40px 16px;font-family:'Hanken Grotesk','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="560" style="max-width:560px;width:100%;margin:0 auto;background:#ffffff;border-radius:18px;border:1px solid #ececef;overflow:hidden;">
 
-    <!-- Logo header — uses the verified Wavloops wordmark from
-            /public/Photos. URL-encoded because the filename
-            contains spaces. Alt text doubles as the fallback for
-            inboxes that block remote images by default. -->
+    <!-- Logo header — email-optimised wordmark at 480x93 (~10 KB
+            vs the ~380 KB asset Vercel was serving at /Photos/).
+            Gmail proxies all remote images through its own cache;
+            with the original PNG the first-fetch took multiple
+            seconds even on fast connections, so we hand them a
+            slim copy from /email/. Display sizes scaled via
+            width=160 attribute; height/max-width keep the box
+            from collapsing during the fetch. -->
     <tr>
       <td style="padding:28px 32px 0;">
         <a href="${siteUrl()}" style="text-decoration:none;border:none;">
-          <img src="${siteUrl()}/Photos/Logo%20Wavloop.co%20-%201.png" alt="Wavloops" width="160" style="display:block;border:0;height:auto;max-width:160px;">
+          <img src="${siteUrl()}/email/logo-wordmark.png" alt="Wavloops" width="160" height="31" style="display:block;border:0;height:auto;max-width:160px;">
         </a>
       </td>
     </tr>

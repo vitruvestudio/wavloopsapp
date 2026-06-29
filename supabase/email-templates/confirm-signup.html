@@ -1,17 +1,28 @@
 <!--
-  Wavloops — Supabase Auth Magic Link template.
+  Wavloops — Supabase Auth Confirm Signup template.
 
   Paste this HTML into:
-    Supabase Dashboard → Authentication → Email Templates → "Magic Link"
+    Supabase Dashboard → Authentication → Email Templates → "Confirm signup"
 
   Suggested Subject:
-    Sign in to Wavloops
+    Confirm your Wavloops account
+
+  Replaces the previous version that ended with the stale tagline
+  "GATED DOWNLOADS FOR PRODUCERS" — Wavloops has expanded past
+  one-page gated downloads into a producer workflow (beats,
+  artists, placements). The new footer line stays brand-neutral
+  so we don't have to retouch this template every time the
+  positioning evolves.
 
   Brand stack (best-effort — strip-and-fallback in non-supporting clients):
     Display : Unbounded
     Body    : Hanken Grotesk
     Mono    : JetBrains Mono
     Accent  : #2b25ff
+
+  Logo: hand-optimised wordmark at /email/logo-wordmark.png
+  (~10 KB vs the original 380 KB at /Photos/) so the image
+  doesn't sit pending in Gmail's image proxy for seconds.
 -->
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
@@ -20,11 +31,10 @@
 <div style="background:#f5f5f7;padding:40px 16px;font-family:'Hanken Grotesk','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="560" style="max-width:560px;width:100%;margin:0 auto;background:#ffffff;border-radius:18px;border:1px solid #ececef;overflow:hidden;">
 
-    <!-- Logo header — real Wavloops wordmark from public/Photos.
-            URL hardcoded to the prod origin since this template is
-            saved server-side in Supabase Dashboard and doesn't have
-            access to NEXT_PUBLIC_SITE_URL. Update if your prod host
-            changes. -->
+    <!-- Logo header — email-optimised wordmark. URL hardcoded
+            to the prod origin since this template is saved
+            server-side in Supabase Dashboard and doesn't have
+            access to NEXT_PUBLIC_SITE_URL. -->
     <tr>
       <td style="padding:28px 32px 0;">
         <a href="https://wavloops.co" style="text-decoration:none;border:none;">
@@ -36,17 +46,20 @@
     <!-- Hero + CTA -->
     <tr>
       <td style="padding:36px 32px 12px;">
+        <div style="margin:0 0 12px;font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#8e8e98;">
+          Wavloops &middot; New account
+        </div>
         <h1 style="margin:0 0 16px;color:#0c0c0e;font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;">
-          Sign in to Wavloops
+          One click and you&rsquo;re in.
         </h1>
         <p style="margin:0 0 28px;color:#5e5e6a;font-size:15px;line-height:1.55;">
-          Tap the button to land back in Wavloops. The link is single-use and expires in 60&nbsp;minutes.
+          You just signed up at <a href="https://wavloops.co" style="color:#2b25ff;text-decoration:none;">wavloops.co</a>. Confirm your email so we can save your access and keep you in the loop.
         </p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0">
           <tr>
             <td style="border-radius:12px;background:#2b25ff;">
               <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 26px;color:#ffffff;font-family:'Hanken Grotesk','Inter',sans-serif;font-size:15px;font-weight:600;text-decoration:none;">
-                Sign in &nbsp;&rarr;
+                Confirm my email &nbsp;&rarr;
               </a>
             </td>
           </tr>
@@ -64,11 +77,15 @@
       </td>
     </tr>
 
-    <!-- Footer -->
+    <!-- Footer — brand-neutral tagline, won't go stale when the
+            positioning evolves. -->
     <tr>
       <td style="padding:16px 32px 24px;background:#fafafb;border-top:1px solid #ececef;">
-        <p style="margin:0;color:#8e8e98;font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;line-height:1.7;">
-          Sent to {{ .Email }} because a sign-in link was requested on Wavloops
+        <p style="margin:0 0 6px;color:#8e8e98;font-family:'JetBrains Mono',Menlo,Consolas,monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;line-height:1.7;">
+          Wavloops &middot; <a href="https://wavloops.co" style="color:#8e8e98;text-decoration:none;">wavloops.co</a>
+        </p>
+        <p style="margin:0;color:#a0a0aa;font-size:12px;line-height:1.5;">
+          Not you? Just ignore this email &mdash; no account will be created.
         </p>
       </td>
     </tr>
