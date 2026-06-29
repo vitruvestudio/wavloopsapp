@@ -702,7 +702,7 @@ function AudienceTab({
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div
-        className="grid grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-2 lg:grid-cols-5"
         style={{ gap: 14 }}
       >
         <StatCard
@@ -719,6 +719,19 @@ function AudienceTab({
           icon="users"
           label="UNIQUE LISTENERS"
           value={audience.uniqueListeners}
+        />
+        {/* Total downloads across every contact. Accent halo when
+            downloads outpace plays — same signal as the contact
+            detail page's DOWNLOADS tile, surfaces the
+            'downloader-only' archetype at a glance. */}
+        <StatCard
+          icon="download"
+          label="TOTAL DOWNLOADS"
+          value={audience.totalDownloads}
+          alert={
+            audience.totalDownloads > 0 &&
+            audience.totalDownloads > beat.plays_count
+          }
         />
         <StatCard
           icon="server"
@@ -760,6 +773,16 @@ function AudienceTab({
             <LikedByBlock likers={audience.likedBy} />
           </div>
           <WhoListenedTable listeners={audience.listeners} />
+          {/* Same shape as WHO LISTENED but the right slot reads
+              the download count instead of the play count. Lives
+              below so the producer's eye flows top→bottom: who
+              streamed → who grabbed. Renders only when there's
+              at least one download to surface — otherwise the
+              empty state would just duplicate the listeners table
+              with a different label. */}
+          {audience.downloaders.length > 0 && (
+            <WhoDownloadedTable downloaders={audience.downloaders} />
+          )}
         </>
       ) : (
         <LockedAnalyticsTeaser />
@@ -1169,6 +1192,123 @@ function WhoListenedTable({ listeners }: { listeners: AudienceRow[] }) {
 }
 
 /* ============================================================
+   WhoDownloadedTable — per-contact download count + liked flag.
+   Mirrors WhoListenedTable's layout exactly so the producer scans
+   both with the same eye motion; the right slot reads downloads
+   instead of plays and the header label swaps. Renders only when
+   audience.downloaders.length > 0 (parent gates that).
+   ============================================================ */
+
+function WhoDownloadedTable({
+  downloaders,
+}: {
+  downloaders: AudienceRow[];
+}) {
+  return (
+    <div>
+      <div
+        className="t-mono-s inline-flex items-center"
+        style={{
+          gap: 7,
+          color: "var(--accent-text)",
+          marginBottom: 10,
+        }}
+      >
+        <Icon name="download" size={12} />
+        WHO DOWNLOADED · {downloaders.length}
+      </div>
+      <div
+        className="border border-border-1 bg-bg-1"
+        style={{ borderRadius: "var(--r-md)", overflow: "hidden" }}
+      >
+        <div
+          className="grid grid-cols-[1fr_auto_24px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_90px_110px_24px]"
+          style={{
+            gap: 14,
+            padding: "12px 18px",
+            borderBottom: "1px solid var(--border-1)",
+            background: "var(--bg-2)",
+          }}
+        >
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>ARTIST</span>
+          <span className="t-mono-s hidden md:inline" style={{ color: "var(--fg-4)" }}>CONTACT</span>
+          <span className="t-mono-s hidden md:inline" style={{ color: "var(--fg-4)" }}>LIKED</span>
+          <span className="t-mono-s" style={{ color: "var(--fg-4)" }}>DOWNLOADS</span>
+          <span />
+        </div>
+        {downloaders.map((d, i) => (
+          <Link
+            key={d.contactId}
+            href={`/contacts/${d.contactId}`}
+            className="grid items-center transition-colors duration-fast grid-cols-[1fr_auto_24px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_90px_110px_24px]"
+            style={{
+              gap: 14,
+              padding: "14px 18px",
+              borderTop: i === 0 ? "none" : "1px solid var(--border-1)",
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div className="flex items-center min-w-0" style={{ gap: 12 }}>
+              <Avatar name={d.seed} src={d.avatarUrl} size={32} />
+              <span
+                className="truncate"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: "var(--fg-1)",
+                }}
+              >
+                {d.handle}
+              </span>
+              {d.liked && (
+                <Icon
+                  name="heart"
+                  size={13}
+                  className="md:hidden shrink-0"
+                  style={{ color: "var(--accent)", fill: "var(--accent)" }}
+                />
+              )}
+            </div>
+            <span
+              className="t-mono-s truncate hidden md:inline"
+              style={{ color: "var(--fg-3)" }}
+            >
+              {d.email.toUpperCase()}
+            </span>
+            <span
+              className="hidden md:inline"
+              style={{ color: d.liked ? "var(--accent)" : "var(--fg-4)" }}
+            >
+              <Icon
+                name="heart"
+                size={16}
+                style={{
+                  fill: d.liked ? "var(--accent)" : "transparent",
+                }}
+              />
+            </span>
+            <span
+              className="t-mono-s inline-flex items-center"
+              style={{ gap: 6, color: "var(--fg-2)" }}
+            >
+              <Icon name="download" size={12} />
+              {d.downloads} DL
+            </span>
+            <Icon
+              name="chevron-right"
+              size={16}
+              style={{ color: "var(--fg-4)" }}
+            />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    FeedbackTab — notes artists shared with this beat's producer.
    Mirrors the artist-side BeatNoteModal's "shared" path:
    when an artist hits "Share note" on /listen, that note lands
@@ -1275,16 +1415,30 @@ function StatCard({
   label,
   value,
   hint,
+  alert,
 }: {
-  icon: "play" | "heart" | "users" | "server";
+  icon: "play" | "heart" | "users" | "server" | "download";
   label: string;
   value: number;
   hint?: string;
+  /** Optional behaviour-signal halo. The TOTAL DOWNLOADS tile
+   *  passes this when downloads outpace plays so the producer's
+   *  eye lands on it during a scan. */
+  alert?: boolean;
 }) {
   return (
     <div
-      className="border border-border-1 bg-bg-1"
-      style={{ padding: "18px 20px", borderRadius: "var(--r-lg)" }}
+      className="bg-bg-1"
+      style={{
+        padding: "18px 20px",
+        borderRadius: "var(--r-lg)",
+        border: `1px solid ${
+          alert ? "var(--accent)" : "var(--border-1)"
+        }`,
+        boxShadow: alert
+          ? "0 0 0 3px color-mix(in oklch, var(--accent) 15%, transparent)"
+          : "none",
+      }}
     >
       <div
         className="t-mono-s inline-flex items-center"

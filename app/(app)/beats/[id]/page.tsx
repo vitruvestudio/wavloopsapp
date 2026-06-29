@@ -65,40 +65,53 @@ export default async function BeatPage({ params }: BeatPageProps) {
   const profileId = await getCurrentProducerProfileId();
   if (!profileId) notFound();
 
-  const [beatRes, membershipRes, commentsRes, listensRes, likesRes] =
-    await Promise.all([
-      supabase
-        .from("beats_with_stats")
-        .select("*")
-        .eq("id", id)
-        .eq("owner_id", profileId)
-        .maybeSingle(),
-      supabase
-        .from("server_beats")
-        .select("servers(*)")
-        .eq("beat_id", id),
-      // Shared-note feed for the Feedback tab. RLS via
-      // beat_comments_producer_read scopes this to the owner's
-      // beats only — the producer's session never sees other
-      // producers' rows. Newest first; pagination ships later if
-      // the volume grows.
-      supabase
-        .from("beat_comments")
-        .select("id, user_id, body, created_at")
-        .eq("beat_id", id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      // Audience aggregates — every listen row keyed by contact.
-      // Producer RLS on listens scopes to their own beats.
-      supabase
-        .from("listens")
-        .select("contact_id, listened_at")
-        .eq("beat_id", id),
-      supabase
-        .from("likes")
-        .select("contact_id, liked_at")
-        .eq("beat_id", id),
-    ]);
+  const [
+    beatRes,
+    membershipRes,
+    commentsRes,
+    listensRes,
+    likesRes,
+    downloadsRes,
+  ] = await Promise.all([
+    supabase
+      .from("beats_with_stats")
+      .select("*")
+      .eq("id", id)
+      .eq("owner_id", profileId)
+      .maybeSingle(),
+    supabase
+      .from("server_beats")
+      .select("servers(*)")
+      .eq("beat_id", id),
+    // Shared-note feed for the Feedback tab. RLS via
+    // beat_comments_producer_read scopes this to the owner's
+    // beats only — the producer's session never sees other
+    // producers' rows. Newest first; pagination ships later if
+    // the volume grows.
+    supabase
+      .from("beat_comments")
+      .select("id, user_id, body, created_at")
+      .eq("beat_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    // Audience aggregates — every listen row keyed by contact.
+    // Producer RLS on listens scopes to their own beats.
+    supabase
+      .from("listens")
+      .select("contact_id, listened_at")
+      .eq("beat_id", id),
+    supabase
+      .from("likes")
+      .select("contact_id, liked_at")
+      .eq("beat_id", id),
+    // Same shape for downloads — one row per download event,
+    // keyed by contact. Producer RLS via downloads_owner_select
+    // (migration 20260628130000) scopes to their own beats.
+    supabase
+      .from("downloads")
+      .select("contact_id, downloaded_at")
+      .eq("beat_id", id),
+  ]);
 
   const beat = beatRes.data as BeatWithStatsRow | null;
   if (!beat) notFound();
@@ -165,6 +178,10 @@ export default async function BeatPage({ params }: BeatPageProps) {
     contact_id: string;
     liked_at: string;
   }>;
+  const downloads = (downloadsRes.data ?? []) as Array<{
+    contact_id: string;
+    downloaded_at: string;
+  }>;
   const playsByContact = new Map<string, number>();
   for (const l of listens) {
     playsByContact.set(
@@ -172,11 +189,19 @@ export default async function BeatPage({ params }: BeatPageProps) {
       (playsByContact.get(l.contact_id) ?? 0) + 1,
     );
   }
+  const downloadsByContact = new Map<string, number>();
+  for (const d of downloads) {
+    downloadsByContact.set(
+      d.contact_id,
+      (downloadsByContact.get(d.contact_id) ?? 0) + 1,
+    );
+  }
   const likedByContact = new Set<string>(likes.map((l) => l.contact_id));
   const audienceContactIds = Array.from(
     new Set<string>([
       ...playsByContact.keys(),
       ...likedByContact,
+      ...downloadsByContact.keys(),
     ]),
   );
   const { data: audienceContactRows } = audienceContactIds.length
@@ -217,6 +242,7 @@ export default async function BeatPage({ params }: BeatPageProps) {
         avatarUrl: c.avatar_url,
         plays: playsByContact.get(cid) ?? 0,
         liked: likedByContact.has(cid),
+        downloads: downloadsByContact.get(cid) ?? 0,
       };
     })
     .filter((r): r is AudienceRow => r !== null)
@@ -225,9 +251,17 @@ export default async function BeatPage({ params }: BeatPageProps) {
   const topFan = audienceRows.find((r) => r.plays > 0) ?? null;
   const audience: Audience = {
     uniqueListeners: playsByContact.size,
+    uniqueDownloaders: downloadsByContact.size,
+    totalDownloads: downloads.length,
     topFan,
     likedBy: audienceRows.filter((r) => r.liked),
     listeners: audienceRows.filter((r) => r.plays > 0),
+    // Downloaders sorted by download count desc — same shape as
+    // the listeners table so the WHO DOWNLOADED row primitive can
+    // re-use the listener row exactly.
+    downloaders: audienceRows
+      .filter((r) => r.downloads > 0)
+      .sort((a, b) => b.downloads - a.downloads),
   };
 
   // Plan-aware analytics gate — Free shows aggregated counts only;
@@ -256,11 +290,24 @@ export interface AudienceRow {
   avatarUrl: string | null;
   plays: number;
   liked: boolean;
+  /** Distinct download events from this contact for this beat.
+   *  0 when the contact only streamed without grabbing the audio. */
+  downloads: number;
 }
 
 export interface Audience {
   uniqueListeners: number;
+  /** Distinct contacts that have downloaded this beat. Different
+   *  from totalDownloads (event count) — surfaces the per-person
+   *  spread of who actually grabbed it. */
+  uniqueDownloaders: number;
+  /** Every download event for this beat across all contacts.
+   *  Drives the TOTAL DOWNLOADS stat tile. */
+  totalDownloads: number;
   topFan: AudienceRow | null;
   likedBy: AudienceRow[];
   listeners: AudienceRow[];
+  /** Same row shape as listeners, filtered to contacts with
+   *  downloads > 0 and sorted by download count desc. */
+  downloaders: AudienceRow[];
 }
