@@ -494,16 +494,25 @@ function nurtureFooter(contactId: string): string {
   return `40mins · Wavloops &middot; wavloops.co &middot; <a href="${unsub}" style="color:#8e8e98;text-decoration:underline;">Unsubscribe</a>`;
 }
 
-/** Step 1 — welcome (sent ~15 min after a contact gets granted
- *  on a producers-audience server). Tease the bigger picture
- *  without hard-selling: "you came for loops, here's what you're
- *  actually walking into". */
-export async function sendNurtureStep1(
-  toEmail: string,
-  contactId: string,
-): Promise<SendResult> {
-  const ctaUrl = `${siteUrl()}/auth?as=producer&utm_source=nurture&utm_campaign=step1`;
-  const html = brandShell({
+/** Config-driven sequence — each step is a pure data object so
+ *  the cron, the live sender, and the /admin preview route all
+ *  build the exact same HTML from the same source. Adding /
+ *  editing a step = touching one entry in this array. */
+interface NurtureStepConfig {
+  subject: string;
+  preheader: string;
+  meta: string;
+  title: string;
+  bodyHtml: string;
+  ctaLabel: string;
+  /** Suffix appended to the CTA URL's utm_campaign so per-step
+   *  conversions are attributable in analytics. */
+  ctaCampaign: string;
+}
+
+export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
+  {
+    subject: "You're in. Now the part most producers miss.",
     preheader:
       "Server access is just the start — here's what Wavloops actually unlocks.",
     meta: "WAVLOOPS &middot; FROM 40MINS",
@@ -511,34 +520,16 @@ export async function sendNurtureStep1(
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
       <p style="margin:0 0 16px;">You just dropped into a Wavloops server. Welcome.</p>
-      <p style="margin:0 0 16px;">You came for the loops — fair. But there's something most producers miss when they land:</p>
+      <p style="margin:0 0 16px;">You came for the loops &mdash; fair. But there's something most producers miss when they land:</p>
       <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">Wavloops isn't just a place to download. It's a place to build your own audience</strong> the same way the producer who shared this link did.</p>
-      <p style="margin:0 0 16px;">Over the next few days I'll show you exactly how — and why every producer doing real numbers right now is moving away from WeTransfer and DMs.</p>
+      <p style="margin:0 0 16px;">Over the next few days I'll show you exactly how &mdash; and why every producer doing real numbers right now is moving away from WeTransfer and DMs.</p>
       <p style="margin:0;">If you're already running your own sound, this is for you.</p>
     `,
     ctaLabel: "See the producer side",
-    ctaUrl,
-    secondary: null,
-    footer: nurtureFooter(contactId),
-  });
-  return send({
-    to: toEmail,
-    from: FROM_NURTURE,
-    replyTo: NURTURE_REPLY_TO,
-    subject: "You're in. Now the part most producers miss.",
-    html,
-  });
-}
-
-/** Step 2 — pain point + product framing (~day 2). Hammer the
- *  WeTransfer dying-link problem because every producer has lived
- *  it, then show Wavloops as the obvious replacement. */
-export async function sendNurtureStep2(
-  toEmail: string,
-  contactId: string,
-): Promise<SendResult> {
-  const ctaUrl = `${siteUrl()}/auth?as=producer&utm_source=nurture&utm_campaign=step2`;
-  const html = brandShell({
+    ctaCampaign: "step1",
+  },
+  {
+    subject: "WeTransfer is killing your placements.",
     preheader: "Every link you sent last month is dead by now.",
     meta: "WAVLOOPS &middot; PAIN POINT 01",
     title: "WeTransfer is killing your placements.",
@@ -546,7 +537,7 @@ export async function sendNurtureStep2(
       <p style="margin:0 0 16px;">Hey,</p>
       <p style="margin:0 0 16px;">Quick question: how many beats did you send last month?</p>
       <p style="margin:0 0 16px;">Now: how many of those WeTransfer links are still alive today?</p>
-      <p style="margin:0 0 16px;">Spoiler — none. WeTransfer wipes after 7 days. The artist clicked too late = beat lost = placement missed.</p>
+      <p style="margin:0 0 16px;">Spoiler &mdash; none. WeTransfer wipes after 7 days. The artist clicked too late = beat lost = placement missed.</p>
       <p style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Wavloops solves this differently:</strong></p>
       <ul style="margin:0 0 16px;padding-left:20px;">
         <li style="margin:0 0 8px;">Your beats live in a <strong style="color:#0c0c0e;">permanent</strong> link.</li>
@@ -556,28 +547,10 @@ export async function sendNurtureStep2(
       <p style="margin:0;">No more "did you get my email" follow-ups. No more dead links. Just a system that compounds.</p>
     `,
     ctaLabel: "Start your server",
-    ctaUrl,
-    secondary: null,
-    footer: nurtureFooter(contactId),
-  });
-  return send({
-    to: toEmail,
-    from: FROM_NURTURE,
-    replyTo: NURTURE_REPLY_TO,
-    subject: "WeTransfer is killing your placements.",
-    html,
-  });
-}
-
-/** Step 3 — social proof story (~day 5). 40mins' own numbers
- *  give the funnel credibility without sounding like a sales
- *  pitch. Real metrics > "trusted by thousands". */
-export async function sendNurtureStep3(
-  toEmail: string,
-  contactId: string,
-): Promise<SendResult> {
-  const ctaUrl = `${siteUrl()}/auth?as=producer&utm_source=nurture&utm_campaign=step3`;
-  const html = brandShell({
+    ctaCampaign: "step2",
+  },
+  {
+    subject: "How I captured 583 leads in 30 days.",
     preheader: "The exact play — and why it worked.",
     meta: "WAVLOOPS &middot; CASE STUDY",
     title: "How I captured 583 leads in 30 days.",
@@ -592,56 +565,74 @@ export async function sendNurtureStep3(
       </ul>
       <p style="margin:0 0 16px;">The trick wasn't a fancy tool. It was finally having a system that scales.</p>
       <p style="margin:0 0 16px;">One link. Pinned in every YouTube video, every Instagram bio. Artists join with their email. They get every new loop I drop. I see exactly who's engaged.</p>
-      <p style="margin:0;">If you're a producer with a YouTube channel, an Instagram following, or just a Discord — you can do the same thing tomorrow.</p>
+      <p style="margin:0;">If you're a producer with a YouTube channel, an Instagram following, or just a Discord &mdash; you can do the same thing tomorrow.</p>
     `,
     ctaLabel: "Open my account",
-    ctaUrl,
-    secondary: null,
-    footer: nurtureFooter(contactId),
-  });
-  return send({
-    to: toEmail,
-    from: FROM_NURTURE,
-    replyTo: NURTURE_REPLY_TO,
-    subject: "How I captured 583 leads in 30 days.",
-    html,
-  });
-}
-
-/** Step 4 — final CTA + soft exit (~day 10). Acknowledge this is
- *  the last touch ("I'm not gonna spam") to drop guard and let
- *  the producer decide cleanly. */
-export async function sendNurtureStep4(
-  toEmail: string,
-  contactId: string,
-): Promise<SendResult> {
-  const ctaUrl = `${siteUrl()}/auth?as=producer&utm_source=nurture&utm_campaign=step4`;
-  const html = brandShell({
+    ctaCampaign: "step3",
+  },
+  {
+    subject: "Last one — your turn.",
     preheader: "90 seconds. Free forever. No card.",
     meta: "WAVLOOPS &middot; LAST ONE",
     title: "Last one — your turn.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">Last email from me on this — I'm not gonna spam.</p>
+      <p style="margin:0 0 16px;">Last email from me on this &mdash; I'm not gonna spam.</p>
       <p style="margin:0 0 16px;">If everything I've sent has made sense, here's the entry point:</p>
       <ul style="margin:0 0 16px;padding-left:20px;">
         <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Free forever</strong> to start (no card needed).</li>
         <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">90 seconds</strong> to set up your first server.</li>
         <li style="margin:0;"><strong style="color:#0c0c0e;">Your first link</strong> ready to share by tonight.</li>
       </ul>
-      <p style="margin:0 0 16px;">Whether you're a beatmaker with 200 followers or 200K — Wavloops scales with you.</p>
+      <p style="margin:0 0 16px;">Whether you're a beatmaker with 200 followers or 200K &mdash; Wavloops scales with you.</p>
       <p style="margin:0;">And if it's not for you, no hard feelings. I'll stop emailing after this one.</p>
     `,
     ctaLabel: "Start free",
-    ctaUrl,
+    ctaCampaign: "step4",
+  },
+];
+
+/** Build the HTML + subject for a given step. Pure function — same
+ *  output from the cron, the preview route, or anywhere else that
+ *  imports it. */
+export function buildNurtureEmail(
+  /** Zero-indexed: 0 = welcome, 3 = last one. */
+  stepIndex: number,
+  /** Used in the unsub link's HMAC token. Pass any uuid for
+   *  preview / smoke-test surfaces — only the live cron path
+   *  needs it to be a real contact id. */
+  contactId: string,
+): { subject: string; html: string } {
+  const step = NURTURE_STEPS[stepIndex];
+  if (!step) {
+    throw new Error(`Invalid nurture step index: ${stepIndex}`);
+  }
+  const html = brandShell({
+    preheader: step.preheader,
+    meta: step.meta,
+    title: step.title,
+    bodyHtml: step.bodyHtml,
+    ctaLabel: step.ctaLabel,
+    ctaUrl: `${siteUrl()}/auth?as=producer&utm_source=nurture&utm_campaign=${step.ctaCampaign}`,
     secondary: null,
     footer: nurtureFooter(contactId),
   });
+  return { subject: step.subject, html };
+}
+
+/** Fire the producer-nurture step for one contact. The cron picks
+ *  the index from contact_nurture_sequence.current_step + 1. */
+export async function sendNurtureStep(
+  stepIndex: number,
+  toEmail: string,
+  contactId: string,
+): Promise<SendResult> {
+  const { subject, html } = buildNurtureEmail(stepIndex, contactId);
   return send({
     to: toEmail,
     from: FROM_NURTURE,
     replyTo: NURTURE_REPLY_TO,
-    subject: "Last one — your turn.",
+    subject,
     html,
   });
 }

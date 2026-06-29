@@ -31,21 +31,11 @@ import { NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import {
   NURTURE_STEP_DELAYS_MS,
-  sendNurtureStep1,
-  sendNurtureStep2,
-  sendNurtureStep3,
-  sendNurtureStep4,
+  sendNurtureStep,
 } from "@/lib/resend/emails";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min — safe for a few hundred sends.
-
-const STEP_SENDERS = [
-  sendNurtureStep1,
-  sendNurtureStep2,
-  sendNurtureStep3,
-  sendNurtureStep4,
-] as const;
 
 interface EligibleContact {
   contact_id: string;
@@ -241,8 +231,11 @@ export async function GET(req: Request): Promise<NextResponse> {
     }
 
     // (e) Send the email.
-    const sender = STEP_SENDERS[nextStep - 1];
-    const result = await sender(p.email, p.contact_id);
+    const result = await sendNurtureStep(
+      nextStep - 1,
+      p.email,
+      p.contact_id,
+    );
     if (!result.ok) {
       log.errors.push(
         `step ${nextStep} -> ${p.email}: ${result.error ?? "unknown"}`,
