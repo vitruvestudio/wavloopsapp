@@ -536,34 +536,42 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
     ctaCampaign: "step1",
   },
   {
-    subject: "The 3 tools killing your placements.",
-    preheader:
-      "DMs, WeTransfer, Gmail — none of them were built for what you actually want.",
+    subject: "Your workflow is killing your placements.",
+    preheader: "And it's not the beats.",
     meta: "WAVLOOPS &middot; PAIN POINT 01",
-    title: "The 3 tools killing your placements.",
+    title: "Your workflow is killing your placements.",
+    // Storytelling-first: open with a peer quote (social proof
+    // from a producer), drop the reader into a Tuesday-afternoon
+    // scene they recognise immediately, then pivot to the
+    // landing-page copy reframed as two scannable solution
+    // cards. The two cards mirror Wavloops' real pillars —
+    // 'never send a pack again' (audience side) + 'turn contacts
+    // into placements' (placement side).
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">40mins again &mdash; <strong style="color:#0c0c0e;">founder of Wavloops</strong>, also a working producer.</p>
-      <p style="margin:0 0 16px;">Honest question: where do you send your beats today? Probably one of these:</p>
-      <ul style="margin:0 0 16px;padding-left:20px;">
-        <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">IG DM</strong> &rarr; buried in 500 unread chats by tomorrow.</li>
-        <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Gmail</strong> &rarr; spam folder, no proof anyone opened it.</li>
-        <li style="margin:0;"><strong style="color:#0c0c0e;">WeTransfer</strong> &rarr; dies after 7 days.</li>
-      </ul>
-      <p style="margin:0 0 16px;">All three were built for one thing: <strong style="color:#0c0c0e;">moving files</strong>. None of them were built for what producers actually want &mdash; <strong style="color:#0c0c0e;">landing placements</strong>.</p>
-      <p style="margin:0 0 16px;">Because a placement isn't a file transfer. It's a relationship:</p>
-      <ul style="margin:0 0 16px;padding-left:20px;">
-        <li style="margin:0 0 8px;">Artists need to <strong style="color:#0c0c0e;">keep coming back</strong> to your beats &mdash; not lose them in scroll.</li>
-        <li style="margin:0 0 8px;">You need to <strong style="color:#0c0c0e;">know who's actually listening</strong> &mdash; not guess.</li>
-        <li style="margin:0;">New drops need a <strong style="color:#0c0c0e;">permanent home</strong> that keeps compounding.</li>
-      </ul>
-      <p style="margin:0 0 8px;">That's the exact gap I built Wavloops to fill:</p>
-      <ul style="margin:0 0 16px;padding-left:20px;">
-        <li style="margin:0 0 8px;">One permanent server you share <strong style="color:#0c0c0e;">once</strong>. Pin it everywhere.</li>
-        <li style="margin:0 0 8px;">Artists join once, get <strong style="color:#0c0c0e;">every new beat forever</strong>.</li>
-        <li style="margin:0;">Dashboard shows exactly <strong style="color:#0c0c0e;">who listened, liked, downloaded</strong> &mdash; your next placement is right there.</li>
-      </ul>
-      <p style="margin:0;"><strong style="color:#0c0c0e;">Two producer goals: grow an audience AND land placements.</strong> The DM / Gmail / WeTransfer stack does neither. Wavloops does both.</p>
+      <p style="margin:0 0 16px;">40mins again &mdash; <strong style="color:#0c0c0e;">founder of Wavloops</strong>, working producer.</p>
+      <p style="margin:0 0 12px;">Got this from a producer last week:</p>
+      <div style="margin:0 0 22px;padding:14px 18px;border-left:3px solid #2b25ff;background:#f5f5f7;border-radius:0 8px 8px 0;color:#5e5e6a;font-size:14.5px;line-height:1.55;font-style:italic;">
+        &ldquo;Organizing contacts and keeping track of who I already sent stuff to is a huge headache. It takes too much time away from actually producing.&rdquo;
+        <div style="margin-top:8px;font-style:normal;font-size:11px;color:#8e8e98;letter-spacing:0.06em;text-transform:uppercase;">&mdash; a producer</div>
+      </div>
+      <p style="margin:0 0 16px;">Sound familiar?</p>
+      <p style="margin:0 0 12px;"><strong style="color:#0c0c0e;">Here's the scene.</strong></p>
+      <p style="margin:0 0 12px;">Tuesday afternoon. You finish a fire new pack. 8 loops, ready to ship.</p>
+      <p style="margin:0 0 12px;">You open WeTransfer &rarr; drag the files &rarr; wait for the upload &rarr; copy the link &rarr; paste it in 12 DMs, 5 emails, 2 group chats.</p>
+      <p style="margin:0 0 12px;">30 minutes gone before a single artist has heard the first kick.</p>
+      <p style="margin:0 0 12px;">By Friday, half the links expired. Half the artists never clicked. The rest? You'll never know &mdash; no read receipt, no listen tracking, no proof anyone vibed.</p>
+      <p style="margin:0 0 24px;">Then it's the next week. Repeat.</p>
+      <p style="margin:0 0 14px;"><strong style="color:#0c0c0e;">Now imagine this instead.</strong></p>
+      <div style="margin:0 0 14px;padding:18px 20px;background:#fafafb;border-radius:12px;border:1px solid #ececef;">
+        <div style="font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;color:#0c0c0e;margin-bottom:8px;letter-spacing:-0.01em;">Never send a pack again.</div>
+        <p style="margin:0;color:#5e5e6a;font-size:14.5px;line-height:1.55;">You drag a beat into your server. Done. Every artist with your link gets it &mdash; instantly, forever. No re-uploads, no expired transfers, no &ldquo;did you get my pack?&rdquo;. Just one living link that updates itself.</p>
+      </div>
+      <div style="margin:0 0 22px;padding:18px 20px;background:#fafafb;border-radius:12px;border:1px solid #ececef;">
+        <div style="font-family:'Unbounded','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;color:#0c0c0e;margin-bottom:8px;letter-spacing:-0.01em;">Turn your contacts into placements.</div>
+        <p style="margin:0;color:#5e5e6a;font-size:14.5px;line-height:1.55;">Your dashboard shows exactly who played the new beat. Who looped it 4 times. Who downloaded the stem. Those signals = your next placement. No more guessing who's hot on what. The data is right there.</p>
+      </div>
+      <p style="margin:0;"><strong style="color:#0c0c0e;">One link. Two outcomes. Zero busywork.</strong></p>
     `,
     ctaLabel: "Build my placement system",
     ctaCampaign: "step2",
