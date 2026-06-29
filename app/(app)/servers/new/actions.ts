@@ -49,6 +49,19 @@ export interface UpdateServerPayload {
    *  library and in other servers — the swap happens at the
    *  loader / adapter layer only. */
   force_artwork_on_beats: boolean;
+  /** Persona this server targets — drives the producer-nurture
+   *  email sequence:
+   *    - 'producers' = loops for other producers to chop / flip.
+   *      Contacts who joined the server enter the producer-
+   *      nurture sequence after granted.
+   *    - 'artists'   = beats for rappers / singers to topline on.
+   *      No sequence yet (different copy ships in a later phase).
+   *  Picked explicitly by the producer at the create / edit form
+   *  rather than inferred from beat.type — inference would mis-
+   *  fire on edge cases like loops shared with rappers (the
+   *  scout-and-compose pattern), and the cost of mis-sending the
+   *  wrong nurture sequence to the wrong persona is high. */
+  audience_type: "producers" | "artists";
   beat_ids: string[];
 }
 
@@ -79,6 +92,8 @@ export interface CreateServerPayload {
   downloads_allowed: boolean;
   /** See UpdateServerPayload.force_artwork_on_beats. */
   force_artwork_on_beats: boolean;
+  /** See UpdateServerPayload.audience_type. */
+  audience_type: "producers" | "artists";
   beat_ids: string[];
 }
 
@@ -157,6 +172,7 @@ export async function createServerAction(
         visibility: payload.visibility,
         downloads_allowed: payload.downloads_allowed,
         force_artwork_on_beats: payload.force_artwork_on_beats,
+        audience_type: payload.audience_type,
       })
       .select("id, slug")
       .single();
@@ -196,6 +212,7 @@ export async function createServerAction(
         visibility: payload.visibility,
         downloads_allowed: payload.downloads_allowed,
         force_artwork_on_beats: payload.force_artwork_on_beats,
+        audience_type: payload.audience_type,
       })
       .select("id, slug")
       .single();
@@ -270,6 +287,7 @@ export async function updateServerAction(
       visibility: payload.visibility,
       downloads_allowed: payload.downloads_allowed,
         force_artwork_on_beats: payload.force_artwork_on_beats,
+        audience_type: payload.audience_type,
     })
     .eq("id", payload.id)
     .select("slug")

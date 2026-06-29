@@ -120,6 +120,12 @@ export function CreateServerPage({
   );
   const [forceArtworkOnBeats, setForceArtworkOnBeats] =
     React.useState<boolean>(existing?.force_artwork_on_beats ?? false);
+  // Server audience — drives the producer-nurture email sequence.
+  // Default 'artists' on first create (safer: a misclassified server
+  // never wrong-targets the producer-onboarding sequence to a rapper).
+  const [audienceType, setAudienceType] = React.useState<
+    "producers" | "artists"
+  >(existing?.audience_type ?? "artists");
   const [beatIds, setBeatIds] = React.useState<string[]>(
     existingBeatIds ?? [],
   );
@@ -268,6 +274,7 @@ export function CreateServerPage({
       visibility,
       downloads_allowed: downloadsAllowed,
       force_artwork_on_beats: forceArtworkOnBeats,
+      audience_type: audienceType,
       created_at: "",
       updated_at: "",
     }),
@@ -283,6 +290,7 @@ export function CreateServerPage({
       visibility,
       downloadsAllowed,
       forceArtworkOnBeats,
+      audienceType,
     ],
   );
 
@@ -357,6 +365,7 @@ export function CreateServerPage({
         visibility,
         downloads_allowed: downloadsAllowed,
         force_artwork_on_beats: forceArtworkOnBeats,
+      audience_type: audienceType,
         beat_ids: beatIds,
       };
 
@@ -597,6 +606,43 @@ export function CreateServerPage({
                   )}
                 </>
               )}
+            </div>
+
+            {/* Audience type — drives the producer-nurture email
+                sequence routing. Producers servers (= loops for
+                other producers) trigger the producer-onboarding
+                sequence; artists servers (= beats for rappers)
+                stay silent until a different sequence ships in a
+                later phase. Sits right above VISIBILITY because
+                the two answer related questions: who's it for,
+                then how do they get in. */}
+            <div>
+              <div className="t-mono-s" style={{ marginBottom: 10 }}>
+                WHO&apos;S THIS SERVER FOR?
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Server audience"
+                className="grid grid-cols-1 sm:grid-cols-2"
+                style={{ gap: 12 }}
+              >
+                <RadioCard
+                  selected={audienceType === "artists"}
+                  onSelect={() => setAudienceType("artists")}
+                  icon="mic"
+                  title="Rappers & singers"
+                  description="You share finished beats they topline on. Each contact is an artist looking for production to write or sing over."
+                  features="BEATS · TOPLINE-READY"
+                />
+                <RadioCard
+                  selected={audienceType === "producers"}
+                  onSelect={() => setAudienceType("producers")}
+                  icon="waves"
+                  title="Other producers"
+                  description="You share loops, samples and drum kits they chop or flip into their own productions. Triggers a short educational email sequence."
+                  features="LOOPS · SAMPLES · CHOP-READY"
+                />
+              </div>
             </div>
 
             {/* Visibility */}

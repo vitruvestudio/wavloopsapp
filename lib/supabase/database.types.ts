@@ -80,6 +80,12 @@ export interface ServerRow {
    *  artwork; beats.artwork_url is never mutated. Default false.
    *  Added in migration 20260628150000. */
   force_artwork_on_beats: boolean;
+  /** Persona this server targets. Drives the producer-nurture
+   *  email sequence: contacts who joined a 'producers' server
+   *  enter the sequence; 'artists' contacts don't (different
+   *  copy + sequence ships in a later phase). Default 'artists'
+   *  for safety. Added in migration 20260629100000. */
+  audience_type: "producers" | "artists";
   created_at: string;
   updated_at: string;
 }
