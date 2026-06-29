@@ -511,17 +511,24 @@ interface NurtureStepConfig {
 }
 
 export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
+  // Voice convention: every step opens with an explicit founder
+  // self-intro ("40mins here — I built Wavloops") so the
+  // recipient never has to guess WHO's writing. Once a second
+  // producer joins the platform, the sequence still makes sense
+  // because the contact knows the founder is reaching out, not
+  // the producer whose server they joined.
   {
-    subject: "You're in. Now the part most producers miss.",
+    subject: "You're in. Here's what Wavloops actually is.",
     preheader:
       "Server access is just the start — here's what Wavloops actually unlocks.",
-    meta: "WAVLOOPS &middot; FROM 40MINS",
-    title: "You're in. Now the part most producers miss.",
+    meta: "WAVLOOPS &middot; FROM THE FOUNDER",
+    title: "You're in. Here's what Wavloops actually is.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">You just dropped into a Wavloops server. Welcome.</p>
-      <p style="margin:0 0 16px;">You came for the loops &mdash; fair. But there's something most producers miss when they land:</p>
-      <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">Wavloops isn't just a place to download. It's a place to build your own audience</strong> the same way the producer who shared this link did.</p>
+      <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">40mins here</strong> &mdash; I built Wavloops.</p>
+      <p style="margin:0 0 16px;">You just got access to a server on the platform. Welcome.</p>
+      <p style="margin:0 0 16px;">You came for the loops &mdash; fair. But there's something most producers miss when they land on Wavloops for the first time:</p>
+      <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">It's not just a place to download. It's a place to build your own audience</strong> the same way the producer who shared this link does.</p>
       <p style="margin:0 0 16px;">Over the next few days I'll show you exactly how &mdash; and why every producer doing real numbers right now is moving away from WeTransfer and DMs.</p>
       <p style="margin:0;">If you're already running your own sound, this is for you.</p>
     `,
@@ -535,29 +542,30 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
     title: "WeTransfer is killing your placements.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
+      <p style="margin:0 0 16px;">40mins again &mdash; <strong style="color:#0c0c0e;">founder of Wavloops</strong>, but also a working producer myself.</p>
       <p style="margin:0 0 16px;">Quick question: how many beats did you send last month?</p>
       <p style="margin:0 0 16px;">Now: how many of those WeTransfer links are still alive today?</p>
       <p style="margin:0 0 16px;">Spoiler &mdash; none. WeTransfer wipes after 7 days. The artist clicked too late = beat lost = placement missed.</p>
-      <p style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Wavloops solves this differently:</strong></p>
+      <p style="margin:0 0 8px;"><strong style="color:#0c0c0e;">That's the exact problem I built Wavloops to fix:</strong></p>
       <ul style="margin:0 0 16px;padding-left:20px;">
         <li style="margin:0 0 8px;">Your beats live in a <strong style="color:#0c0c0e;">permanent</strong> link.</li>
         <li style="margin:0 0 8px;">Artists join <strong style="color:#0c0c0e;">once</strong>, get every new drop forever.</li>
         <li style="margin:0;">You see exactly <strong style="color:#0c0c0e;">who listened, liked, downloaded</strong>.</li>
       </ul>
-      <p style="margin:0;">No more "did you get my email" follow-ups. No more dead links. Just a system that compounds.</p>
+      <p style="margin:0;">No more "did you get my email" follow-ups. No more dead links. A system that compounds &mdash; for any producer who runs it.</p>
     `,
     ctaLabel: "Start your server",
     ctaCampaign: "step2",
   },
   {
-    subject: "How I captured 583 leads in 30 days.",
+    subject: "Founder's story: 583 leads in 30 days.",
     preheader: "The exact play — and why it worked.",
-    meta: "WAVLOOPS &middot; CASE STUDY",
-    title: "How I captured 583 leads in 30 days.",
+    meta: "WAVLOOPS &middot; FOUNDER'S STORY",
+    title: "How I personally captured 583 leads in 30 days.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">I built Wavloops because I was tired of losing track of who actually liked my beats.</p>
-      <p style="margin:0 0 16px;">30 days after opening my first server (Toronto CHOP), here's what happened:</p>
+      <p style="margin:0 0 16px;">40mins here. <strong style="color:#0c0c0e;">Founder of Wavloops &mdash; but also Wavloops user #1</strong>. I built it for myself first, then opened it up.</p>
+      <p style="margin:0 0 16px;">30 days after opening my first server (Toronto CHOP), here's what happened on my own account:</p>
       <ul style="margin:0 0 16px;padding-left:20px;">
         <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">583 artists</strong> joined the server.</li>
         <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">15 placements</strong> booked through artists I never would've reached via DM.</li>
@@ -565,19 +573,19 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
       </ul>
       <p style="margin:0 0 16px;">The trick wasn't a fancy tool. It was finally having a system that scales.</p>
       <p style="margin:0 0 16px;">One link. Pinned in every YouTube video, every Instagram bio. Artists join with their email. They get every new loop I drop. I see exactly who's engaged.</p>
-      <p style="margin:0;">If you're a producer with a YouTube channel, an Instagram following, or just a Discord &mdash; you can do the same thing tomorrow.</p>
+      <p style="margin:0;"><strong style="color:#0c0c0e;">Every producer on Wavloops gets this exact setup.</strong> YouTube channel, Instagram following, Discord &mdash; doesn't matter where your audience lives. You can run the same play tomorrow.</p>
     `,
     ctaLabel: "Open my account",
     ctaCampaign: "step3",
   },
   {
-    subject: "Last one — your turn.",
+    subject: "Last one from me — your turn.",
     preheader: "90 seconds. Free forever. No card.",
     meta: "WAVLOOPS &middot; LAST ONE",
     title: "Last one — your turn.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">Last email from me on this &mdash; I'm not gonna spam.</p>
+      <p style="margin:0 0 16px;">40mins &mdash; last email from me on this. I'm not gonna spam.</p>
       <p style="margin:0 0 16px;">If everything I've sent has made sense, here's the entry point:</p>
       <ul style="margin:0 0 16px;padding-left:20px;">
         <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Free forever</strong> to start (no card needed).</li>
@@ -585,7 +593,8 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
         <li style="margin:0;"><strong style="color:#0c0c0e;">Your first link</strong> ready to share by tonight.</li>
       </ul>
       <p style="margin:0 0 16px;">Whether you're a beatmaker with 200 followers or 200K &mdash; Wavloops scales with you.</p>
-      <p style="margin:0;">And if it's not for you, no hard feelings. I'll stop emailing after this one.</p>
+      <p style="margin:0 0 16px;">And if it's not for you, no hard feelings. I'll stop emailing after this one.</p>
+      <p style="margin:0;font-style:italic;color:#5e5e6a;">&mdash; 40mins<br />Founder, Wavloops</p>
     `,
     ctaLabel: "Start free",
     ctaCampaign: "step4",
