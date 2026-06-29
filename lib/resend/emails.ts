@@ -248,6 +248,59 @@ export async function sendAccessRequestEmail(
 }
 
 /* ============================================================
+   sendArtistJoinedPublicEmail — producer gets pinged when an
+   artist joins one of their PUBLIC servers (instant-grant flow).
+   Counterpart to sendAccessRequestEmail, which only covers the
+   private-server pending-request case. Public servers grant on
+   submit, so the framing is celebratory ("they're already in")
+   rather than action-required ("review request").
+   ============================================================ */
+
+export interface ArtistJoinedPublicEmailPayload {
+  producerEmail: string;
+  producerHandle: string;
+  artistEmail: string;
+  /** Social handle the artist optionally entered on the gate. */
+  artistSocial: string;
+  serverName: string;
+  serverSlug: string;
+}
+
+export async function sendArtistJoinedPublicEmail(
+  p: ArtistJoinedPublicEmailPayload,
+): Promise<SendResult> {
+  const url = `${siteUrl()}/servers/${p.serverSlug}?tab=artists`;
+  const socialLine = p.artistSocial
+    ? `<div style="margin:6px 0 0;color:#8e8e98;font-size:14px;">${escape(p.artistSocial)}</div>`
+    : "";
+  const html = brandShell({
+    preheader: `${p.artistEmail} just joined ${p.serverName}.`,
+    meta: `NEW JOIN &middot; ${escape(p.serverName)}`,
+    title: "A new artist just joined.",
+    bodyHtml: `
+      <p style="margin:0 0 18px;">
+        Someone just joined <strong style="color:#0c0c0e;">${escape(p.serverName)}</strong> through the public link. No action needed &mdash; they already have access and they're in your contacts.
+      </p>
+      <div style="padding:14px 18px;border-radius:12px;background:#f5f5f7;margin-bottom:14px;">
+        <div style="font-weight:600;color:#0c0c0e;font-size:15px;">${escape(p.artistEmail)}</div>
+        ${socialLine}
+      </div>
+      <p style="margin:0;color:#5e5e6a;">
+        Open the server to see what they listen to, what they like, and what they download. The signals start landing the moment they hit play.
+      </p>
+    `,
+    ctaLabel: "See the new artist",
+    ctaUrl: url,
+    footer: `Sent because someone joined ${escape(p.serverName)} on Wavloops`,
+  });
+  return send({
+    to: p.producerEmail,
+    subject: `[Wavloops] ${p.artistEmail} joined ${p.serverName}`,
+    html,
+  });
+}
+
+/* ============================================================
    sendBeatsUploadedEmail — artist digest of new beats the producer
    dropped in a server they're in. Batched by the cron.
    ============================================================ */

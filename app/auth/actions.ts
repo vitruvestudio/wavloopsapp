@@ -30,7 +30,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { sendAccessRequestEmail } from "@/lib/resend/emails";
+import {
+  sendAccessRequestEmail,
+  sendArtistJoinedPublicEmail,
+} from "@/lib/resend/emails";
 
 export interface AuthState {
   error: string | null;
@@ -325,8 +328,15 @@ export async function requestGateAccessAction(
   const visibility = submit.visibility ?? "private";
   const wasNew = !!submit.was_new;
 
-  // Step 2 — fire the producer email on freshly-pending requests.
-  if (wasNew && visibility === "private") {
+  // Step 2 — fire the producer email on freshly-created server_contacts
+  // rows. Two flavours depending on visibility:
+  //   - PRIVATE → pending request that needs review ("Approve or decline")
+  //   - PUBLIC  → instant grant, celebratory framing ("they're already in")
+  // Same recipient resolver + same notif-prefs gate (wants_email and
+  // wants_access_request); the only thing that changes is which sender
+  // we call and the subject/body copy. Both wrapped in the same try/catch
+  // so an email failure never blocks the gate flow.
+  if (wasNew) {
     try {
       const { data: gateRows } = await supabase.rpc("get_server_for_gate", {
         p_slug: slug,
@@ -347,24 +357,29 @@ export async function requestGateAccessAction(
         wants_email?: boolean;
         wants_access_request?: boolean;
       } | null;
-      if (
+      const canSend =
         target?.email &&
         target.wants_email !== false &&
         target.wants_access_request !== false &&
-        gate?.name
-      ) {
-        await sendAccessRequestEmail({
-          producerEmail: target.email,
+        gate?.name;
+      if (canSend) {
+        const sharedPayload = {
+          producerEmail: target!.email!,
           producerHandle:
-            gate.producer_handle ?? gate.producer_name ?? "your server",
+            gate!.producer_handle ?? gate!.producer_name ?? "your server",
           artistEmail: email,
           artistSocial: social,
-          serverName: gate.name,
+          serverName: gate!.name!,
           serverSlug: slug,
-        });
+        };
+        if (visibility === "private") {
+          await sendAccessRequestEmail(sharedPayload);
+        } else {
+          await sendArtistJoinedPublicEmail(sharedPayload);
+        }
       }
     } catch (e) {
-      console.warn("[gate-action] access-request email failed", e);
+      console.warn("[gate-action] producer notify email failed", e);
     }
   }
 
