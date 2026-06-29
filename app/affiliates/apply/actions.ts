@@ -21,8 +21,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { HANDLE_REGEX } from "@/lib/affiliate/config";
+import {
+  HANDLE_REGEX,
+  COMMISSION_RATE_DEFAULT,
+} from "@/lib/affiliate/config";
 import { getAdminSupabase } from "@/lib/supabase/admin";
+import { sendAffiliateApprovedEmail } from "@/lib/resend/emails";
 
 interface SubmitResult {
   ok: boolean;
@@ -148,11 +152,16 @@ export async function submitAffiliateApplicationAction(
     }
   }
 
-  // 4. Insert the row. Status defaults to 'pending' in the
-  // schema. We cast through `as never` for the same reason the
-  // rest of the affiliate code path does — Database types lag
-  // the schema by one regen.
-  const { error: insertErr } = await admin
+  // 4. Insert the row. Auto-approved (status='active') because
+  //    the invite_code already qualified them — review is the
+  //    handshake we did in DMs before sending the link. The pending
+  //    state is now reserved for the future public form (when we
+  //    open the program beyond invitation-only).
+  //
+  //    We cast through `as never` for the same reason the rest of
+  //    the affiliate code path does — Database types lag the
+  //    schema by one regen.
+  const { data: inserted, error: insertErr } = await admin
     .from("affiliates" as never)
     .insert({
       handle,
@@ -163,19 +172,43 @@ export async function submitAffiliateApplicationAction(
       audience_platform: audiencePlatform,
       audience_size: audienceSize,
       application_note: applicationNote || null,
-      status: "pending",
+      status: "active",
       is_active: true,
-    } as never);
-  if (insertErr) {
+      approved_at: new Date().toISOString(),
+      commission_rate: COMMISSION_RATE_DEFAULT,
+    } as never)
+    .select("id")
+    .single<{ id: string }>();
+  if (insertErr || !inserted) {
     console.warn(
       "[affiliates/apply] insert failed",
-      insertErr.message,
+      insertErr?.message,
     );
     return {
       ok: false,
       error:
         "Couldn't submit your application right now. Try again in a minute.",
     };
+  }
+
+  // 5. Fire the welcome email immediately. Failure is logged and
+  //    swallowed — the affiliate row is created, the dashboard is
+  //    accessible, and we'd rather report ok:true than roll back.
+  try {
+    const sendResult = await sendAffiliateApprovedEmail({
+      affiliateEmail: email,
+      displayName,
+      handle,
+      commissionRate: COMMISSION_RATE_DEFAULT,
+    });
+    if (!sendResult.ok) {
+      console.warn(
+        "[affiliates/apply] welcome email failed",
+        sendResult.error,
+      );
+    }
+  } catch (e) {
+    console.warn("[affiliates/apply] welcome email threw", e);
   }
 
   revalidatePath("/admin/affiliates");

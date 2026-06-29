@@ -295,6 +295,26 @@ export async function createAffiliateFromAdminAction(
     .single<{ id: string }>();
   if (error) return { error: "Unable to create affiliate." };
 
+  // Best-effort welcome email. Same pattern as the approve flow:
+  // log + swallow failures so the admin sees ok even if Resend
+  // hiccups; they can resend manually from a future re-trigger.
+  try {
+    const sendResult = await sendAffiliateApprovedEmail({
+      affiliateEmail: email,
+      displayName: displayName || handle,
+      handle,
+      commissionRate,
+    });
+    if (!sendResult.ok) {
+      console.warn(
+        "[admin/affiliates] create-affiliate email failed",
+        sendResult.error,
+      );
+    }
+  } catch (e) {
+    console.warn("[admin/affiliates] create-affiliate email threw", e);
+  }
+
   revalidatePath("/admin/affiliates");
   return { error: null, affiliateId: data?.id };
 }

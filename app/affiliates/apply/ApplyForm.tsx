@@ -16,7 +16,7 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { submitAffiliateApplicationAction } from "./actions";
 
 const PAYOUT_METHODS = [
@@ -37,6 +37,7 @@ const AUDIENCE_PLATFORMS = [
 ];
 
 export function ApplyForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const inviteCode = searchParams.get("invite_code") ?? "";
   const [pending, startTransition] = React.useTransition();
@@ -56,7 +57,16 @@ export function ApplyForm() {
         setError(result.error ?? "Something went wrong.");
         return;
       }
+      // Account is auto-approved at this point. Flip to the
+      // success card briefly so the user reads "you're in" before
+      // we punch them through to the dashboard. The dashboard
+      // itself will redirect to /auth?next=/affiliate-dashboard
+      // if they're not signed in (or land on the cockpit if they
+      // already are).
       setDone(true);
+      window.setTimeout(() => {
+        router.push("/affiliate-dashboard");
+      }, 1600);
     });
   };
 
@@ -81,7 +91,7 @@ export function ApplyForm() {
             letterSpacing: "0.08em",
           }}
         >
-          APPLICATION RECEIVED
+          YOU&rsquo;RE IN
         </span>
         <h2
           style={{
@@ -93,7 +103,7 @@ export function ApplyForm() {
             margin: "16px 0 12px",
           }}
         >
-          Thanks — we&rsquo;ll be in touch.
+          Welcome to the program.
         </h2>
         <p
           style={{
@@ -101,13 +111,31 @@ export function ApplyForm() {
             fontSize: 15,
             lineHeight: 1.5,
             color: "var(--fg-3)",
-            margin: 0,
+            margin: "0 0 18px",
           }}
         >
-          We review every application within 48 h. If approved
-          you&rsquo;ll receive an email with your handle, your share
-          link, and a dashboard URL. Keep an eye on your inbox.
+          Your affiliate account is live. We just sent your share
+          link + dashboard URL to your inbox. Redirecting you to
+          your dashboard…
         </p>
+        <div
+          aria-hidden
+          style={{
+            width: 18,
+            height: 18,
+            margin: "0 auto",
+            borderRadius: "50%",
+            border: "1.5px solid var(--accent-text)",
+            borderTopColor: "transparent",
+            animation: "wlpApplySpin 0.8s linear infinite",
+          }}
+        />
+        <style>{`
+          @keyframes wlpApplySpin {
+            from { transform: rotate(0); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
