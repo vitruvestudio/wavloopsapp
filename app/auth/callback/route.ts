@@ -250,26 +250,29 @@ async function resolveDestination(
   // A brand-new account (no artist profile, no onboarded producer)
   // that already shows up as a `contact` for at least one producer
   // was INVITED, not self-served. Their primary intent is to
-  // listen, not to create. We force /onboarding/artist regardless
-  // of which card they happened to click on /auth — many invited
-  // artists hit "Producer" by confusion when they lose the
-  // original email and self-onboard later, and producer onboarding
-  // is the wrong room to land them in.
+  // listen, not to create.
   //
-  // Guard tight: only run when the account is fresh on BOTH sides.
-  // A returning user with an established profile should never be
-  // re-routed by this check.
+  // BUT — only override when there's NO explicit role hint on the
+  // URL. If the user picked "I'm a Producer" on /auth (which
+  // appends ?as=producer to the magic-link), respect that pick;
+  // the override is meant to catch the silent case where someone
+  // followed an old link with no role attached. Overriding an
+  // explicit pick is a dead-end: they end up on the artist surface
+  // with no producer profile, the AccountMenu's "Switch to producer
+  // view" link only shows when hasProducerProfile=true, so the
+  // first thing a producer-self-identified user sees is a path
+  // they can't take. That's the regression that motivated narrowing
+  // this guard.
+  //
+  // Guard tight: only run when the account is fresh on BOTH sides
+  // AND no role hint was provided. A returning user with an
+  // established profile is never re-routed by this check.
   //
   // The bind_artist_contacts() RPC ran a few lines above this call
   // site, so any contact rows the producer pre-populated with the
   // user's email are now linked to user.id. The check lands here
   // already up-to-date — no race.
-  //
-  // The override still leaves an exit: once /listen is reached the
-  // account-menu's "Switch to producer view" surface (Sprint C)
-  // takes them to /onboarding intentionally. So this isn't a trap,
-  // it's just a sane default for first sign-in.
-  if (!hasArtistRow && !hasOnboardedProducer) {
+  if (!role && !hasArtistRow && !hasOnboardedProducer) {
     const { count: contactCount } = await supabase
       .from("contacts")
       .select("id", { count: "exact", head: true })
