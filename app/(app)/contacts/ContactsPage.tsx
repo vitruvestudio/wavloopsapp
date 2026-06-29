@@ -134,8 +134,15 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
     });
     const sorted = [...filtered];
     if (sort === "engagement") {
+      // Downloads weigh in too — a contact that grabbed 8 beats
+      // without streaming is still "engaged" with the catalogue,
+      // just on a different axis. Bare sum so the sort stays
+      // intuitive: contact A with 10 plays > contact B with 5
+      // downloads.
       sorted.sort(
-        (a, b) => b.plays + b.likes - (a.plays + a.likes),
+        (a, b) =>
+          b.plays + b.likes + b.downloads -
+          (a.plays + a.likes + a.downloads),
       );
     } else {
       sorted.sort((a, b) => a.email.localeCompare(b.email));
@@ -180,6 +187,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
       "servers",
       "plays",
       "likes",
+      "downloads",
       "first_seen_at",
     ];
 
@@ -192,6 +200,7 @@ export function ContactsPage({ contacts, allServers }: ContactsPageProps) {
         c.servers.map((s) => s.name).join(" · "),
         String(c.plays),
         String(c.likes),
+        String(c.downloads),
         c.firstSeenAt,
       ]
         .map(escape)
@@ -710,7 +719,7 @@ function ContactRow({
           {contact.phone ?? "—"}
         </span>
         <ServerTagList servers={contact.servers} />
-        <EngagementCluster plays={contact.plays} likes={contact.likes} />
+        <EngagementCluster plays={contact.plays} likes={contact.likes} downloads={contact.downloads} />
         <ContactActionMenu actions={actions} />
         <Icon
           name="chevron-right"
@@ -780,7 +789,7 @@ function ContactRow({
         </div>
         <div className="flex items-center justify-between" style={{ gap: 12 }}>
           <ServerTagList servers={contact.servers} />
-          <EngagementCluster plays={contact.plays} likes={contact.likes} />
+          <EngagementCluster plays={contact.plays} likes={contact.likes} downloads={contact.downloads} />
         </div>
       </div>
     </div>
@@ -1013,10 +1022,17 @@ function ServerTagList({
 function EngagementCluster({
   plays,
   likes,
+  downloads,
 }: {
   plays: number;
   likes: number;
+  downloads: number;
 }) {
+  // When downloads outpace plays, the download counter takes the
+  // accent colour — same behaviour-signal vocab as the contact
+  // detail page's DOWNLOADS tile, so the 'downloader-only'
+  // archetype stands out at a scan in the contacts list too.
+  const downloaderSignal = downloads > 0 && downloads > plays;
   return (
     <div className="inline-flex items-center" style={{ gap: 16 }}>
       <span
@@ -1032,6 +1048,18 @@ function EngagementCluster({
       >
         <Icon name="heart" size={13} />
         {likes}
+      </span>
+      <span
+        className="t-mono-s inline-flex items-center"
+        style={{
+          gap: 6,
+          color: downloaderSignal
+            ? "var(--accent)"
+            : "var(--fg-2)",
+        }}
+      >
+        <Icon name="download" size={13} />
+        {downloads}
       </span>
     </div>
   );

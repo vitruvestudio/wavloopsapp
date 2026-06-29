@@ -55,6 +55,10 @@ export interface ContactRowVM {
   servers: Array<{ id: string; name: string; slug: string }>;
   plays: number;
   likes: number;
+  /** Distinct download events this contact has triggered across
+   *  every server they're a member of. Surfaces the
+   *  'downloader-only' archetype right in the contacts list. */
+  downloads: number;
 }
 
 /** Lightweight stub for the modal's "Add to servers" chips. */
@@ -74,30 +78,42 @@ export default async function ContactsRoute() {
     return <ContactsPage contacts={[]} allServers={[]} />;
   }
 
-  const [contactsRes, listensRes, likesRes, serversRes] = await Promise.all([
-    supabase
-      .from("contacts")
-      .select(
-        "id, email, name, phone, socials, avatar_url, roles, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
-      )
-      .eq("owner_id", profileId)
-      .order("last_active_at", { ascending: false })
-      .returns<ContactJoinRow[]>(),
-    supabase
-      .from("listens")
-      .select("contact_id, contacts!inner(owner_id)")
-      .eq("contacts.owner_id", profileId),
-    supabase
-      .from("likes")
-      .select("contact_id, contacts!inner(owner_id)")
-      .eq("contacts.owner_id", profileId),
-    supabase
-      .from("servers")
-      .select("id, name, slug")
-      .eq("owner_id", profileId)
-      .order("name", { ascending: true })
-      .returns<ServerStub[]>(),
-  ]);
+  const [contactsRes, listensRes, likesRes, downloadsRes, serversRes] =
+    await Promise.all([
+      supabase
+        .from("contacts")
+        .select(
+          "id, email, name, phone, socials, avatar_url, roles, first_seen_at, last_active_at, server_contacts(servers(id, name, slug))",
+        )
+        .eq("owner_id", profileId)
+        .order("last_active_at", { ascending: false })
+        .returns<ContactJoinRow[]>(),
+      supabase
+        .from("listens")
+        .select("contact_id, contacts!inner(owner_id)")
+        .eq("contacts.owner_id", profileId),
+      supabase
+        .from("likes")
+        .select("contact_id, contacts!inner(owner_id)")
+        .eq("contacts.owner_id", profileId),
+      // Per-contact download events, scoped to this producer's
+      // address book through the contacts!inner join. RLS on
+      // downloads (downloads_owner_select, migration #20260628130000)
+      // would already filter to owned-server rows; the join
+      // narrows to this producer's contacts so a contact that's
+      // ALSO on another producer's server doesn't bleed into the
+      // count.
+      supabase
+        .from("downloads")
+        .select("contact_id, contacts!inner(owner_id)")
+        .eq("contacts.owner_id", profileId),
+      supabase
+        .from("servers")
+        .select("id, name, slug")
+        .eq("owner_id", profileId)
+        .order("name", { ascending: true })
+        .returns<ServerStub[]>(),
+    ]);
 
   // contact_id → engagement
   const playsBy = new Map<string, number>();
@@ -109,6 +125,14 @@ export default async function ContactsRoute() {
   for (const l of likesRes.data ?? []) {
     if (!l.contact_id) continue;
     likesBy.set(l.contact_id, (likesBy.get(l.contact_id) ?? 0) + 1);
+  }
+  const downloadsBy = new Map<string, number>();
+  for (const d of downloadsRes.data ?? []) {
+    if (!d.contact_id) continue;
+    downloadsBy.set(
+      d.contact_id,
+      (downloadsBy.get(d.contact_id) ?? 0) + 1,
+    );
   }
 
   const contacts: ContactRowVM[] = (contactsRes.data ?? []).map((row) => {
@@ -128,6 +152,7 @@ export default async function ContactsRoute() {
       servers,
       plays: playsBy.get(row.id) ?? 0,
       likes: likesBy.get(row.id) ?? 0,
+      downloads: downloadsBy.get(row.id) ?? 0,
     };
   });
 
