@@ -49,6 +49,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminSupabase } from "@/lib/supabase/admin";
 import { LAST_MODE_COOKIE, type LastMode } from "../mode-cookie";
 import { HANDLE_REGEX, REF_COOKIE_NAME } from "@/lib/affiliate/config";
 
@@ -354,7 +355,8 @@ async function maybeRecordAffiliateAttribution(
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Resolve the handle → affiliate id. Returns null when the
+    // Resolve the handle → affiliate id. SECURITY DEFINER RPC so
+    // the user-scoped client can call it. Returns null when the
     // handle doesn't exist OR points at a non-active affiliate.
     const { data: affiliateId } = await supabase.rpc(
       "resolve_affiliate_handle",
@@ -362,23 +364,30 @@ async function maybeRecordAffiliateAttribution(
     );
     if (!affiliateId || typeof affiliateId !== "string") return;
 
-    // Already attributed? First-touch wins.
-    const { data: existing } = await supabase
+    // All affiliate_referrals reads + writes from this point use
+    // the admin client. The user-scoped client only has a SELECT
+    // policy (affiliate_referrals_self_select, scoped to rows
+    // where the affiliate.user_id matches auth.uid()) — INSERT
+    // would silently fail under RLS, and SELECT against the
+    // referral we're about to mint would always be empty (the
+    // user is the *attributed_user_id*, not the affiliate owner).
+    // Same logic for the affiliates lookup below: anon/auth
+    // SELECT on affiliates is locked down, so we route through
+    // service-role.
+    const admin = getAdminSupabase();
+
+    // Already attributed? First-touch wins. Idempotent against
+    // someone clicking a 2nd magic-link from the same browser.
+    const { data: existing } = await admin
       .from("affiliate_referrals")
       .select("id")
       .eq("attributed_user_id", user.id)
       .maybeSingle<{ id: string }>();
     if (existing) return;
 
-    // Anti-self-referral — fetch the affiliate's owning user id
-    // and compare. Affiliates RLS gates anon SELECT, so we route
-    // through service-role-equivalent RPC OR accept that the
-    // anon read silently returns nothing. We choose the safer
-    // path: a dedicated check inside the insert via WHERE NOT
-    // EXISTS (cleaner than a second query) is too verbose here,
-    // so we do a quick lookup. If it fails, we skip rather than
-    // risk creating a self-referral.
-    const { data: affiliateOwner } = await supabase
+    // Anti-self-referral — affiliates can't earn commission on
+    // their own signups.
+    const { data: affiliateOwner } = await admin
       .from("affiliates")
       .select("user_id")
       .eq("id", affiliateId)
@@ -391,11 +400,22 @@ async function maybeRecordAffiliateAttribution(
       return;
     }
 
-    await supabase.from("affiliate_referrals").insert({
-      affiliate_id: affiliateId,
-      attributed_user_id: user.id,
-      status: "pending",
-    });
+    const { error: insertErr } = await admin
+      .from("affiliate_referrals")
+      .insert({
+        affiliate_id: affiliateId,
+        attributed_user_id: user.id,
+        status: "pending",
+      });
+    if (insertErr) {
+      // Surface this in Vercel logs — earlier this same path was
+      // silently failing because the user-scoped client lacked an
+      // INSERT RLS policy. Worth keeping eyes on the row.
+      console.warn(
+        "[auth/callback] affiliate referral insert failed",
+        insertErr,
+      );
+    }
   } catch (e) {
     console.warn("[auth/callback] affiliate attribution failed", e);
   }
