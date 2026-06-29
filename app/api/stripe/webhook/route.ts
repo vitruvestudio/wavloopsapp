@@ -459,30 +459,76 @@ async function handleInvoicePaid(
   }
 
   // Extract the Stripe lookup_key from the first line item.
-  // The newer Stripe API hands us `line.pricing.price` as just a
-  // price ID (string), so we round-trip Stripe to read the
-  // canonical Price object's lookup_key. Pro subscriptions have a
-  // single price; multi-line invoices pick the first line item.
+  // Different Stripe API versions surface the price reference
+  // under different paths on InvoiceLineItem:
+  //   - Newer API (2024-06+):       line.pricing.price_details.price
+  //   - Slightly older variants:    line.pricing.price
+  //   - Older / classic shape:      line.price (expanded Price object)
+  //                                 or line.price as a string id
+  //   - Brand-new (2025+):          line.pricing.price_details.product
+  //                                 also exists in parallel
+  //
+  // We try every known path before giving up, and we also accept
+  // an already-expanded Price object so we can skip the
+  // round-trip to Stripe entirely when possible. Pro subscriptions
+  // have a single price line; multi-line invoices pick the first.
   const firstLine = invoice.lines?.data?.[0];
-  const priceId =
-    (firstLine as unknown as { pricing?: { price?: string } } | undefined)
-      ?.pricing?.price ?? null;
   let lookupKey: string | null = null;
-  if (priceId) {
-    try {
-      const stripe = getStripeServer();
-      const price = await stripe.prices.retrieve(priceId);
-      lookupKey = price.lookup_key ?? null;
-    } catch (e) {
-      console.warn(
-        `[stripe/webhook] failed to resolve price ${priceId} for invoice ${invoice.id}`,
-        e,
-      );
+  let resolvedPriceId: string | null = null;
+  if (firstLine) {
+    const anyLine = firstLine as unknown as Record<string, unknown>;
+
+    // Path 1 — expanded Price object on the line item.
+    const linePrice = anyLine.price as
+      | { id?: string; lookup_key?: string | null }
+      | string
+      | null
+      | undefined;
+    if (linePrice && typeof linePrice === "object") {
+      if (linePrice.lookup_key) lookupKey = linePrice.lookup_key;
+      if (!resolvedPriceId && linePrice.id) resolvedPriceId = linePrice.id;
+    } else if (typeof linePrice === "string") {
+      resolvedPriceId = linePrice;
+    }
+
+    // Path 2 — newer pricing.price_details.price (string id).
+    if (!resolvedPriceId) {
+      const pricing = anyLine.pricing as
+        | {
+            price?: string | null;
+            price_details?: { price?: string | null } | null;
+          }
+        | undefined;
+      const fromDetails = pricing?.price_details?.price ?? null;
+      const fromPricing = pricing?.price ?? null;
+      resolvedPriceId = fromDetails || fromPricing || null;
+    }
+
+    // Path 3 — round-trip Stripe to fetch the Price by id.
+    if (!lookupKey && resolvedPriceId) {
+      try {
+        const stripe = getStripeServer();
+        const price = await stripe.prices.retrieve(resolvedPriceId);
+        lookupKey = price.lookup_key ?? null;
+      } catch (e) {
+        console.warn(
+          `[stripe/webhook] failed to resolve price ${resolvedPriceId} for invoice ${invoice.id}`,
+          e,
+        );
+      }
     }
   }
   if (!lookupKey) {
+    // Log enough context to debug the next time this fires —
+    // earlier this path was silently dropping every Pro invoice
+    // because the SDK's actual shape didn't match the single
+    // path we tried. Include the line keys so we can spot the
+    // payload shape from Vercel logs without replaying the event.
+    const lineKeys = firstLine
+      ? Object.keys(firstLine as unknown as Record<string, unknown>)
+      : [];
     console.warn(
-      `[stripe/webhook] invoice ${invoice.id} missing lookup_key, skipping affiliate`,
+      `[stripe/webhook] invoice ${invoice.id} missing lookup_key, skipping affiliate. line.keys=${JSON.stringify(lineKeys)} resolvedPriceId=${resolvedPriceId ?? "null"}`,
     );
     return;
   }
