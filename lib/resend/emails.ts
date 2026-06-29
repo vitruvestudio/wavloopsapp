@@ -528,8 +528,8 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
       <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">40mins here</strong> &mdash; I built Wavloops.</p>
       <p style="margin:0 0 16px;">You just got access to a server on the platform. Welcome.</p>
       <p style="margin:0 0 16px;">You came for the loops &mdash; fair. But there's something most producers miss when they land on Wavloops for the first time:</p>
-      <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">It's not just a place to download. It's a place to build your own audience</strong> the same way the producer who shared this link does.</p>
-      <p style="margin:0 0 16px;">Over the next few days I'll show you exactly how &mdash; and why every producer doing real numbers right now is moving away from WeTransfer and DMs.</p>
+      <p style="margin:0 0 16px;"><strong style="color:#0c0c0e;">It's not just a place to download. It's a place to build your own audience &mdash; and a clean workflow that turns it into placements</strong> &mdash; the same way the producer who shared this link does.</p>
+      <p style="margin:0 0 16px;">Over the next few days I'll show you exactly how &mdash; and why every producer doing real numbers right now is moving away from WeTransfer, DMs, and the broken workflow that costs them placements every week.</p>
       <p style="margin:0;">If you're already running your own sound, this is for you.</p>
     `,
     ctaLabel: "See the producer side",
