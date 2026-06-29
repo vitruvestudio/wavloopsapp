@@ -24,9 +24,13 @@
 
 import { revalidatePath } from "next/cache";
 import { isAdminEmail } from "@/lib/auth/admin";
-import { HANDLE_REGEX } from "@/lib/affiliate/config";
+import {
+  HANDLE_REGEX,
+  COMMISSION_RATE_DEFAULT,
+} from "@/lib/affiliate/config";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendAffiliateApprovedEmail } from "@/lib/resend/emails";
 
 interface ActionResult {
   error: string | null;
@@ -125,7 +129,48 @@ async function transitionAffiliateStatus(
 export async function approveAffiliateAction(
   affiliateId: string,
 ): Promise<ActionResult> {
-  return transitionAffiliateStatus(affiliateId, "active");
+  const result = await transitionAffiliateStatus(affiliateId, "active");
+  if (result.error) return result;
+
+  // Best-effort approval email. Failure does NOT roll back the
+  // status change — the admin already approved, and Theo can
+  // re-send manually if Resend goes down. The send error is
+  // logged for follow-up.
+  try {
+    const admin = getAdminSupabase();
+    const { data: row } = await admin
+      .from("affiliates")
+      .select("email, display_name, handle, commission_rate")
+      .eq("id", affiliateId)
+      .maybeSingle<{
+        email: string;
+        display_name: string | null;
+        handle: string;
+        commission_rate: number | string | null;
+      }>();
+    if (row?.email && row.handle) {
+      const rate =
+        row.commission_rate == null
+          ? COMMISSION_RATE_DEFAULT
+          : Number(row.commission_rate) || COMMISSION_RATE_DEFAULT;
+      const sendResult = await sendAffiliateApprovedEmail({
+        affiliateEmail: row.email,
+        displayName: row.display_name || row.handle,
+        handle: row.handle,
+        commissionRate: rate,
+      });
+      if (!sendResult.ok) {
+        console.warn(
+          "[admin/affiliates] approval email failed",
+          sendResult.error,
+        );
+      }
+    }
+  } catch (e) {
+    console.warn("[admin/affiliates] approval email threw", e);
+  }
+
+  return result;
 }
 
 export async function rejectAffiliateAction(

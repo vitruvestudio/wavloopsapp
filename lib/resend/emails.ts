@@ -492,6 +492,69 @@ export async function sendAccessGrantedEmail(
   });
 }
 
+/* ============================================================
+   sendAffiliateApprovedEmail — congratulations email + share link
+   + dashboard URL, sent by approveAffiliateAction the moment an
+   admin approves a pending application.
+   ============================================================ */
+
+export interface AffiliateApprovedEmailPayload {
+  affiliateEmail: string;
+  displayName: string;
+  handle: string;
+  commissionRate: number;
+}
+
+export async function sendAffiliateApprovedEmail(
+  p: AffiliateApprovedEmailPayload,
+): Promise<SendResult> {
+  // Public share link the affiliate copies into their bio /
+  // stories / video descriptions. We surface it big and obvious
+  // because copying it is THE first action the email asks for.
+  const shareLink = `${siteUrl()}?ref=${encodeURIComponent(p.handle)}`;
+  const dashboardLink = `${siteUrl()}/affiliate-dashboard`;
+  const percent = Math.round(p.commissionRate * 100);
+
+  const html = brandShell({
+    preheader: `You're in — earn ${percent}% on every Wavloops customer you refer.`,
+    meta: `AFFILIATE PROGRAM &middot; APPROVED`,
+    title: `You're in, ${escape(p.displayName.split(" ")[0] ?? p.displayName)}.`,
+    bodyHtml: `
+      <p style="margin:0 0 14px;">
+        Welcome to the Wavloops affiliate program. You now earn
+        <strong style="color:#0c0c0e;">${percent}%</strong>
+        on every customer you refer — Lifetime, Pro Monthly, Pro
+        Yearly, the same rate on all of them.
+      </p>
+      <p style="margin:0 0 14px;">
+        Your handle is <strong style="color:#2b25ff;">${escape(p.handle)}</strong>. Drop the link below in your bio,
+        Stories, DMs, YouTube descriptions, anywhere your producer
+        audience lives. Every signup + paid upgrade in the next 60
+        days is attributed to you.
+      </p>
+      <p style="margin:0;">
+        Track your earnings, copy share assets, and see who you
+        referred from your dashboard.
+      </p>
+    `,
+    ctaLabel: "Open your dashboard",
+    ctaUrl: dashboardLink,
+    secondary: `Your share link &middot; <a href="${shareLink}" style="color:#2b25ff;text-decoration:none;">${escape(shareLink.replace(/^https?:\/\//i, ""))}</a>`,
+    footer: `Sent because your Wavloops affiliate application was approved`,
+  });
+
+  return send({
+    to: p.affiliateEmail,
+    subject: `[Wavloops] You're in — ${percent}% commission on every referral`,
+    html,
+    // Use the hello@ identity since this email kicks off an
+    // ongoing relationship and replies (e.g. "where do I find
+    // marketing assets?") should land in a real inbox.
+    from: FROM_NURTURE,
+    replyTo: "hello@wavloops.co",
+  });
+}
+
 /** Minimal HTML escape so user-controlled fields (email, handle,
  *  server name, beat titles) can't break out of the template. */
 function escape(s: string): string {
