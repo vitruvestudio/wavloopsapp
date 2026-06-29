@@ -98,7 +98,7 @@ function Header({ email }: { email: string }) {
           Founder cockpit.
         </h1>
       </div>
-      <div className="flex items-center" style={{ gap: 14 }}>
+      <div className="flex items-center flex-wrap" style={{ gap: 10 }}>
         <Link
           href="/admin/affiliates"
           className="t-mono"
@@ -114,6 +114,22 @@ function Header({ email }: { email: string }) {
           }}
         >
           AFFILIATES →
+        </Link>
+        <Link
+          href="/admin/nurture-status"
+          className="t-mono"
+          style={{
+            padding: "8px 14px",
+            borderRadius: "var(--r-pill)",
+            background: "var(--accent-surface)",
+            border: "1px solid color-mix(in oklch, var(--accent-text) 35%, transparent)",
+            color: "var(--accent-text)",
+            textDecoration: "none",
+            letterSpacing: "0.08em",
+            fontSize: 11,
+          }}
+        >
+          NURTURE →
         </Link>
         <span className="t-mono" style={{ color: "var(--fg-4)" }}>
           Signed in as {email}
