@@ -536,25 +536,36 @@ export const NURTURE_STEPS: readonly NurtureStepConfig[] = [
     ctaCampaign: "step1",
   },
   {
-    subject: "WeTransfer is killing your placements.",
-    preheader: "Every link you sent last month is dead by now.",
+    subject: "The 3 tools killing your placements.",
+    preheader:
+      "DMs, WeTransfer, Gmail — none of them were built for what you actually want.",
     meta: "WAVLOOPS &middot; PAIN POINT 01",
-    title: "WeTransfer is killing your placements.",
+    title: "The 3 tools killing your placements.",
     bodyHtml: `
       <p style="margin:0 0 16px;">Hey,</p>
-      <p style="margin:0 0 16px;">40mins again &mdash; <strong style="color:#0c0c0e;">founder of Wavloops</strong>, but also a working producer myself.</p>
-      <p style="margin:0 0 16px;">Quick question: how many beats did you send last month?</p>
-      <p style="margin:0 0 16px;">Now: how many of those WeTransfer links are still alive today?</p>
-      <p style="margin:0 0 16px;">Spoiler &mdash; none. WeTransfer wipes after 7 days. The artist clicked too late = beat lost = placement missed.</p>
-      <p style="margin:0 0 8px;"><strong style="color:#0c0c0e;">That's the exact problem I built Wavloops to fix:</strong></p>
+      <p style="margin:0 0 16px;">40mins again &mdash; <strong style="color:#0c0c0e;">founder of Wavloops</strong>, also a working producer.</p>
+      <p style="margin:0 0 16px;">Honest question: where do you send your beats today? Probably one of these:</p>
       <ul style="margin:0 0 16px;padding-left:20px;">
-        <li style="margin:0 0 8px;">Your beats live in a <strong style="color:#0c0c0e;">permanent</strong> link.</li>
-        <li style="margin:0 0 8px;">Artists join <strong style="color:#0c0c0e;">once</strong>, get every new drop forever.</li>
-        <li style="margin:0;">You see exactly <strong style="color:#0c0c0e;">who listened, liked, downloaded</strong>.</li>
+        <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">IG DM</strong> &rarr; buried in 500 unread chats by tomorrow.</li>
+        <li style="margin:0 0 8px;"><strong style="color:#0c0c0e;">Gmail</strong> &rarr; spam folder, no proof anyone opened it.</li>
+        <li style="margin:0;"><strong style="color:#0c0c0e;">WeTransfer</strong> &rarr; dies after 7 days.</li>
       </ul>
-      <p style="margin:0;">No more "did you get my email" follow-ups. No more dead links. A system that compounds &mdash; for any producer who runs it.</p>
+      <p style="margin:0 0 16px;">All three were built for one thing: <strong style="color:#0c0c0e;">moving files</strong>. None of them were built for what producers actually want &mdash; <strong style="color:#0c0c0e;">landing placements</strong>.</p>
+      <p style="margin:0 0 16px;">Because a placement isn't a file transfer. It's a relationship:</p>
+      <ul style="margin:0 0 16px;padding-left:20px;">
+        <li style="margin:0 0 8px;">Artists need to <strong style="color:#0c0c0e;">keep coming back</strong> to your beats &mdash; not lose them in scroll.</li>
+        <li style="margin:0 0 8px;">You need to <strong style="color:#0c0c0e;">know who's actually listening</strong> &mdash; not guess.</li>
+        <li style="margin:0;">New drops need a <strong style="color:#0c0c0e;">permanent home</strong> that keeps compounding.</li>
+      </ul>
+      <p style="margin:0 0 8px;">That's the exact gap I built Wavloops to fill:</p>
+      <ul style="margin:0 0 16px;padding-left:20px;">
+        <li style="margin:0 0 8px;">One permanent server you share <strong style="color:#0c0c0e;">once</strong>. Pin it everywhere.</li>
+        <li style="margin:0 0 8px;">Artists join once, get <strong style="color:#0c0c0e;">every new beat forever</strong>.</li>
+        <li style="margin:0;">Dashboard shows exactly <strong style="color:#0c0c0e;">who listened, liked, downloaded</strong> &mdash; your next placement is right there.</li>
+      </ul>
+      <p style="margin:0;"><strong style="color:#0c0c0e;">Two producer goals: grow an audience AND land placements.</strong> The DM / Gmail / WeTransfer stack does neither. Wavloops does both.</p>
     `,
-    ctaLabel: "Start your server",
+    ctaLabel: "Build my placement system",
     ctaCampaign: "step2",
   },
   {
