@@ -117,13 +117,56 @@ export async function switchToArtistViewAction() {
   redirect("/listen");
 }
 
-/** Send a multi-role user to the producer shell + remember the
- *  choice. Wired from the artist AccountMenu. */
+/** True when the current user is "pure-invited-artist locked":
+ *  at least one granted server_contacts membership lives on an
+ *  audience='artists' server (= they were added as a rapper
+ *  consumer of beats). The lock only matters when the user has
+ *  no producer profile yet — an existing producer profile is
+ *  the explicit "I'm a producer too" signal that always wins.
+ *
+ *  Mirrors the data-loader logic in app/listen/_data.ts so the
+ *  action and the UI agree about who can flip. */
+async function isLockedAsArtist(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { count } = await supabase
+    .from("server_contacts")
+    .select(
+      "id, contact:contacts!inner(auth_user_id), server:servers!inner(audience_type)",
+      { count: "exact", head: true },
+    )
+    .eq("status", "granted")
+    .eq("contact.auth_user_id", user.id)
+    .eq("server.audience_type", "artists");
+  return (count ?? 0) > 0;
+}
+
+/** Send the user to the producer shell. Three branches:
+ *    1. Already has a producer profile → flip the cookie and
+ *       land on /dashboard.
+ *    2. No producer profile, not locked as artist → route to
+ *       /onboarding so they create one. The cookie still flips
+ *       to "producer" so post-onboarding they land on /dashboard
+ *       cleanly.
+ *    3. No producer profile, locked as artist → silently stay
+ *       on /listen. This shouldn't be reachable in normal UI
+ *       (the producer-switch surface is hidden in case 3) but
+ *       the action enforces it as a defence-in-depth check —
+ *       otherwise a hand-crafted POST could let a locked artist
+ *       slip into an onboarding flow they shouldn't see. */
 export async function switchToProducerViewAction() {
-  if (!(await hasProducerProfile())) {
+  if (await hasProducerProfile()) {
+    await setLastMode("producer");
+    revalidatePath("/", "layout");
+    redirect("/dashboard");
+  }
+  if (await isLockedAsArtist()) {
     redirect("/listen");
   }
   await setLastMode("producer");
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/onboarding");
 }

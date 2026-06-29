@@ -83,10 +83,12 @@ export function ArtistTopbar({ onOpenDrawer }: ArtistTopbarProps) {
       <div className="hidden flex-1 lg:block" />
 
       {/* Panel switcher — segmented toggle (Artist | Producer).
-          Only renders for multi-role users (a producer profile
-          that finished onboarding); single-role artists never
-          see it. */}
-      {viewer.hasProducerProfile && (
+          Hidden ONLY for users locked as pure invited artists
+          (rapper-consumer on an audience='artists' server with
+          no producer profile yet). All other users see it; the
+          switch action routes them to /dashboard (existing
+          producer profile) or /onboarding (no profile yet). */}
+      {!viewer.lockedAsArtist && (
         <form action={switchToProducerViewAction} className="contents">
           <PanelSwitcherToggle />
         </form>

@@ -246,40 +246,40 @@ async function resolveDestination(
       artistRes.data.display_name.trim().length > 0,
   );
 
-  // ── Contact-based artist intent override ──────────────────
-  // A brand-new account (no artist profile, no onboarded producer)
-  // that already shows up as a `contact` for at least one producer
-  // was INVITED, not self-served. Their primary intent is to
-  // listen, not to create.
+  // ── Invited-artist shortcut ───────────────────────────────
+  // A brand-new account (no artist profile yet) that already
+  // shows up as a `contact` row for at least one producer was
+  // INVITED — manually added by a producer with a name + email,
+  // not self-served. We bypass the entire onboarding flow:
   //
-  // BUT — only override when there's NO explicit role hint on the
-  // URL. If the user picked "I'm a Producer" on /auth (which
-  // appends ?as=producer to the magic-link), respect that pick;
-  // the override is meant to catch the silent case where someone
-  // followed an old link with no role attached. Overriding an
-  // explicit pick is a dead-end: they end up on the artist surface
-  // with no producer profile, the AccountMenu's "Switch to producer
-  // view" link only shows when hasProducerProfile=true, so the
-  // first thing a producer-self-identified user sees is a path
-  // they can't take. That's the regression that motivated narrowing
-  // this guard.
+  //   1. Auto-create their artist_profiles row with display_name
+  //      pulled from the producer-set contact data (falling back
+  //      to the email local-part if absent).
+  //   2. Look up the most recent `granted` server membership the
+  //      contact-binding RPC just attached and route directly to
+  //      that server's /listen/{slug}.
   //
-  // Guard tight: only run when the account is fresh on BOTH sides
-  // AND no role hint was provided. A returning user with an
-  // established profile is never re-routed by this check.
+  // The whole point is zero-friction: producer adds artist →
+  // artist clicks email → lands ON the server, no form, no
+  // "create account" wall. They can still edit display_name +
+  // socials later from the AccountMenu's Edit profile path.
   //
-  // The bind_artist_contacts() RPC ran a few lines above this call
-  // site, so any contact rows the producer pre-populated with the
-  // user's email are now linked to user.id. The check lands here
-  // already up-to-date — no race.
-  if (!role && !hasArtistRow && !hasOnboardedProducer) {
-    const { count: contactCount } = await supabase
-      .from("contacts")
-      .select("id", { count: "exact", head: true })
-      .eq("auth_user_id", user.id);
-    if ((contactCount ?? 0) > 0) {
+  // ?as=producer ALWAYS wins this branch — a deliberate Producer
+  // pick (e.g. when the invited person is also a producer who
+  // wants both sides) goes to producer onboarding instead.
+  // For ?as=artist and the no-role case, we apply the shortcut
+  // whenever a contact row exists, so the experience is
+  // identical regardless of which card the artist clicked.
+  //
+  // The bind_artist_contacts() RPC ran a few lines above this
+  // call site, so any contact rows the producer pre-populated
+  // with the user's email are now linked to user.id. The check
+  // below lands already up-to-date — no race.
+  if (role !== "producer" && !hasArtistRow && !hasOnboardedProducer) {
+    const invitedSlug = await provisionInvitedArtist(supabase, user);
+    if (invitedSlug !== null) {
       return {
-        destination: "/onboarding/artist",
+        destination: invitedSlug ? `/listen/${invitedSlug}` : "/listen",
         mode: "artist",
       };
     }
@@ -324,6 +324,123 @@ async function resolveDestination(
     return { destination: "/listen", mode: "artist" };
   }
   return { destination: "/onboarding", mode: "producer" };
+}
+
+/** Auto-provisions an artist_profiles row for an invited user and
+ *  returns the slug of the most recent server they were granted
+ *  access to. Returns `null` when no granted contact membership
+ *  exists (caller should fall through to the regular routing).
+ *
+ *  Display-name precedence:
+ *    1. contact.name set by the producer (preferred — they know
+ *       the artist's stage name)
+ *    2. email local-part (the part before '@') as the last-resort
+ *       fallback. Always non-empty so display_name is never blank.
+ *
+ *  Socials:
+ *    Pulled from contact.social_handle if present. Stored under
+ *    a single 'social' key — the artist can rearrange these later
+ *    via Edit profile.
+ *
+ *  The insert is wrapped in try/catch + uses ON CONFLICT (user_id)
+ *  DO NOTHING semantics via maybeSingle: if a concurrent request
+ *  already inserted (extremely unlikely; the upstream check
+ *  already gated on !hasArtistRow), we silently move on.
+ *
+ *  Best-effort: any failure returns "" instead of null, which
+ *  routes the user to bare /listen instead of /listen/{slug}. The
+ *  shell still works there. */
+async function provisionInvitedArtist(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  user: { id: string; email?: string | null },
+): Promise<string | null> {
+  try {
+    // Find the most recent granted server membership. Newest
+    // first so the artist lands on the freshly-invited server.
+    type ContactRow = {
+      name: string | null;
+      social_handle: string | null;
+      server_contacts: Array<{
+        granted_at: string | null;
+        server: { slug: string } | { slug: string }[] | null;
+      }> | null;
+    };
+    const { data: contactRows } = await supabase
+      .from("contacts")
+      .select(
+        `
+        name,
+        social_handle,
+        server_contacts!inner (
+          granted_at,
+          server:servers!inner ( slug )
+        )
+        `,
+      )
+      .eq("auth_user_id", user.id)
+      .eq("server_contacts.status", "granted");
+    const rows = (contactRows as ContactRow[] | null) ?? [];
+    if (rows.length === 0) {
+      // bind_artist_contacts may have linked a contact row, but
+      // no server_contacts membership reached `granted` yet (e.g.
+      // a pending one). The caller will fall through to /listen
+      // without a specific slug — still better than onboarding.
+      return null;
+    }
+
+    // Pick the contact data + slug from the most-recently granted
+    // membership across all contacts.
+    let bestSlug = "";
+    let bestGrantedAt = "";
+    let displayName = "";
+    let socialHandle: string | null = null;
+    for (const row of rows) {
+      for (const sc of row.server_contacts ?? []) {
+        const grantedAt = sc.granted_at ?? "";
+        if (grantedAt > bestGrantedAt) {
+          bestGrantedAt = grantedAt;
+          const srv = sc.server;
+          const slug = Array.isArray(srv) ? (srv[0]?.slug ?? "") : (srv?.slug ?? "");
+          bestSlug = slug;
+          displayName = (row.name ?? "").trim();
+          socialHandle = (row.social_handle ?? "").trim() || null;
+        }
+      }
+    }
+
+    // Fallback display_name from the email local-part.
+    if (!displayName) {
+      displayName = (user.email ?? "artist").split("@")[0] || "artist";
+    }
+
+    // Insert the artist_profiles row. Best-effort: log the error
+    // and still route the user to /listen so the shell renders
+    // (the loader's email fallback covers a missing row well
+    // enough that we won't break the page).
+    const insertPayload: Record<string, unknown> = {
+      user_id: user.id,
+      display_name: displayName,
+    };
+    if (socialHandle) {
+      insertPayload.socials = { social: socialHandle };
+    }
+    const { error: insertErr } = await supabase
+      .from("artist_profiles")
+      .insert(insertPayload as never);
+    if (insertErr && insertErr.code !== "23505") {
+      // 23505 = unique_violation; the row already exists, which
+      // is fine for our needs. Anything else is unexpected.
+      console.warn(
+        "[auth/callback] invited-artist provision failed",
+        insertErr.message,
+      );
+    }
+
+    return bestSlug;
+  } catch (e) {
+    console.warn("[auth/callback] provisionInvitedArtist threw", e);
+    return null;
+  }
 }
 
 /** Affiliate attribution at signup time.

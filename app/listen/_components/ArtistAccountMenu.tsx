@@ -163,10 +163,15 @@ export function ArtistAccountMenu() {
             </Link>
           ))}
 
-          {/* Role switcher — only when the user actually has an
-              onboarded producer profile, so artists-pure don't see
-              a "Switch to Producer view" they can't act on. */}
-          {viewer.hasProducerProfile && (
+          {/* Role switcher — visible to every user EXCEPT those
+              locked as pure invited artists (= added by a producer
+              to an audience='artists' server AND no producer
+              profile yet). For everyone else the action handles
+              both the with-profile and without-profile cases:
+              users with an existing producer profile flip to
+              /dashboard, users without one are routed through
+              /onboarding to create one. */}
+          {!viewer.lockedAsArtist && (
             <>
               <div
                 aria-hidden

@@ -36,10 +36,16 @@ import { PlayerDock } from "@/components/app/PlayerDock";
 import { ArtistSidebar } from "./ArtistSidebar";
 import { ArtistTopbar } from "./ArtistTopbar";
 import { WavloopsExplainerBar } from "./WavloopsExplainerBar";
+import { useArtistContext } from "./ArtistContext";
 
 export function ArtistShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const pathname = usePathname();
+  // The explainer bar nudges the visitor toward producer onboarding.
+  // We hide it for users locked as pure invited artists — for them
+  // the producer path is intentionally closed, so the nudge would
+  // only point at a dead end.
+  const { viewer } = useArtistContext();
 
   // Close the drawer whenever the route changes (i.e. user picked a
   // server inside the drawer) — feels natural and avoids a leftover
@@ -76,7 +82,7 @@ export function ArtistShell({ children }: { children: React.ReactNode }) {
                 they land via a shared server link. Self-dismisses
                 via cookie so it only shows once per browser per
                 week. */}
-            <WavloopsExplainerBar />
+            {!viewer.lockedAsArtist && <WavloopsExplainerBar />}
             <ArtistTopbar onOpenDrawer={() => setDrawerOpen(true)} />
             {/* Independent scroll surface so the PlayerDock can pin
                 to the bottom of the viewport while pages scroll.

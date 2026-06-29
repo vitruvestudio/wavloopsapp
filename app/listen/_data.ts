@@ -40,6 +40,21 @@ export interface ArtistViewer {
    *  onboarded_at stamp — i.e. multi-role. ArtistAccountMenu uses
    *  this to surface the "Switch to Producer view" item. */
   hasProducerProfile: boolean;
+  /** True when the user is a "pure invited artist" — they have at
+   *  least one `granted` server_contacts membership on a server
+   *  whose audience_type='artists' (= a beats server for rappers/
+   *  singers, NOT a loops-for-fellow-producers server) AND they
+   *  have NOT self-served a producer profile.
+   *
+   *  When true, every surface that lets the user flip to producer
+   *  mode is hidden — the artist was added by a producer as a
+   *  customer-consumer of beats and the toggle would only confuse.
+   *
+   *  Conversely, a user who's only on `audience='producers'`
+   *  servers (= invited as a fellow producer to receive loops) is
+   *  NOT locked and CAN switch freely. Same for users with an
+   *  existing producer profile, no matter what servers they're on. */
+  lockedAsArtist: boolean;
 }
 
 export interface ArtistNotifPrefs {
@@ -166,13 +181,16 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
 
   // Fan out: profile, contacts (with producer + servers), liked
   // count, latest notifications, producer-side profile check
-  // (for the AccountMenu switcher when the user has both roles).
+  // (for the AccountMenu switcher when the user has both roles),
+  // and a small lock check that surfaces whether ANY granted
+  // membership lives on an audience='artists' server.
   const [
     profileRes,
     contactsRes,
     likedRes,
     notifsRes,
     producerProfileRes,
+    artistAudienceLockRes,
   ] = await Promise.all([
       supabase
         .from("artist_profiles")
@@ -232,6 +250,21 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
         .select("onboarded_at")
         .eq("user_id", user.id)
         .maybeSingle<{ onboarded_at: string | null }>(),
+      // Lock check: does this user have AT LEAST ONE granted
+      // server_contacts membership on a server with
+      // audience_type='artists'? PostgREST `!inner` makes the
+      // embedded relationships act as INNER JOINs so we can
+      // filter on joined columns. Only the count matters — we
+      // don't read the rows. head:true keeps the response empty.
+      supabase
+        .from("server_contacts")
+        .select(
+          "id, contact:contacts!inner(auth_user_id), server:servers!inner(audience_type)",
+          { count: "exact", head: true },
+        )
+        .eq("status", "granted")
+        .eq("contact.auth_user_id", user.id)
+        .eq("server.audience_type", "artists"),
     ]);
 
   // ── Viewer ──────────────────────────────────────────────
@@ -251,6 +284,15 @@ async function _loadArtistContext(): Promise<ArtistContext | null> {
       profile?.notif_prefs as Partial<ArtistNotifPrefs> | null,
     ),
     hasProducerProfile: Boolean(producerProfileRes.data?.onboarded_at),
+    // Lock fires ONLY when: (a) the user has at least one granted
+    // membership on an audience='artists' server (= they were
+    // added as a beats-consumer rapper, not a fellow producer),
+    // AND (b) they haven't self-served a producer profile. The
+    // self-served path is the explicit "I want to be a producer
+    // too" signal that beats the lock.
+    lockedAsArtist:
+      !Boolean(producerProfileRes.data?.onboarded_at) &&
+      (artistAudienceLockRes.count ?? 0) > 0,
   };
 
   // ── First-beat cover per server ─────────────────────────
