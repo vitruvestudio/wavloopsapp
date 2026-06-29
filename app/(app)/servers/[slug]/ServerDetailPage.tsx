@@ -66,7 +66,13 @@ interface ServerDetailPageProps {
    *  contact with the moment they got access (server_contacts.
    *  granted_at), so the Artists tab can show "ENTERED" relative
    *  to per-server grant rather than the contact's first_seen_at. */
-  contacts: Array<{ contact: ContactRow; grantedAt: string }>;
+  contacts: Array<{
+    contact: ContactRow;
+    grantedAt: string;
+    plays: number;
+    likes: number;
+    downloads: number;
+  }>;
   /** Pending access requests for this server. Only ever non-empty
    *  on private servers — public claims auto-grant. */
   pending: PendingRequest[];
@@ -918,7 +924,13 @@ function ArtistsTab({
   onRemove,
   removingContactId,
 }: {
-  contacts: Array<{ contact: ContactRow; grantedAt: string }>;
+  contacts: Array<{
+    contact: ContactRow;
+    grantedAt: string;
+    plays: number;
+    likes: number;
+    downloads: number;
+  }>;
   now: Date;
   onAdd: () => void;
   onRemove: (contactId: string) => void;
@@ -984,6 +996,9 @@ function ArtistsTab({
           key={c.contact.id}
           contact={c.contact}
           grantedAt={c.grantedAt}
+          plays={c.plays}
+          likes={c.likes}
+          downloads={c.downloads}
           now={now}
           onRemove={() => onRemove(c.contact.id)}
           removing={removingContactId === c.contact.id}
@@ -996,6 +1011,9 @@ function ArtistsTab({
 function ContactRowItem({
   contact,
   grantedAt,
+  plays,
+  likes,
+  downloads,
   now,
   onRemove,
   removing,
@@ -1005,6 +1023,12 @@ function ContactRowItem({
    *  "ENTERED" sub-line so the producer sees per-server grant
    *  time rather than the contact's global first_seen_at. */
   grantedAt: string;
+  /** Listen / like / download counts scoped to THIS server.
+   *  Replaces the J6-era 0/0 placeholders so the producer sees
+   *  real engagement at the row level. */
+  plays: number;
+  likes: number;
+  downloads: number;
   now: Date;
   /** Fires the server action that DELETEs the (server_id,
    *  contact_id) pair from server_contacts. */
@@ -1054,7 +1078,12 @@ function ContactRowItem({
             .join(" · ")}
         </div>
       </div>
-      {/* Engagement — placeholders until J6 wires real listens/likes. */}
+      {/* Engagement — real per-server counts (plays / likes /
+              downloads). Replaces the J6-era 0/0 placeholders + the
+              mailto: icon. The download counter takes the accent
+              colour when it outpaces plays, mirroring the
+              behaviour-signal vocab used on /contacts and the
+              contact detail page. */}
       <div
         className="hidden sm:flex items-center"
         style={{ gap: 22 }}
@@ -1063,22 +1092,29 @@ function ContactRowItem({
           className="t-mono-s inline-flex items-center"
           style={{ gap: 6, color: "var(--fg-3)" }}
         >
-          <Icon name="play" size={13} />0
+          <Icon name="play" size={13} />
+          {plays}
         </span>
         <span
           className="t-mono-s inline-flex items-center"
           style={{ gap: 6, color: "var(--fg-3)" }}
         >
-          <Icon name="heart" size={13} />0
+          <Icon name="heart" size={13} />
+          {likes}
         </span>
-        <a
-          href={`mailto:${contact.email}`}
-          className="inline-flex"
-          style={{ color: "var(--fg-3)" }}
-          aria-label={`Email ${contact.email}`}
+        <span
+          className="t-mono-s inline-flex items-center"
+          style={{
+            gap: 6,
+            color:
+              downloads > 0 && downloads > plays
+                ? "var(--accent)"
+                : "var(--fg-3)",
+          }}
         >
-          <Icon name="mail" size={15} />
-        </a>
+          <Icon name="download" size={13} />
+          {downloads}
+        </span>
       </div>
 
       {/* 3-dot row menu — single action ('Remove from server'),

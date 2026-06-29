@@ -80,6 +80,9 @@ export default async function ServerPage({ params }: PageProps) {
     libraryRes,
     allServersRes,
     addressBookRes,
+    listensThisServerRes,
+    likesThisServerRes,
+    downloadsThisServerRes,
     user,
   ] = await Promise.all([
     supabase
@@ -134,6 +137,24 @@ export default async function ServerPage({ params }: PageProps) {
       .eq("owner_id", profileId)
       .order("last_active_at", { ascending: false })
       .returns<ContactRow[]>(),
+    // Per-contact engagement scoped to THIS server. The
+    // ArtistsTab used to show 0/0 placeholders + a mailto icon;
+    // we now wire real plays/likes/downloads so the producer can
+    // tell at a glance who's actually using the server. Each
+    // query returns just contact_id (count happens in JS) so the
+    // payload stays tiny even for a popular server.
+    supabase
+      .from("listens")
+      .select("contact_id")
+      .eq("server_id", server.id),
+    supabase
+      .from("likes")
+      .select("contact_id")
+      .eq("server_id", server.id),
+    supabase
+      .from("downloads")
+      .select("contact_id")
+      .eq("server_id", server.id),
     getCurrentUser(),
   ]);
 
@@ -155,20 +176,64 @@ export default async function ServerPage({ params }: PageProps) {
       .filter((b): b is BeatWithStatsRow => Boolean(b));
   }
 
+  // Build per-contact engagement maps scoped to THIS server so
+  // each row in the Artists tab can show a real count (plays /
+  // likes / downloads) instead of 0/0 placeholders.
+  const playsByContact = new Map<string, number>();
+  for (const l of (listensThisServerRes.data ?? []) as Array<{
+    contact_id: string | null;
+  }>) {
+    if (!l.contact_id) continue;
+    playsByContact.set(
+      l.contact_id,
+      (playsByContact.get(l.contact_id) ?? 0) + 1,
+    );
+  }
+  const likesByContact = new Map<string, number>();
+  for (const l of (likesThisServerRes.data ?? []) as Array<{
+    contact_id: string | null;
+  }>) {
+    if (!l.contact_id) continue;
+    likesByContact.set(
+      l.contact_id,
+      (likesByContact.get(l.contact_id) ?? 0) + 1,
+    );
+  }
+  const downloadsByContact = new Map<string, number>();
+  for (const d of (downloadsThisServerRes.data ?? []) as Array<{
+    contact_id: string | null;
+  }>) {
+    if (!d.contact_id) continue;
+    downloadsByContact.set(
+      d.contact_id,
+      (downloadsByContact.get(d.contact_id) ?? 0) + 1,
+    );
+  }
+
   // Pair each granted contact with the moment they got access to
   // THIS server (server_contacts.granted_at). The contact-level
   // first_seen_at is when they first entered the producer's
   // address book — which may pre-date their access to this
   // specific server. The Artists tab cares about the per-server
   // grant time, so we thread granted_at through.
-  const contacts: Array<{ contact: ContactRow; grantedAt: string }> = (
-    contactsRes.data ?? []
-  )
+  const contacts: Array<{
+    contact: ContactRow;
+    grantedAt: string;
+    plays: number;
+    likes: number;
+    downloads: number;
+  }> = (contactsRes.data ?? [])
     .filter(
       (r): r is { granted_at: string; contacts: ContactRow } =>
         r.contacts !== null && r.granted_at !== null,
     )
-    .map((r) => ({ contact: r.contacts, grantedAt: r.granted_at }));
+    .map((r) => ({
+      contact: r.contacts,
+      grantedAt: r.granted_at,
+      plays: playsByContact.get(r.contacts.id) ?? 0,
+      likes: likesByContact.get(r.contacts.id) ?? 0,
+      downloads: downloadsByContact.get(r.contacts.id) ?? 0,
+    }));
 
   // Pending access requests for this server — drives the Requests
   // tab on the producer page. Always fetched (cheap with the
