@@ -34,6 +34,7 @@ import { LandingHeader } from "@/components/landing/Header";
 import { LandingFooter } from "@/components/landing/Footer";
 import { MIN_PAYOUT_CENTS } from "@/lib/affiliate/config";
 import { CopyLinkButton } from "./CopyLinkButton";
+import { PayoutSettings } from "./PayoutSettings";
 
 export const metadata = {
   title: "Affiliate dashboard — Wavloops",
@@ -146,6 +147,11 @@ export default async function AffiliateDashboardPage() {
         <Header affiliate={affiliate} />
         <ShareLink handle={affiliate.handle} />
         <Earnings affiliate={affiliate} />
+        <PayoutSettings
+          initialMethod={affiliate.payout_method}
+          initialEmail={affiliate.payout_email}
+          initialDisplayName={affiliate.display_name}
+        />
         <ReferralsSection rows={referrals} />
         <PayoutsSection rows={payouts} />
       </main>

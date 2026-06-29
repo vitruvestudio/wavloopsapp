@@ -19,10 +19,15 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { submitAffiliateApplicationAction } from "./actions";
 
+// Payouts are sent manually outside the app during the curated
+// phase, so the dropdown only lists methods we can actually fund
+// today: PayPal (most affiliates), Wise (international), bank
+// transfer (EU SEPA / wire), or 'Other' as a free-form escape
+// hatch. Stripe Connect is reserved for the auto-payout phase
+// (Sprint 3) where the affiliate goes through KYC onboarding.
 const PAYOUT_METHODS = [
   { value: "paypal", label: "PayPal" },
   { value: "wise", label: "Wise" },
-  { value: "stripe_connect", label: "Stripe (US/EU)" },
   { value: "bank", label: "Bank transfer" },
   { value: "other", label: "Other" },
 ];

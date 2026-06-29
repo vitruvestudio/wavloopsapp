@@ -351,7 +351,6 @@ function CreateAffiliateForm() {
         options={[
           { value: "paypal", label: "PayPal" },
           { value: "wise", label: "Wise" },
-          { value: "stripe_connect", label: "Stripe Connect" },
           { value: "bank", label: "Bank transfer" },
           { value: "other", label: "Other" },
         ]}
