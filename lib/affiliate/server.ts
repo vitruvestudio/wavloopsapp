@@ -33,7 +33,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ATTRIBUTION_WINDOW_DAYS,
   COMMISSION_RATE_DEFAULT,
-  COMMISSION_RECURRING_MONTHS,
+  commissionCapInvoicesForPlan,
   type ReferralPlanKey,
 } from "./config";
 
@@ -169,7 +169,11 @@ export async function applyAffiliateCommission(
      ============================================================ */
   if (planKey === "pro_monthly" || planKey === "pro_yearly") {
     // Count existing approved/paid rows for this user to derive
-    // the next recurrence_index. We cap at COMMISSION_RECURRING_MONTHS.
+    // the next recurrence_index. The cap is plan-specific:
+    //   - pro_monthly → 12 invoices  (12 months of LTV)
+    //   - pro_yearly  → 1 invoice    (also 12 months of LTV)
+    // After the cap the subscription keeps billing the customer
+    // but stops crediting the affiliate.
     const { count: existingCount } = await admin
       .from("affiliate_referrals")
       .select("id", { count: "exact", head: true })
@@ -178,7 +182,8 @@ export async function applyAffiliateCommission(
       .in("status", ["approved", "paid"]);
 
     const nextIndex = existingCount ?? 0;
-    if (nextIndex >= COMMISSION_RECURRING_MONTHS) {
+    const cap = commissionCapInvoicesForPlan(planKey);
+    if (nextIndex >= cap) {
       return {
         applied: false,
         reason: "recurrence_cap_reached",

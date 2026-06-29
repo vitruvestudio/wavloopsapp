@@ -26,11 +26,40 @@ export const COMMISSION_RATE_DEFAULT = 0.3;
 export const ATTRIBUTION_WINDOW_DAYS = 60;
 
 /** Cap on how many recurring Pro subscription invoices count
- *  towards an affiliate's commission. The 12-month cap is the
- *  industry standard — pays the affiliate for the full first year
- *  while limiting our long-term LTV exposure (a Pro customer who
- *  stays 5 years no longer pays the affiliate after year 1). */
+ *  towards an affiliate's commission. The cap is expressed in
+ *  MONTHS of customer billing covered, not in number of invoices —
+ *  so a yearly Pro plan exhausts the cap in a single invoice and a
+ *  monthly Pro plan exhausts it over 12 invoices. Both cases
+ *  commission the same gross dollar slice over the same time
+ *  window, matching the industry-standard "pay affiliate for the
+ *  first 12 months of customer LTV" model.
+ *
+ *  Use commissionCapInvoicesForPlan() to convert this into the
+ *  effective invoice-count cap for a given plan. */
 export const COMMISSION_RECURRING_MONTHS = 12;
+
+/** Returns the maximum number of invoice rows we may mint for a
+ *  given plan before the affiliate stops earning on that
+ *  subscription. Derived from COMMISSION_RECURRING_MONTHS by
+ *  dividing by the billing interval in months:
+ *    - pro_monthly → 12 invoices  (12 / 1)
+ *    - pro_yearly  → 1 invoice    (12 / 12)
+ *    - lifetime    → 1 invoice    (the one-shot conversion event)
+ *
+ *  If we ever introduce a quarterly plan, add a branch here; the
+ *  rest of the commission engine already routes through this. */
+export function commissionCapInvoicesForPlan(
+  planKey: ReferralPlanKey,
+): number {
+  switch (planKey) {
+    case "lifetime":
+      return 1;
+    case "pro_monthly":
+      return COMMISSION_RECURRING_MONTHS;
+    case "pro_yearly":
+      return Math.max(1, Math.floor(COMMISSION_RECURRING_MONTHS / 12));
+  }
+}
 
 /** Minimum unpaid balance to trigger a monthly payout. Anything
  *  below rolls over to next month. $25 is generous vs the
