@@ -12,6 +12,8 @@
 import type { Metadata } from "next";
 import { Unbounded, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { PostHogProvider } from "@/components/analytics/PostHogProvider";
+import { PostHogUserIdentifier } from "@/components/analytics/PostHogUserIdentifier";
 import "./globals.css";
 
 const unbounded = Unbounded({
@@ -117,7 +119,10 @@ export default function RootLayout({
       className={`${unbounded.variable} ${hanken.variable} ${jetbrains.variable}`}
     >
       <body className="bg-bg-0 text-fg-1">
-        {children}
+        <PostHogProvider>
+          <PostHogUserIdentifier />
+          {children}
+        </PostHogProvider>
         <Analytics />
       </body>
     </html>
