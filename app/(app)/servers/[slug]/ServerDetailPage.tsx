@@ -21,6 +21,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { PageHeader } from "@/components/app/PageHeader";
 import { BeatRow, type BeatRowAction } from "@/components/app/BeatRow";
 import { Avatar } from "@/components/ui/Avatar";
@@ -352,11 +353,19 @@ export function ServerDetailPage({
       await navigator.clipboard.writeText(artistUrlOpenable);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
+      // Producer distribution signal — this is the primary "get
+      // artists onto the server" action. Server slug is stable so
+      // it can be joined with server_created downstream.
+      posthog.capture("share_link_copied", {
+        server_id: server.id,
+        server_slug: server.slug,
+        surface: "server_detail_header",
+      });
     } catch {
       // navigator.clipboard can throw on insecure contexts — fall back
       // to a no-op rather than crashing the page.
     }
-  }, [artistUrlOpenable]);
+  }, [artistUrlOpenable, server.id, server.slug]);
 
   const stub = (label: string) =>
     alert(`${label} — wires up in the next step.`);

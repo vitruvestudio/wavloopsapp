@@ -22,9 +22,13 @@
  * route handler didn't authorize.
  */
 
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
+import {
+  capture as posthogCapture,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +154,36 @@ export async function GET(
     if (downloadInsertErr) {
       console.warn("[beat-download] log insert", downloadInsertErr);
     }
+
+    // PostHog: producer-side signal. An artist downloading a beat
+    // is the strongest engagement event we have (stronger than a
+    // play — downloads mean "I want to work with this"). Attributed
+    // to the ARTIST's user_id so cohorts stay right; the producer
+    // side reads it via the beat's owner_id property.
+    //
+    // Also stamps `first_download_at` via $set_once so the person
+    // profile gets an activation-timestamp trait without a per-hit
+    // read of the downloads table.
+    const artistUserIdForEvent = user.id;
+    const producerOwnerIdForEvent = beat.owner_id;
+    const serverIdForEvent = downloadServerId;
+    after(async () => {
+      try {
+        await posthogCapture(
+          artistUserIdForEvent,
+          "beat_downloaded",
+          {
+            beat_id: beatId,
+            server_id: serverIdForEvent,
+            producer_owner_id: producerOwnerIdForEvent,
+            $set_once: { first_download_at: new Date().toISOString() },
+          },
+        );
+        await flushServerEvents();
+      } catch (e) {
+        console.warn("[beat_downloaded] posthog failed", e);
+      }
+    });
   }
   // Owner-side downloads (the producer downloading their own beat
   // — typically when testing their own server) are deliberately

@@ -17,7 +17,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  capture as posthogCapture,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 interface ActionResult {
   ok: boolean;
@@ -122,6 +127,19 @@ export async function markListenedAction(
   if (!ctx) return { ok: false, error: "Not signed in or not a contact." };
   const supabase = await createClient();
 
+  // Cheap head-count BEFORE the insert so we know if this play is
+  // this artist's very first pass at this beat. Autoplay through a
+  // server can fire markListenedAction dozens of times in a row —
+  // we care about the ACTIVATION signal (first exposure to the
+  // beat), not every replay, so PostHog only sees the first one
+  // per (contact, beat).
+  const { count: priorCount } = await supabase
+    .from("listens")
+    .select("id", { head: true, count: "exact" })
+    .eq("contact_id", ctx.contactId)
+    .eq("beat_id", beatId);
+  const isFirstListen = priorCount === 0;
+
   const { error } = await supabase.from("listens").insert({
     contact_id: ctx.contactId,
     beat_id: beatId,
@@ -132,6 +150,27 @@ export async function markListenedAction(
         : null,
   });
   if (error) return { ok: false, error: error.message };
+
+  if (isFirstListen) {
+    const artistUserId = ctx.userId;
+    const serverIdForEvent = ctx.serverId;
+    after(async () => {
+      try {
+        await posthogCapture(artistUserId, "first_listen", {
+          beat_id: beatId,
+          server_id: serverIdForEvent,
+          completion_pct:
+            typeof completionPct === "number"
+              ? Math.max(0, Math.min(1, completionPct))
+              : null,
+          $set_once: { first_listen_at: new Date().toISOString() },
+        });
+        await flushServerEvents();
+      } catch (e) {
+        console.warn("[first_listen] posthog failed", e);
+      }
+    });
+  }
 
   // No revalidate — listens count is a stat shown to the producer,
   // not surfaced to the artist's UI.

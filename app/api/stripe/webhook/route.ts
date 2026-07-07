@@ -42,6 +42,11 @@ import {
 import { planKeyFromLookup } from "@/lib/affiliate/config";
 import { getStripeServer } from "@/lib/stripe/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
+import {
+  capture as posthogCapture,
+  identify as posthogIdentify,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,10 +163,16 @@ async function dispatch(event: Stripe.Event, admin: AdminClient) {
       );
 
     case "customer.subscription.created":
+      return handleSubscriptionUpsert(
+        event.data.object as Stripe.Subscription,
+        admin,
+        { isCreate: true },
+      );
     case "customer.subscription.updated":
       return handleSubscriptionUpsert(
         event.data.object as Stripe.Subscription,
         admin,
+        { isCreate: false },
       );
 
     case "customer.subscription.deleted":
@@ -293,6 +304,23 @@ async function handleCheckoutCompleted(
     `[stripe/webhook] lifetime activated for user ${userId} (session ${session.id})`,
   );
 
+  // PostHog: revenue event. Fires only on the CHECKOUT completion,
+  // not on any subsequent read of the row, so it stays 1:1 with
+  // paid conversions. `revenue_usd_cents` is left raw so PostHog
+  // insights can bucket by currency downstream if we ever ship
+  // non-USD pricing. Best-effort — analytics doesn't gate revenue.
+  try {
+    await posthogIdentify(userId, { plan: "lifetime" });
+    await posthogCapture(userId, "subscription_upgraded", {
+      plan: "lifetime",
+      revenue_usd_cents: session.amount_total ?? null,
+      stripe_session_id: session.id,
+    });
+    await flushServerEvents();
+  } catch (e) {
+    console.warn("[stripe/webhook] posthog subscription_upgraded failed", e);
+  }
+
   // Affiliate commission — best-effort. We don't want a failure
   // here to cause Stripe to retry the entire webhook (the user is
   // already provisioned). Errors are logged inside the helper.
@@ -333,6 +361,7 @@ async function handleCheckoutCompleted(
 async function handleSubscriptionUpsert(
   sub: Stripe.Subscription,
   admin: AdminClient,
+  { isCreate }: { isCreate: boolean },
 ) {
   const userId = await resolveUserId(sub, admin);
   if (!userId) {
@@ -383,6 +412,24 @@ async function handleSubscriptionUpsert(
   console.log(
     `[stripe/webhook] subscription ${sub.id} → ${status} for user ${userId}`,
   );
+
+  // PostHog: fire subscription_upgraded ONLY on the create event.
+  // customer.subscription.updated fires on every renewal, cancel-
+  // at-period-end toggle, plan swap, tax delta, etc. — we don't
+  // want any of those in the "upgraded" funnel. The plan properties
+  // still identify() on every write so cohorts stay fresh.
+  try {
+    await posthogIdentify(userId, { plan: "pro" });
+    if (isCreate && status === "active") {
+      await posthogCapture(userId, "subscription_upgraded", {
+        plan: "pro",
+        stripe_subscription_id: sub.id,
+      });
+    }
+    await flushServerEvents();
+  } catch (e) {
+    console.warn("[stripe/webhook] posthog subscription_upgraded failed", e);
+  }
 }
 
 /** Subscription deleted (final cancellation). We do NOT clear
