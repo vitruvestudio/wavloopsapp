@@ -13,6 +13,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { checkServerQuota } from "@/lib/billing/gates";
 import { assertServerOwnership } from "@/lib/supabase/ownership";
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +22,10 @@ import type {
   ArtworkMode,
   Visibility,
 } from "@/lib/supabase/database.types";
+import {
+  capture as posthogCapture,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 export interface UpdateServerPayload {
   id: string;
@@ -241,6 +246,30 @@ export async function createServerAction(
 
   revalidatePath("/dashboard", "page");
   revalidatePath("/library", "page");
+
+  // PostHog: producer funnel event. Runs after the redirect so it
+  // never delays navigation. Only fires on the happy path — errors
+  // above returned early and short-circuited the funnel already.
+  const serverIdForEvent = createdServer.id;
+  const serverSlugForEvent = createdServer.slug;
+  const beatCount = payload.beat_ids.length;
+  const audienceType = payload.audience_type;
+  const visibility = payload.visibility;
+  after(async () => {
+    try {
+      await posthogCapture(user.id, "server_created", {
+        server_id: serverIdForEvent,
+        server_slug: serverSlugForEvent,
+        audience_type: audienceType,
+        visibility,
+        starting_beat_count: beatCount,
+      });
+      await flushServerEvents();
+    } catch (e) {
+      console.warn("[server_created] posthog failed", e);
+    }
+  });
+
   redirect(`/servers/${createdServer.slug}`);
 }
 

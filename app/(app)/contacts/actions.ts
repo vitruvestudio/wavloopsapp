@@ -10,10 +10,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { checkArtistQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { fanOutAddedToServer } from "@/lib/notifications/added-to-server";
+import {
+  capture as posthogCapture,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 /* ================================================================
    fetchOgImageAction — given a public social URL, returns the
@@ -555,6 +560,32 @@ export async function addContactAction(
 
   revalidatePath("/contacts", "page");
   revalidatePath("/dashboard", "page");
+
+  // PostHog: producer funnel event. Fires for every add, whether
+  // brand-new contact or a re-save that added fresh server
+  // memberships — both mean the producer took an outreach action.
+  // Uses email domain (not the address) so PostHog cohorts stay
+  // GDPR-clean; the raw email lives only in Supabase.
+  const contactIdForEvent = contact.id;
+  const emailDomain = email.split("@")[1] ?? "unknown";
+  const freshServerCount = freshServerIds.length;
+  const totalServerCount = payload.server_ids.length;
+  after(async () => {
+    try {
+      await posthogCapture(user.id, "artist_invited", {
+        contact_id: contactIdForEvent,
+        email_domain: emailDomain,
+        roles_count: cleanRoles.length,
+        socials_count: Object.keys(cleanSocials).length,
+        attached_to_servers_total: totalServerCount,
+        attached_to_servers_fresh: freshServerCount,
+      });
+      await flushServerEvents();
+    } catch (e) {
+      console.warn("[artist_invited] posthog failed", e);
+    }
+  });
+
   return { error: null, contactId: contact.id };
 }
 

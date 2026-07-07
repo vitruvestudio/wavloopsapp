@@ -25,9 +25,14 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { checkAudioFormat, checkBeatQuota } from "@/lib/billing/gates";
 import { createClient } from "@/lib/supabase/server";
 import type { BeatType } from "@/lib/supabase/database.types";
+import {
+  capture as posthogCapture,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 export interface SaveBeatPayload {
   title: string;
@@ -165,5 +170,31 @@ export async function saveBeatAction(
 
   revalidatePath("/library", "page");
   revalidatePath("/dashboard", "page");
+
+  // PostHog: producer funnel event. Fires after the redirect via
+  // after(); the file extension is a useful signal for spotting a
+  // format-driven activation cliff (Pro-only WAV/FLAC uploads that
+  // silently drop off vs MP3 that ships on Free).
+  const beatIdForEvent = inserted.id;
+  const audioExt = ext;
+  const attachedCount = payload.server_ids.length;
+  const hasCustomArtwork = payload.artwork_url != null;
+  after(async () => {
+    try {
+      await posthogCapture(user.id, "beat_uploaded", {
+        beat_id: beatIdForEvent,
+        audio_ext: audioExt,
+        attached_to_servers: attachedCount,
+        has_custom_artwork: hasCustomArtwork,
+        has_stems: payload.has_stems,
+        bpm: payload.bpm,
+        duration_seconds: payload.duration_seconds,
+      });
+      await flushServerEvents();
+    } catch (e) {
+      console.warn("[beat_uploaded] posthog failed", e);
+    }
+  });
+
   redirect("/library");
 }
