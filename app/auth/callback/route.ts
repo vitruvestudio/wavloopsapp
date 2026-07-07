@@ -47,11 +47,17 @@
  */
 
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminSupabase } from "@/lib/supabase/admin";
 import { LAST_MODE_COOKIE, type LastMode } from "../mode-cookie";
 import { HANDLE_REGEX, REF_COOKIE_NAME } from "@/lib/affiliate/config";
+import {
+  capture as posthogCapture,
+  identify as posthogIdentify,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
+import { getCurrentUserPlan } from "@/lib/billing/server";
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
@@ -185,6 +191,12 @@ export async function GET(req: NextRequest) {
   // for this user, we skip — the FIRST attribution wins, matching
   // the cookie's first-touch policy in the proxy.
   await maybeRecordAffiliateAttribution(supabase);
+
+  // PostHog: identify the newly-authed user + record signup vs
+  // signin. Runs AFTER the redirect response is sent so it never
+  // adds latency to the auth flow. See notes on the helper for
+  // the signup-detection heuristic.
+  after(() => reportAuthCallbackToPostHog(req.url));
 
   // If the caller explicitly told us where to land (gate flow:
   // /s/<slug> or /listen/<slug>), honor that. Profile-aware
@@ -543,6 +555,105 @@ async function maybeRecordAffiliateAttribution(
     }
   } catch (e) {
     console.warn("[auth/callback] affiliate attribution failed", e);
+  }
+}
+
+/** Fire-and-forget PostHog identify + auth event.
+ *
+ *  Runs inside `after()` — Next serialises it after the redirect
+ *  response is sent, so no matter how slow PostHog is the user
+ *  never waits.
+ *
+ *  Signup vs signin detection uses `user.created_at`. When the
+ *  freshly-authed session was created within the last 5 minutes,
+ *  we treat this callback hit as the *first* successful sign-in
+ *  and fire `signup_completed`; otherwise it's a returning user
+ *  and we fire `signin_completed`. The window is generous enough
+ *  to absorb slow email delivery + a user grabbing coffee before
+ *  clicking, but tight enough that clicking a magic link a week
+ *  later doesn't get misclassified as a signup.
+ *
+ *  Traits sent to `identify`: plan (via get_user_plan), and
+ *  role flags (is_producer / is_artist) derived from the two
+ *  profile tables. The full-props version lives in /api/me;
+ *  we duplicate the two flags here because they're cheap and
+ *  landing the event with the traits already attached is nicer
+ *  than the two-round-trip pattern.
+ *
+ *  Best-effort: swallows all errors. Analytics can't take down
+ *  the callback. */
+async function reportAuthCallbackToPostHog(requestUrl: string): Promise<void> {
+  try {
+    // Rebuild the Supabase client — we're in `after()`, the
+    // top-level `supabase` closure is out of scope by contract.
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const [profileRes, artistRes, plan] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("handle, onboarded_at")
+        .eq("user_id", user.id)
+        .maybeSingle<{ handle: string | null; onboarded_at: string | null }>(),
+      supabase
+        .from("artist_profiles")
+        .select("display_name")
+        .eq("user_id", user.id)
+        .maybeSingle<{ display_name: string | null }>(),
+      getCurrentUserPlan(),
+    ]);
+
+    const isProducer = profileRes.data != null;
+    const isArtist = artistRes.data?.display_name != null;
+
+    await posthogIdentify(user.id, {
+      email: user.email ?? null,
+      is_producer: isProducer,
+      is_artist: isArtist,
+      plan,
+      handle: profileRes.data?.handle ?? null,
+    });
+
+    // Signup vs signin — five-minute freshness window.
+    const createdAtMs = user.created_at
+      ? Date.parse(user.created_at)
+      : Number.NaN;
+    const FIVE_MIN_MS = 5 * 60 * 1000;
+    const isFreshSignup =
+      Number.isFinite(createdAtMs) && Date.now() - createdAtMs < FIVE_MIN_MS;
+
+    // Which entry-point brought them here — surfaces `?as=`
+    // producer vs artist so the funnel dashboards can slice by
+    // the auth card the user clicked.
+    let entryRole: string | null = null;
+    try {
+      entryRole = new URL(requestUrl).searchParams.get("as");
+    } catch {
+      entryRole = null;
+    }
+
+    await posthogCapture(
+      user.id,
+      isFreshSignup ? "signup_completed" : "signin_completed",
+      {
+        role_hint: entryRole,
+        is_producer: isProducer,
+        is_artist: isArtist,
+        plan,
+        onboarded: Boolean(profileRes.data?.onboarded_at),
+      },
+    );
+
+    // Flush before the runtime tears the function down. `after()`
+    // gives us the tail time we need, but the SDK's default
+    // 10s flush interval would otherwise drop the event on a
+    // cold-invocation Vercel function.
+    await flushServerEvents();
+  } catch (e) {
+    console.warn("[auth/callback] posthog report failed", e);
   }
 }
 
